@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import generateInvoicePdf from "../lib/pdf"; // ensure this file exists at src/lib/pdf.js
 
 /**
  * InvoicePreview
@@ -6,7 +7,7 @@ import React from "react";
  * - invoice (object): { buyerName, phone, items, total, paymentNumber }
  * - onBackEdit () => called when user wants to go back and edit
  * - onClose () => optional, goes back to paste screen
- * - onSave (invoice) => optional, will be used in Step 3 for saving
+ * - onSave (invoice) => optional, will be used to persist the invoice
  */
 export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSave }) {
   const {
@@ -15,9 +16,11 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
     items = "",
     total = "",
     paymentNumber = "",
+    id: invoiceIdProp,
   } = invoice;
 
-  const invoiceId = `INV-${Date.now().toString().slice(-6)}`;
+  const [savedAt, setSavedAt] = useState(null);
+  const invoiceId = invoiceIdProp || `INV-${Date.now().toString().slice(-6)}`;
   const dateStr = new Date().toLocaleString();
 
   // Simple items parsing: split by comma and trim
@@ -26,10 +29,53 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
     : [];
 
   const handleSave = () => {
-    if (typeof onSave === "function") {
-      onSave(invoice);
-    } else {
-      alert("Saved (placeholder). Step 3 will implement persistent save.");
+    try {
+      const invoiceObj = {
+        buyerName,
+        phone,
+        items,
+        total,
+        paymentNumber,
+        savedPreviewAt: new Date().toISOString(),
+      };
+
+      if (typeof onSave === "function") {
+        onSave(invoiceObj);
+        setSavedAt(new Date().toLocaleString());
+        console.log("InvoicePreview: onSave called with", invoiceObj);
+      } else {
+        console.warn("InvoicePreview: onSave not provided — no server save performed.");
+        setSavedAt(new Date().toLocaleString());
+      }
+    } catch (err) {
+      console.error("InvoicePreview.save error:", err);
+      alert("Error saving invoice — see console for details.");
+    }
+  };
+
+  const handleDownload = () => {
+    try {
+      if (typeof generateInvoicePdf !== "function") {
+        console.error("generateInvoicePdf is not available. Did you create src/lib/pdf.js?");
+        alert("PDF generator not available. See console for details.");
+        return;
+      }
+
+      // build a clean payload for the PDF generator
+      const payload = {
+        buyerName,
+        phone,
+        items,
+        total,
+        paymentNumber,
+        id: invoiceId,
+        sellerName: "DollarChain",
+      };
+
+      generateInvoicePdf(payload);
+    } catch (err) {
+      console.error("Error generating PDF:", err);
+      alert("Failed to generate PDF — see console for details.");
     }
   };
 
@@ -75,24 +121,20 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
           <tbody>
             {itemRows.length ? (
               itemRows.map((row, idx) => {
-                // Try to parse "2x T-Shirt" style strings vs "T-Shirt x2"
                 let qty = "";
                 let name = row;
                 let unit = "";
 
-                // common pattern: "2x T-Shirt" or "2 x T-Shirt"
                 const m1 = row.match(/^(\d+)\s*x\s*(.+)$/i);
                 if (m1) {
                   qty = m1[1];
                   name = m1[2];
                 } else {
-                  // pattern "T-Shirt x2"
                   const m2 = row.match(/^(.+?)\s*x\s*(\d+)$/i);
                   if (m2) {
                     name = m2[1];
                     qty = m2[2];
                   } else {
-                    // fallback: no qty found
                     qty = "1";
                   }
                 }
@@ -120,6 +162,11 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
         <div style={{ color: "#6b7280", fontSize: 13 }}>
           <div>Notes</div>
           <div style={{ marginTop: 6, maxWidth: 420 }}>This is a preview. You can edit details before generating the final PDF.</div>
+          {savedAt && (
+            <div style={{ marginTop: 8, color: "#0f5132", fontWeight: 600 }}>
+              ✔ Saved at {savedAt}
+            </div>
+          )}
         </div>
 
         <div style={{ display: "flex", gap: 8 }}>
@@ -131,17 +178,7 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
             Save
           </button>
 
-          import generateInvoicePdf from "../lib/pdf"; // add at top of file
-
-          // ... later in the button area ...
-          <button
-            className="btn-primary"
-            onClick={() => generateInvoicePdf({
-              buyerName, phone, items, total, paymentNumber,
-              id: invoice.id || `INV-${Date.now().toString().slice(-6)}`,
-              sellerName: "DollarChain"
-            })}
-          >
+          <button className="btn-primary" onClick={handleDownload}>
             Download PDF
           </button>
 
