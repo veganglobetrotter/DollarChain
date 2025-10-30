@@ -1,7 +1,10 @@
 import { useState } from "react";
 import "./App.css";
+import PasteBox from "./components/PasteBox";
 
 function App() {
+  const [parsedData, setParsedData] = useState(null);
+
   return (
     <div style={styles.container}>
       <h1 style={styles.title}>💵 DollarChain</h1>
@@ -9,12 +12,25 @@ function App() {
         Turn WhatsApp chats into invoices in seconds.
       </p>
 
-      <div style={styles.card}>
-        <p>
-          🚀 We’re setting things up. Next, you’ll be able to paste your chat
-          message here and generate an invoice.
-        </p>
-      </div>
+      <PasteBox onParse={setParsedData} />
+
+      {parsedData && (
+        <div style={styles.card}>
+          <h3>Parsed Result (Preview)</h3>
+          <p>
+            <strong>Buyer:</strong> {parsedData.buyerName}
+          </p>
+          <p>
+            <strong>Phone:</strong> {parsedData.phone}
+          </p>
+          <p>
+            <strong>Items:</strong> {parsedData.items}
+          </p>
+          <p>
+            <strong>Total:</strong> {parsedData.total}
+          </p>
+        </div>
+      )}
 
       <footer style={styles.footer}>
         <p>
@@ -51,6 +67,8 @@ const styles = {
     padding: "1.5rem",
     backgroundColor: "#fafafa",
     boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+    marginTop: "1.5rem",
+    textAlign: "left",
   },
   footer: {
     marginTop: "3rem",
