@@ -1,45 +1,60 @@
+// src/components/PasteBox.jsx
 import { useState } from "react";
+import parseOrderText from "../lib/parser";
 
 export default function PasteBox({ onParse }) {
-  const [chatText, setChatText] = useState("");
+  const [text, setText] = useState("");
+  const [preview, setPreview] = useState(null);
 
-  const handleGenerate = () => {
-    if (!chatText.trim()) {
-      alert("Please paste a WhatsApp chat message first!");
-      return;
-    }
+  const handleChange = (e) => {
+    setText(e.target.value);
+  };
 
-    // Temporary mock parse — later we will replace with real parser
-    const mockData = {
-      buyerName: "John Doe",
-      phone: "+254712345678",
-      items: "2x T-Shirts, 1x Cap",
-      total: "KES 2,300",
-    };
+  const handleParseClick = () => {
+    const parsed = parseOrderText(text);
+    setPreview(parsed);
+    // call parent handler (App) with parsed object
+    onParse && onParse({
+      // match shape expected by InvoiceForm / InvoicePreview
+      buyerName: parsed.buyerName || "",
+      phone: parsed.phone || "",
+      items: parsed.items.length ? parsed.items.map(it => `${it.qty}x ${it.name}`).join(", ") : "",
+      total: parsed.total || "",
+      paymentNumber: "", // keep empty for seller to fill or prefill later
+      rawText: parsed.rawText,
+    });
+  };
 
-    onParse(mockData);
+  const handleClear = () => {
+    setText("");
+    setPreview(null);
   };
 
   return (
-    <div className="paste-card fade-in">
-      <label className="sr-only" htmlFor="chat-input">WhatsApp chat input</label>
+    <div className="paste-card">
       <textarea
-        id="chat-input"
         className="paste-textarea"
-        placeholder="Paste the WhatsApp order chat here..."
-        value={chatText}
-        onChange={(e) => setChatText(e.target.value)}
-        rows={6}
+        placeholder="Paste the WhatsApp order message here. e.g. I want 3 pairs of trousers, 3 caps and 1 tie. Phone +254712345678"
+        value={text}
+        onChange={handleChange}
       />
 
       <div className="paste-actions">
-        <button className="btn-outline" onClick={() => setChatText("")}>
-          Clear
-        </button>
-        <button className="btn-primary" onClick={handleGenerate}>
-          Generate
-        </button>
+        <button className="btn-outline" onClick={handleClear}>Clear</button>
+        <button className="btn-primary" onClick={handleParseClick}>Parse & Open Invoice</button>
       </div>
+
+      {preview && (
+        <div style={{ marginTop: 12, borderRadius: 10, padding: 12, background: "#fbfdfb", border: "1px solid #eef6ee" }}>
+          <div style={{ fontWeight: 700 }}>Parsed Result (Preview)</div>
+          <div style={{ color: "#374151", marginTop: 6 }}>
+            <div><strong>Buyer:</strong> {preview.buyerName || "—"}</div>
+            <div><strong>Phone:</strong> {preview.phone || "—"}</div>
+            <div><strong>Items:</strong> {preview.items.length ? preview.items.map(i => `${i.qty}x ${i.name}`).join(", ") : "—"}</div>
+            <div><strong>Total:</strong> {preview.total || "—"}</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
