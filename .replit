@@ -1,0 +1,8 @@
+modules = ["nodejs-20"]
+
+[agent]
+expertMode = true
+
+[[ports]]
+localPort = 5174
+externalPort = 80
