@@ -1,5 +1,7 @@
 import { useState } from "react";
 import "./App.css";
+import Sidebar from "./components/Sidebar";
+import Header from "./components/Header";
 import PasteBox from "./components/PasteBox";
 import InvoiceForm from "./components/InvoiceForm";
 
@@ -17,62 +19,39 @@ function App() {
     setParsedData(null);
   };
 
+  const handleBuyCredits = () => {
+    alert("Buy Credits clicked — payments will be added later.");
+  };
+
   return (
-    <div style={styles.container}>
-      <h1 style={styles.title}>💵 DollarChain</h1>
-      <p style={styles.subtitle}>
-        Turn WhatsApp chats into invoices in seconds.
-      </p>
+    <div className="app-root">
+      <Sidebar sellerName={localStorage.getItem("sellerName") || "Seller Name"} />
 
-      {!showForm && <PasteBox onParse={handleParse} />}
+      <main className="main-area">
+        <Header onBuyCredits={handleBuyCredits} />
 
-      {showForm && <InvoiceForm parsedData={parsedData} onBack={handleBack} />}
+        <section className="content">
+          {!showForm && (
+            <>
+              <h1 className="content-title">Paste your Order Chat Message</h1>
+              <p className="content-sub">
+                Copy and paste your WhatsApp order chat here to automatically generate
+                an invoice. You can edit details before creating the PDF.
+              </p>
 
-      <footer style={styles.footer}>
-        <p>
-          Built with ❤️ for micro-sellers •{" "}
-          <a href="https://dollarchain.store" target="_blank" rel="noreferrer">
-            dollarchain.store
-          </a>
-        </p>
-      </footer>
+              <PasteBox onParse={handleParse} />
+            </>
+          )}
+
+          {showForm && (
+            <>
+              <InvoiceForm parsedData={parsedData} onBack={handleBack} />
+            </>
+          )}
+        </section>
+      </main>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    maxWidth: "600px",
-    margin: "0 auto",
-    padding: "2rem",
-    textAlign: "center",
-    fontFamily: "Inter, system-ui, sans-serif",
-    backgroundColor: "#f5f7fa",
-    minHeight: "100vh",
-  },
-  title: {
-    fontSize: "2rem",
-    fontWeight: "bold",
-    marginBottom: "0.5rem",
-  },
-  subtitle: {
-    color: "#555",
-    marginBottom: "2rem",
-  },
-  card: {
-    border: "1px solid #ddd",
-    borderRadius: "12px",
-    padding: "1.5rem",
-    backgroundColor: "#fafafa",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-    marginTop: "1.5rem",
-    textAlign: "left",
-  },
-  footer: {
-    marginTop: "3rem",
-    fontSize: "0.9rem",
-    color: "#777",
-  },
-};
 
 export default App;
