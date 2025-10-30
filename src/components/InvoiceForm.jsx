@@ -1,13 +1,31 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
-function InvoiceForm({ parsedData, onBack }) {
+/**
+ * InvoiceForm
+ * Props:
+ * - parsedData: object from parser (buyerName, phone, items, total)
+ * - onBack: function to go back to the paste screen
+ * - onGenerate: optional function(formData) to handle generating/previewing the invoice
+ */
+export default function InvoiceForm({ parsedData = {}, onBack, onGenerate }) {
   const [formData, setFormData] = useState({
-    buyerName: parsedData.buyerName || "",
-    phone: parsedData.phone || "",
-    items: parsedData.items || "",
-    total: parsedData.total || "",
+    buyerName: "",
+    phone: "",
+    items: "",
+    total: "",
     paymentNumber: "",
   });
+
+  // initialize from parsedData when component mounts / parsedData changes
+  useEffect(() => {
+    setFormData({
+      buyerName: parsedData.buyerName || "",
+      phone: parsedData.phone || "",
+      items: parsedData.items || "",
+      total: parsedData.total || "",
+      paymentNumber: parsedData.paymentNumber || "",
+    });
+  }, [parsedData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -15,125 +33,122 @@ function InvoiceForm({ parsedData, onBack }) {
   };
 
   const handleSubmit = (e) => {
-    e.preventDefault();
-    alert(`Invoice ready for ${formData.buyerName}! (This will later save or send it.)`);
-    console.log("Final invoice data:", formData);
+    e && e.preventDefault();
+    // If parent provided a handler (used in Step 2), call it. Otherwise fallback to alert.
+    if (typeof onGenerate === "function") {
+      onGenerate(formData);
+    } else {
+      alert(`Invoice ready for ${formData.buyerName}!\n\n(We will show a preview next step.)`);
+      console.log("Final invoice data:", formData);
+    }
   };
 
   return (
-    <div style={styles.formBox}>
-      <h2 style={styles.heading}>🧾 Review & Edit Invoice</h2>
-      <form onSubmit={handleSubmit} style={styles.form}>
-        <label style={styles.label}>Buyer Name</label>
+    <div className="formBox fade-in" role="region" aria-labelledby="invoice-heading">
+      <h2 id="invoice-heading" style={{ marginTop: 0, marginBottom: 12 }}>
+        🧾 Review & Edit Invoice
+      </h2>
+
+      <form onSubmit={handleSubmit}>
+        <label style={labelStyle} htmlFor="buyerName">
+          Buyer Name
+        </label>
         <input
+          id="buyerName"
           name="buyerName"
           value={formData.buyerName}
           onChange={handleChange}
-          style={styles.input}
+          style={inputStyle}
+          placeholder="Buyer full name"
+          required
         />
 
-        <label style={styles.label}>Phone Number</label>
+        <label style={labelStyle} htmlFor="phone">
+          Phone Number
+        </label>
         <input
+          id="phone"
           name="phone"
           value={formData.phone}
           onChange={handleChange}
-          style={styles.input}
+          style={inputStyle}
+          placeholder="+254712345678"
         />
 
-        <label style={styles.label}>Items</label>
+        <label style={labelStyle} htmlFor="items">
+          Items (comma separated)
+        </label>
         <textarea
+          id="items"
           name="items"
           value={formData.items}
           onChange={handleChange}
           rows="3"
-          style={styles.textarea}
+          style={textareaStyle}
+          placeholder="e.g. 2x T-Shirt, 1x Cap"
         />
 
-        <label style={styles.label}>Total Amount</label>
+        <label style={labelStyle} htmlFor="total">
+          Total Amount
+        </label>
         <input
+          id="total"
           name="total"
           value={formData.total}
           onChange={handleChange}
-          style={styles.input}
+          style={inputStyle}
+          placeholder="KES 2,300"
         />
 
-        <label style={styles.label}>Payment Number (Account/Paybill/Phone)</label>
+        <label style={labelStyle} htmlFor="paymentNumber">
+          Payment Number (Account / Paybill / Phone)
+        </label>
         <input
+          id="paymentNumber"
           name="paymentNumber"
           value={formData.paymentNumber}
           onChange={handleChange}
-          style={styles.input}
+          style={inputStyle}
           placeholder="e.g. 254712345678 or 123456 (Paybill)"
         />
 
-        <div style={styles.buttonGroup}>
-          <button type="button" onClick={onBack} style={styles.backButton}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14 }}>
+          <button type="button" className="btn-outline" onClick={onBack} aria-label="Back to paste">
             ⬅ Back
           </button>
-          <button type="submit" style={styles.submitButton}>
-            Generate Invoice
-          </button>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" className="btn-outline" onClick={() => { navigator.clipboard?.writeText(JSON.stringify(formData)); alert("Form copied to clipboard for easy testing."); }}>
+              Copy
+            </button>
+
+            <button type="submit" className="btn-primary" aria-label="Generate invoice">
+              Generate
+            </button>
+          </div>
         </div>
       </form>
     </div>
   );
 }
 
-const styles = {
-  formBox: {
-    border: "1px solid #ddd",
-    borderRadius: "12px",
-    padding: "1.5rem",
-    backgroundColor: "#fff",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
-    marginTop: "1.5rem",
-    textAlign: "left",
-  },
-  heading: {
-    fontSize: "1.2rem",
-    fontWeight: "600",
-    marginBottom: "1rem",
-  },
-  form: {
-    display: "flex",
-    flexDirection: "column",
-  },
-  label: {
-    marginBottom: "0.3rem",
-    fontWeight: "500",
-  },
-  input: {
-    padding: "0.6rem",
-    border: "1px solid #ccc",
-    borderRadius: "8px",
-    marginBottom: "1rem",
-  },
-  textarea: {
-    padding: "0.6rem",
-    border: "1px solid #ccc",
-    borderRadius: "8px",
-    marginBottom: "1rem",
-  },
-  buttonGroup: {
-    display: "flex",
-    justifyContent: "space-between",
-  },
-  backButton: {
-    backgroundColor: "#ccc",
-    color: "#000",
-    padding: "0.6rem 1.2rem",
-    borderRadius: "8px",
-    border: "none",
-    cursor: "pointer",
-  },
-  submitButton: {
-    backgroundColor: "#1a8917",
-    color: "white",
-    padding: "0.6rem 1.2rem",
-    borderRadius: "8px",
-    border: "none",
-    cursor: "pointer",
-  },
+/* Inline styles kept minimal — primary visual styling is in App.css (.formBox, .btn-primary, etc.) */
+const labelStyle = { display: "block", marginBottom: 6, fontWeight: 600, color: "#114028" };
+const inputStyle = {
+  width: "100%",
+  padding: "0.7rem",
+  borderRadius: 10,
+  border: "1px solid #e6e9ef",
+  marginBottom: 12,
+  fontSize: 15,
 };
 
-export default InvoiceForm;
+const textareaStyle = {
+  width: "100%",
+  padding: "0.7rem",
+  borderRadius: 10,
+  border: "1px solid #e6e9ef",
+  marginBottom: 12,
+  fontSize: 15,
+  resize: "vertical",
+};
