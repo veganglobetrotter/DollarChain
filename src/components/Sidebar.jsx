@@ -2,16 +2,29 @@ import React from "react";
 
 /**
  * Sidebar component
- *
  * Props:
- * - sellerName (string) default: "Seller Name"
- * - variant (string) "light" (default) or "dark" to enable the dark sidebar CSS variant
- *
- * To enable the dark variant: <Sidebar sellerName="Jane" variant="dark" />
+ * - sellerName (string)
+ * - variant (string) "light" or "dark"
+ * - onNavigate (fn) receives view string ('home' | 'orders' | 'settings' etc.)
+ * - active (string) currently active view
  */
-export default function Sidebar({ sellerName = "Seller Name", variant = "light" }) {
+export default function Sidebar({ sellerName = "Seller Name", variant = "light", onNavigate = () => {}, active = "home" }) {
   const asideClass = variant === "dark" ? "sidebar sidebar--dark" : "sidebar";
   const initial = (sellerName || "S").charAt(0).toUpperCase();
+
+  const NavItem = ({ id, children }) => (
+    <li
+      className="nav-item"
+      onClick={() => onNavigate(id)}
+      style={{
+        background: active === id ? "#f6faf6" : "transparent",
+        fontWeight: active === id ? 700 : 600,
+        cursor: "pointer",
+      }}
+    >
+      {children}
+    </li>
+  );
 
   return (
     <aside className={asideClass} aria-label="Sidebar">
@@ -28,12 +41,12 @@ export default function Sidebar({ sellerName = "Seller Name", variant = "light" 
         </div>
 
         <nav className="sidebar-nav" aria-label="Main navigation">
-          <ul>
-            <li className="nav-item">Dashboard</li>
-            <li className="nav-item">Item 1</li>
-            <li className="nav-item">Item 2</li>
-            <li className="nav-item">Item 3</li>
-            <li className="nav-item">Settings</li>
+          <ul style={{ padding: 0, margin: 0 }}>
+            <NavItem id="home">Dashboard</NavItem>
+            <NavItem id="orders">Orders</NavItem>
+            <NavItem id="item1">Item 1</NavItem>
+            <NavItem id="item2">Item 2</NavItem>
+            <NavItem id="settings">Settings</NavItem>
           </ul>
         </nav>
 

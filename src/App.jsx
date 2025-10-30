@@ -1,4 +1,3 @@
-// src/App.jsx
 import { useEffect, useState } from "react";
 import "./App.css";
 import Sidebar from "./components/Sidebar";
@@ -7,6 +6,7 @@ import PasteBox from "./components/PasteBox";
 import InvoiceForm from "./components/InvoiceForm";
 import InvoicePreview from "./components/InvoicePreview";
 import AuthModal from "./components/AuthModal";
+import OrdersList from "./components/OrdersList"; // NEW
 import { supabase } from "./lib/supabase";
 
 function App() {
@@ -16,9 +16,9 @@ function App() {
   const [user, setUser] = useState(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [pendingFormData, setPendingFormData] = useState(null);
+  const [currentView, setCurrentView] = useState("home"); // "home" or "orders" etc.
 
   useEffect(() => {
-    // get initial session
     let mounted = true;
     (async () => {
       const { data } = await supabase.auth.getSession();
@@ -26,15 +26,14 @@ function App() {
       setUser(data?.session?.user ?? null);
     })();
 
-    // subscribe to auth changes
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      // if user just logged in and we have pending form data, continue to preview
       if (session?.user && pendingFormData) {
         setPreviewData(pendingFormData);
         setPendingFormData(null);
         setShowForm(false);
         setAuthOpen(false);
+        setCurrentView("home");
       }
     });
 
@@ -48,6 +47,7 @@ function App() {
     setParsedData(data);
     setShowForm(true);
     setPreviewData(null);
+    setCurrentView("home");
   };
 
   const handleBack = () => {
@@ -56,9 +56,7 @@ function App() {
     setPreviewData(null);
   };
 
-  // called by InvoiceForm when user clicks Generate
   const handleGenerate = (formData) => {
-    // if not logged in, prompt for auth and keep the form data pending
     if (!user) {
       setPendingFormData(formData);
       setAuthOpen(true);
@@ -83,7 +81,6 @@ function App() {
     alert("Buy Credits clicked — payments will be added later.");
   };
 
-  // save invoice to Supabase
   const handleSaveInvoice = async (invoice) => {
     if (!user) {
       alert("Please sign in to save invoices.");
@@ -93,7 +90,6 @@ function App() {
     }
 
     try {
-      // simple item parsing (same logic we used earlier)
       const parseItems = (itemsStr) => {
         if (!itemsStr) return [];
         return itemsStr
@@ -143,33 +139,67 @@ function App() {
     }
   };
 
+  // Called by OrdersList when user clicks "View"
+  const handleViewFromOrders = (invoice) => {
+    // invoice is already shaped for preview; show preview
+    setPreviewData(invoice);
+    setShowForm(false);
+  };
+
   return (
     <div className="app-root">
-      <Sidebar sellerName={localStorage.getItem("sellerName") || "Seller Name"} />
+      <Sidebar
+        sellerName={localStorage.getItem("sellerName") || "Seller Name"}
+        onNavigate={(view) => setCurrentView(view)}
+        active={currentView}
+      />
 
       <main className="main-area">
         <Header onBuyCredits={handleBuyCredits} />
 
         <section className="content">
           <div className="content-inner">
-            {!showForm && !previewData && (
-              <>
-                <h1 className="content-title">Paste your Order Chat Message</h1>
-                <p className="content-sub">
-                  Copy and paste your WhatsApp order chat here to automatically generate
-                  an invoice. You can edit details before creating the PDF.
-                </p>
+            {/* Preview takes highest precedence */}
+            {previewData && (
+              <InvoicePreview
+                invoice={previewData}
+                onBackEdit={handleEditFromPreview}
+                onClose={handleClosePreview}
+                onSave={handleSaveInvoice}
+              />
+            )}
 
-                <PasteBox onParse={handleParse} />
+            {/* Orders view */}
+            {!previewData && currentView === "orders" && (
+              <OrdersList onView={handleViewFromOrders} />
+            )}
+
+            {/* Home / paste / form */}
+            {!previewData && currentView === "home" && (
+              <>
+                {!showForm && (
+                  <>
+                    <h1 className="content-title">Paste your Order Chat Message</h1>
+                    <p className="content-sub">
+                      Copy and paste your WhatsApp order chat here to automatically generate
+                      an invoice. You can edit details before creating the PDF.
+                    </p>
+                    <PasteBox onParse={handleParse} />
+                  </>
+                )}
+
+                {showForm && !previewData && (
+                  <InvoiceForm parsedData={parsedData} onBack={handleBack} onGenerate={handleGenerate} />
+                )}
               </>
             )}
 
-            {showForm && !previewData && (
-              <InvoiceForm parsedData={parsedData} onBack={handleBack} onGenerate={handleGenerate} />
-            )}
-
-            {previewData && (
-              <InvoicePreview invoice={previewData} onBackEdit={handleEditFromPreview} onClose={handleClosePreview} onSave={handleSaveInvoice} />
+            {/* Fallback small message for other views */}
+            {!previewData && !["home", "orders"].includes(currentView) && (
+              <div className="formBox">
+                <h3 style={{ marginTop: 0 }}>Coming soon</h3>
+                <p style={{ color: "#6b7280" }}>This section ({currentView}) is a placeholder for future features.</p>
+              </div>
             )}
           </div>
         </section>
