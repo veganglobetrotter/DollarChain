@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 /**
  * InvoiceForm
  * Props:
- * - parsedData: object from parser (buyerName, phone, items, total, _confidence)
+ * - parsedData: object from parser (buyerName, phone, items, total, confidence, notes)
  * - onBack: function to go back to the paste screen
  * - onGenerate: optional function(formData) to handle generating/previewing the invoice
  */
@@ -26,8 +26,6 @@ export default function InvoiceForm({ parsedData = {}, onBack, onGenerate }) {
     });
   }, [parsedData]);
 
-  const conf = parsedData._confidence || {};
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -43,12 +41,29 @@ export default function InvoiceForm({ parsedData = {}, onBack, onGenerate }) {
     }
   };
 
-  const badgeStyle = (level) => {
-    if (!level) return { display: "inline-block", marginLeft: 8, fontSize: 12, color: "#6b7280" };
-    if (level === "high") return { marginLeft: 8, padding: "2px 8px", borderRadius: 999, background: "#e6f8ea", color: "#0f5132", fontSize: 12 };
-    if (level === "medium") return { marginLeft: 8, padding: "2px 8px", borderRadius: 999, background: "#fff7e6", color: "#664d03", fontSize: 12 };
-    return { marginLeft: 8, padding: "2px 8px", borderRadius: 999, background: "#fff1f2", color: "#6b1220", fontSize: 12 };
+  // Confidence badge component (small and reused)
+  const ConfidenceBadge = ({ score }) => {
+    if (score === undefined || score === null) return null;
+    const s = Number(score);
+    const base = {
+      display: "inline-block",
+      padding: "4px 8px",
+      borderRadius: 999,
+      fontSize: 12,
+      fontWeight: 700,
+      color: "#fff",
+      marginLeft: 8,
+    };
+    if (s >= 0.8) {
+      return <span style={{ ...base, background: "#16a34a" }}>✓ {Math.round(s * 100)}%</span>;
+    } else if (s >= 0.5) {
+      return <span style={{ ...base, background: "#f59e0b" }}>~ {Math.round(s * 100)}%</span>;
+    } else {
+      return <span style={{ ...base, background: "#ef4444" }}>! {Math.round(s * 100)}%</span>;
+    }
   };
+
+  const confidence = parsedData?.confidence || {};
 
   return (
     <div className="formBox fade-in" role="region" aria-labelledby="invoice-heading">
@@ -56,3 +71,126 @@ export default function InvoiceForm({ parsedData = {}, onBack, onGenerate }) {
         🧾 Review & Edit Invoice
       </h2>
 
+      <form onSubmit={handleSubmit}>
+        <label style={labelStyle} htmlFor="buyerName">
+          Buyer Name
+          <ConfidenceBadge score={confidence.name} />
+        </label>
+        <input
+          id="buyerName"
+          name="buyerName"
+          value={formData.buyerName}
+          onChange={handleChange}
+          style={inputStyle}
+          placeholder="Buyer full name"
+          required
+        />
+
+        <label style={labelStyle} htmlFor="phone">
+          Phone Number
+          <ConfidenceBadge score={confidence.phone} />
+        </label>
+        <input
+          id="phone"
+          name="phone"
+          value={formData.phone}
+          onChange={handleChange}
+          style={inputStyle}
+          placeholder="+254712345678"
+        />
+
+        <label style={labelStyle} htmlFor="items">
+          Items (comma separated)
+          <ConfidenceBadge score={confidence.items} />
+        </label>
+        <textarea
+          id="items"
+          name="items"
+          value={formData.items}
+          onChange={handleChange}
+          rows="3"
+          style={textareaStyle}
+          placeholder="e.g. 2x T-Shirt, 1x Cap"
+        />
+
+        <label style={labelStyle} htmlFor="total">
+          Total Amount
+          <ConfidenceBadge score={confidence.total} />
+        </label>
+        <input
+          id="total"
+          name="total"
+          value={formData.total}
+          onChange={handleChange}
+          style={inputStyle}
+          placeholder="KES 2,300"
+        />
+
+        <label style={labelStyle} htmlFor="paymentNumber">
+          Payment Number (Account / Paybill / Phone)
+        </label>
+        <input
+          id="paymentNumber"
+          name="paymentNumber"
+          value={formData.paymentNumber}
+          onChange={handleChange}
+          style={inputStyle}
+          placeholder="e.g. 254712345678 or 123456 (Paybill)"
+        />
+
+        {parsedData?.notes && parsedData.notes.length > 0 && (
+          <div style={{ marginTop: 12, padding: 10, background: "#fffaf0", borderRadius: 8, border: "1px solid #fae6c1" }}>
+            <strong style={{ color: "#92400e" }}>Parser notes:</strong>
+            <ul style={{ margin: "8px 0 0 16px", color: "#92400e" }}>
+              {parsedData.notes.map((n, i) => <li key={i}>{n}</li>)}
+            </ul>
+          </div>
+        )}
+
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14 }}>
+          <button type="button" className="btn-outline" onClick={onBack} aria-label="Back to paste">
+            ⬅ Back
+          </button>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              className="btn-outline"
+              onClick={() => {
+                navigator.clipboard?.writeText(JSON.stringify(formData));
+                alert("Form copied to clipboard for easy testing.");
+              }}
+            >
+              Copy
+            </button>
+
+            <button type="submit" className="btn-primary" aria-label="Generate invoice">
+              Generate
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+/* Inline styles kept minimal — primary visual styling is in App.css (.formBox, .btn-primary, etc.) */
+const labelStyle = { display: "block", marginBottom: 6, fontWeight: 600, color: "#114028" };
+const inputStyle = {
+  width: "100%",
+  padding: "0.7rem",
+  borderRadius: 10,
+  border: "1px solid #e6e9ef",
+  marginBottom: 12,
+  fontSize: 15,
+};
+
+const textareaStyle = {
+  width: "100%",
+  padding: "0.7rem",
+  borderRadius: 10,
+  border: "1px solid #e6e9ef",
+  marginBottom: 12,
+  fontSize: 15,
+  resize: "vertical",
+};
