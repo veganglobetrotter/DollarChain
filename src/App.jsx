@@ -31,23 +31,25 @@ function App() {
         <Header onBuyCredits={handleBuyCredits} />
 
         <section className="content">
-          {!showForm && (
-            <>
-              <h1 className="content-title">Paste your Order Chat Message</h1>
-              <p className="content-sub">
-                Copy and paste your WhatsApp order chat here to automatically generate
-                an invoice. You can edit details before creating the PDF.
-              </p>
+          <div className="content-inner">
+            {!showForm && (
+              <>
+                <h1 className="content-title">Paste your Order Chat Message</h1>
+                <p className="content-sub">
+                  Copy and paste your WhatsApp order chat here to automatically generate
+                  an invoice. You can edit details before creating the PDF.
+                </p>
 
-              <PasteBox onParse={handleParse} />
-            </>
-          )}
+                <PasteBox onParse={handleParse} />
+              </>
+            )}
 
-          {showForm && (
-            <>
-              <InvoiceForm parsedData={parsedData} onBack={handleBack} />
-            </>
-          )}
+            {showForm && (
+              <>
+                <InvoiceForm parsedData={parsedData} onBack={handleBack} />
+              </>
+            )}
+          </div>
         </section>
       </main>
     </div>

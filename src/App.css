@@ -1,55 +1,72 @@
-/* App.css — polished SaaS-like dashboard styling */
+/* App.css — refined dashboard with contrasted sidebar (Option A) */
 
 :root{
-  --bg: #f6f8fb;
+  --page-bg: #f5f7f8;       /* page background (bg-gray-50) */
+  --sidebar-bg: #eef1f3;    /* slightly darker than page (bg-gray-100) */
   --card: #ffffff;
   --muted: #6b7280;
-  --accent: #1a8917; /* green accent */
-  --soft-shadow: 0 6px 20px rgba(18, 22, 26, 0.06);
-  --radius: 12px;
-  --max-width: 1100px;
+  --accent: #1a8917;        /* green accent */
+  --soft-shadow: 0 8px 24px rgba(18,22,26,0.06);
+  --soft-shadow-strong: 0 14px 40px rgba(18,22,26,0.08);
+  --radius: 16px;
+  --sidebar-width: 256px;   /* w-64 */
+  --gutter: 32px;
+  --max-width: 1200px;
 }
 
+/* Reset */
 * { box-sizing: border-box; }
 html,body,#root { height: 100%; }
 body {
   margin: 0;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-  background: var(--bg);
-  color: #0f172a;
+  background: var(--page-bg);
+  color: #07131a;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* App grid */
+/* App layout — left sidebar + main content */
 .app-root {
-  display: grid;
-  grid-template-columns: 240px 1fr;
-  gap: 24px;
+  display: flex;
+  gap: var(--gutter);
   max-width: var(--max-width);
-  margin: 32px auto;
+  margin: 28px auto;
   padding: 0 16px;
   align-items: start;
+  min-height: calc(100vh - 56px);
 }
 
-/* Sidebar */
+/* Sidebar container (slightly darker vertical strip) */
 .sidebar {
-  background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.95));
-  border-radius: var(--radius);
+  width: var(--sidebar-width);
+  background: var(--sidebar-bg); /* the subtle vertical field */
+  border-radius: calc(var(--radius) + 4px);
   padding: 20px;
-  box-shadow: var(--soft-shadow);
-  height: calc(100vh - 64px);
+  box-shadow: none;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  gap: 18px;
+  align-items: stretch;
 }
 
+/* White card sitting inside the sidebar container */
+.sidebar-card {
+  background: var(--card);
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: var(--soft-shadow-strong);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Sidebar header area */
 .sidebar-top {
   display: flex;
   align-items: center;
   gap: 12px;
 }
-
 .avatar{
   width:48px;
   height:48px;
@@ -62,116 +79,92 @@ body {
   color:#09530c;
   font-size:18px;
 }
+.seller-info { display:flex; flex-direction:column; }
+.seller-name { font-weight:700; color:#08261a; }
+.seller-sub { font-size:12px; color:var(--muted); }
 
-.seller-info {
-  display:flex;
-  flex-direction:column;
-}
-
-.seller-name {
-  font-weight:700;
-  color:#08261a;
-}
-
-.seller-sub {
-  font-size:12px;
-  color:var(--muted);
-}
-
-.sidebar-nav {
-  margin-top: 20px;
-  flex: 1;
-}
-
-.sidebar-nav ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
+/* Navigation inside white card */
+.sidebar-nav { margin-top: 8px; }
+.sidebar-nav ul { list-style: none; padding:0; margin:0; }
 .nav-item {
   padding: 10px 12px;
   border-radius: 8px;
   color: #0f172a;
   margin-bottom: 6px;
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.08s ease;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.12s ease, transform 0.08s ease;
 }
+.nav-item:hover { background: #f6faf6; transform: translateX(4px); }
 
-.nav-item:hover {
-  background: #f1f6f4;
-  transform: translateX(4px);
-}
-
-/* Footer small text */
+/* small footer inside sidebar container (below card) */
 .sidebar-footer {
   font-size: 12px;
   color: var(--muted);
   text-align: center;
 }
 
-/* Main area */
+/* Main content area */
 .main-area {
+  flex: 1;
+  padding: 6px 0;
   display: flex;
   flex-direction: column;
   gap: 18px;
 }
 
-/* Header */
+/* Header bar inside main content */
 .top-header {
   display:flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 18px;
-  background: transparent;
+  gap: 12px;
+  padding: 6px 0;
 }
 
-.brand {
-  font-weight: 700;
-  font-size: 16px;
-  color: #072117;
-}
+.brand { font-weight:700; font-size:18px; color:#07131a; }
 
+/* Buy Credits pill (rounded, green) */
 .btn-buy {
-  background: linear-gradient(180deg,#2f9e2f,#1a8917);
+  background: linear-gradient(180deg,#36b852,#1a8917);
   color: white;
   border: none;
   padding: 8px 14px;
-  border-radius: 10px;
+  border-radius: 999px;
   cursor: pointer;
-  box-shadow: 0 6px 14px rgba(26,137,23,0.12);
+  box-shadow: 0 8px 22px rgba(26,137,23,0.12);
   transition: transform 0.14s ease, opacity 0.12s ease;
 }
+.btn-buy:hover { transform: translateY(-2px); }
 
-.btn-buy:hover { transform: translateY(-2px); opacity: 0.98; }
-
-/* Content area */
+/* Content block (main card area) */
 .content {
-  background: transparent;
-  padding: 8px 0;
+  padding-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.content-title {
-  margin: 8px 0 6px 0;
-  font-size: 22px;
-  color: #07131a;
+/* Centered content wrapper for the main card (keeps it hugging sidebar) */
+.content-inner {
+  max-width: 760px;
+  margin-left: 0; /* no huge center gutter — card sits next to sidebar due to flex layout */
 }
 
-.content-sub {
-  margin: 0 0 18px 0;
-  color: var(--muted);
-}
+/* Titles */
+.content-title { margin: 8px 0 6px 0; font-size: 24px; color: #07131a; }
+.content-sub { margin: 0 0 12px 0; color: var(--muted); }
 
-/* Paste card */
+/* Paste card styling */
 .paste-card {
   background: var(--card);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 16px;
   box-shadow: var(--soft-shadow);
   transition: transform 0.12s ease, box-shadow 0.18s ease;
 }
-
-.paste-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(18,22,26,0.07); }
+.paste-card:hover { transform: translateY(-6px); box-shadow: 0 18px 36px rgba(18,22,26,0.07); }
 
 .paste-textarea {
   width: 100%;
@@ -193,48 +186,41 @@ body {
   gap: 10px;
   margin-top: 12px;
 }
-
 .btn-outline {
   background: transparent;
   border: 1px solid #e6e9ef;
   color: #374151;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
 }
-
 .btn-primary {
   background: linear-gradient(180deg,#36b852,#1a8917);
   color: white;
   padding: 8px 14px;
-  border-radius: 10px;
+  border-radius: 999px;
   border: none;
   cursor: pointer;
   box-shadow: 0 8px 22px rgba(26,137,23,0.12);
+  transition: transform 0.12s ease;
+}
+.btn-primary:hover { transform: scale(1.03); }
+
+/* Invoice form card minor style (works with existing InvoiceForm.jsx) */
+.formBox {
+  background: var(--card);
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: var(--soft-shadow);
 }
 
-/* subtle fade-in */
-.fade-in {
-  animation: fadeIn 380ms ease both;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+/* Small utility animations */
+.fade-in { animation: fadeIn 340ms ease both; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
 /* Responsive */
 @media (max-width: 900px) {
-  .app-root {
-    grid-template-columns: 1fr;
-    padding: 16px;
-    margin: 16px auto;
-  }
-
-  .sidebar {
-    height: auto;
-    display: none; /* hide sidebar on small screens for now */
-  }
-
-  .content-title { font-size: 20px; }
+  .app-root { flex-direction: column; padding: 16px; margin: 12px auto; }
+  .sidebar { width: 100%; display: none; } /* hide sidebar on small screens */
+  .content-inner { max-width: 100%; }
 }
