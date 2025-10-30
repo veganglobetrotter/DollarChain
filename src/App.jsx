@@ -25,6 +25,7 @@ function App() {
 
   // called by InvoiceForm when user clicks Generate
   const handleGenerate = (formData) => {
+    console.log("DEBUG App.handleGenerate called with:", formData);
     setPreviewData(formData);
     setShowForm(false);
   };
@@ -47,10 +48,71 @@ function App() {
     alert("Buy Credits clicked — payments will be added later.");
   };
 
-  // placeholder save handler (Step 3 will persist to localStorage)
+  // --- New: save handler — persists invoice to localStorage under 'dollarchain_orders'
   const handleSaveInvoice = (invoice) => {
-    alert("Saved (placeholder). Step 3 will implement persistent save.");
-    console.log("Invoice to save:", invoice);
+    try {
+      // Helper: parse items string into array of { name, qty }
+      const parseItems = (itemsStr) => {
+        if (!itemsStr) return [];
+        return itemsStr
+          .split(",")
+          .map((it) => it.trim())
+          .filter(Boolean)
+          .map((row) => {
+            let qty = 1;
+            let name = row;
+
+            // matches "2x T-Shirt" or "2 x T-Shirt"
+            const m1 = row.match(/^(\d+)\s*x\s*(.+)$/i);
+            if (m1) {
+              qty = parseInt(m1[1], 10);
+              name = m1[2];
+            } else {
+              // matches "T-Shirt x2"
+              const m2 = row.match(/^(.+?)\s*x\s*(\d+)$/i);
+              if (m2) {
+                name = m2[1].trim();
+                qty = parseInt(m2[2], 10);
+              } else {
+                // no quantity found, keep name and qty = 1
+                qty = 1;
+              }
+            }
+
+            return { name, qty };
+          });
+      };
+
+      const id = `inv_${Date.now()}`;
+      const created_at = new Date().toISOString();
+      const itemsArray = parseItems(invoice.items || "");
+
+      const record = {
+        id,
+        created_at,
+        buyerName: invoice.buyerName || "",
+        phone: invoice.phone || "",
+        items: itemsArray,
+        total: invoice.total || "",
+        paymentNumber: invoice.paymentNumber || "",
+        status: "pending",
+      };
+
+      // load existing, prepend new record
+      const raw = localStorage.getItem("dollarchain_orders");
+      const existing = raw ? JSON.parse(raw) : [];
+      existing.unshift(record);
+      localStorage.setItem("dollarchain_orders", JSON.stringify(existing));
+
+      alert("✅ Invoice saved locally (dollarchain_orders).");
+      console.log("DollarChain: saved invoice", record);
+
+      // (optional) keep preview open — developer can decide whether to close preview.
+      // For now we keep preview visible so user can click Download PDF or Save again.
+    } catch (err) {
+      console.error("Error saving invoice:", err);
+      alert("Error saving invoice. See console for details.");
+    }
   };
 
   return (
