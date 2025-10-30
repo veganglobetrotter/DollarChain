@@ -1,132 +1,176 @@
 // src/lib/parser.js
-// Lightweight deterministic parser for WhatsApp order messages.
-// Returns: { buyerName, phone, items: [{name, qty}], total, rawText }
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 
-const PHONE_RE = /(\+?\d{7,15}|\b0\d{6,12}\b)/g; // simple phone finder
+/**
+ * Lightweight deterministic parser for WhatsApp order messages.
+ * Returns:
+ * {
+ *  rawText,
+ *  buyerName,
+ *  phone,
+ *  items: [{name, qty}],
+ *  total,
+ *  confidence: { phone: 0-1, items: 0-1, name: 0-1, total: 0-1, overall: 0-1 },
+ *  notes: [ ...strings ]
+ * }
+ */
+
 const PRICE_RE = /(?:KES|KSh|KES\.?|KES|USD|\$|£)?\s?(\d{1,3}(?:[,\s]\d{3})*(?:\.\d{1,2})?)/gi;
 
-// Try to extract buyer name heuristically
+// Heuristics for name extraction
 function extractName(text) {
-  // look for "Hi NAME" or "Hello NAME" or "Name: NAME" or "Buyer: NAME"
-  let m = text.match(/(?:Hi|Hello|Hey)\s+([A-Z][a-z]{1,}\b(?:\s[A-Z][a-z]{1,})?)/i);
+  // Look for "Hi John", "Hello John", "Hey John"
+  let m = text.match(/(?:^|\n|\b)(?:Hi|Hello|Hey)\s+([A-Z][a-z]{1,}\b(?:\s[A-Z][a-z]{1,})?)/i);
   if (m) return m[1].trim();
 
-  m = text.match(/(?:Name|Buyer|Customer|Client)[:\-]\s*([A-Z][\w\s]{1,40})/i);
+  // "Name: John", "Buyer: John"
+  m = text.match(/(?:Name|Buyer|Customer|Client)[:\-\s]{1,}\s*([A-Z][\w\s]{1,40})/i);
   if (m) return m[1].trim();
 
-  // look for signature-like "— John" or "\nJohn" at end
+  // Terminal signature style: "- John" or "— John"
   m = text.match(/[-–—]\s*([A-Z][a-z]{1,}\b(?:\s[A-Z][a-z]{1,})?)\s*$/m);
+  if (m) return m[1].trim();
+
+  // Common two-word names in caps or Titlecase somewhere (fallback)
+  m = text.match(/\b([A-Z][a-z]{1,}\s+[A-Z][a-z]{1,})\b/);
   if (m) return m[1].trim();
 
   return "";
 }
 
-// Normalize splitters: commas, " and ", " & "
 function splitItems(text) {
-  // Try to find a sub-string that looks like items: if sentence contains words like "want", "please", or numbers.
-  // Fallback: use whole text.
-  // We'll simply split by commas and " and " and " & "
   const cleaned = text.replace(/\band\b/gi, ",").replace(/\s*&\s*/g, ",");
   const parts = cleaned.split(",").map(s => s.trim()).filter(Boolean);
   return parts;
 }
 
-// parse single item like "3x caps", "2 pairs of trousers", "I want 1 tie"
 function parseItemSegment(segment) {
-  // remove leading verbs
   segment = segment.replace(/^(i\s+want|i'd like|i want to buy|please get me|pls|please)\s+/i, "").trim();
 
-  // patterns: "3x T-Shirts", "3 x T-Shirts", "3 T-Shirts", "3 pairs of trousers"
-  let qty = 1;
-  let name = segment;
-
-  // pattern: '3x item' or '3 x item' or '3 items' (qty at start)
+  // "3x T-Shirts" or "3 x T-Shirts" or "3 T-Shirts"
   let m = segment.match(/^\s*(\d+)\s*(?:x|pcs|pieces|pairs|items)?\s*(?:of\s+)?(.+)$/i);
-  if (m) {
-    qty = parseInt(m[1], 10);
-    name = m[2].trim();
-    return { name, qty };
-  }
+  if (m) return { name: m[2].trim(), qty: parseInt(m[1], 10) };
 
-  // pattern: 'item x3' or 'item x 3'
+  // "T-Shirt x3"
   m = segment.match(/^(.+?)\s+x\s*(\d+)\s*$/i);
-  if (m) {
-    name = m[1].trim();
-    qty = parseInt(m[2], 10);
-    return { name, qty };
-  }
+  if (m) return { name: m[1].trim(), qty: parseInt(m[2], 10) };
 
-  // pattern: '3 pairs of trousers'
+  // "3 pairs of trousers"
   m = segment.match(/(\d+)\s+(pairs|pcs|pieces|items|bottles|boxes)?(?:\s+of)?\s+(.+)$/i);
-  if (m) {
-    qty = parseInt(m[1], 10);
-    name = m[3].trim();
-    return { name, qty };
-  }
+  if (m) return { name: m[3].trim(), qty: parseInt(m[1], 10) };
 
-  // fallback: try to find a number inside the segment
+  // find a number inside
   m = segment.match(/(\d+)\s+(.+)/);
-  if (m) {
-    qty = parseInt(m[1], 10);
-    name = m[2].trim();
-    return { name, qty };
-  }
+  if (m) return { name: m[2].trim(), qty: parseInt(m[1], 10) };
 
-  // fallback: treat as single item
   return { name: segment, qty: 1 };
+}
+
+function scoreItems(items) {
+  if (!items || items.length === 0) return 0;
+  let withQty = 0;
+  for (const it of items) {
+    if (it.qty && it.qty > 0) withQty++;
+  }
+  // percent of items with qty detected
+  return Math.min(1, withQty / items.length);
 }
 
 export function parseOrderText(text = "") {
   const raw = (text || "").trim();
-  if (!raw) return { rawText: "", buyerName: "", phone: "", items: [], total: "" };
+  if (!raw) {
+    return {
+      rawText: "",
+      buyerName: "",
+      phone: "",
+      items: [],
+      total: "",
+      confidence: { phone: 0, items: 0, name: 0, total: 0, overall: 0 },
+      notes: ["Empty message"]
+    };
+  }
 
-  // phone
-  const phones = (raw.match(PHONE_RE) || []).map(p => p.trim());
-  const phone = phones.length ? phones[0] : "";
+  const notes = [];
 
-  // price / total (take last price-looking number as total)
-  const priceMatches = [...raw.matchAll(PRICE_RE)].map(m => m[0].trim());
-  const total = priceMatches.length ? priceMatches[priceMatches.length - 1] : "";
+  // Phone: use libphonenumber-js to parse & format
+  let phone = "";
+  let phoneScore = 0;
+  const phoneCandidates = (raw.match(/(\+?\d[\d\s\-]{6,}\d)/g) || []).map(s => s.replace(/\s+/g, ""));
+  for (const cand of phoneCandidates) {
+    try {
+      const pn = parsePhoneNumberFromString(cand);
+      if (pn && pn.isValid && pn.isValid()) {
+        phone = pn.number; // E.164
+        phoneScore = 1;
+        break;
+      }
+    } catch (e) {
+      // ignore invalid candidate
+    }
+  }
+  if (!phone && phoneCandidates.length) {
+    // try last candidate even if not validated — lower confidence
+    phone = phoneCandidates[phoneCandidates.length - 1];
+    phoneScore = 0.4;
+    notes.push("Phone found but format uncertain");
+  }
 
-  // buyer name
+  // Total: find price-like strings, take last as likely total
+  const prices = [...raw.matchAll(PRICE_RE)].map(m => m[0].trim());
+  const total = prices.length ? prices[prices.length - 1] : "";
+  const totalScore = total ? 1 : 0;
+
+  // Buyer name heuristics
   const buyerName = extractName(raw);
+  const nameScore = buyerName ? 1 : 0;
 
-  // items: we will try to find a likely items substring
-  // Heuristic: if text contains colon after a keyword "Order" or "Items", use substring after that
+  if (!buyerName) {
+    notes.push("Buyer name not found automatically");
+  }
+
+  // Items extraction: heuristics around "I want" or "Order:" or fallback to text without phone/price bits
   let itemsCandidate = raw;
-  const orderMatch = raw.match(/(?:Order|Items|List)[:\-]\s*(.+)$/i);
+  const orderMatch = raw.match(/(?:Order|Items|List|My order)[:\-]\s*(.+)$/i);
   if (orderMatch) {
     itemsCandidate = orderMatch[1];
   } else {
-    // if sentence has "I want" or "please", try to get the part around it
-    const wantMatch = raw.match(/(?:I want|I\'d like|want|please)\s+(.+)$/i);
+    const wantMatch = raw.match(/(?:I want|I'd like|want|please|pls|order me|can i get)\s+(.+)$/i);
     if (wantMatch) itemsCandidate = wantMatch[1];
     else {
-      // fallback: use whole text but remove phone/price fragments
-      itemsCandidate = raw.replace(PHONE_RE, "").replace(PRICE_RE, "").trim();
+      // remove phone and price fragments so splitting is cleaner
+      itemsCandidate = raw.replace(/(\+?\d[\d\s\-]{6,}\d)/g, "").replace(PRICE_RE, "").trim();
     }
   }
 
-  // Split into segments
-  const segments = splitItems(itemsCandidate);
+  // Split into possible item segments
+  const segments = splitItems(itemsCandidate).filter(s => s.length > 1);
 
   const items = segments.map(s => {
     const p = parseItemSegment(s);
-    // drop tiny fragments like 'for' or 'to'
-    if (!p.name || p.name.length < 2) return null;
-    return { name: p.name.replace(/^(of|a|the)\s+/i, "").trim(), qty: p.qty || 1 };
+    return { name: p.name.replace(/^(of|a|the)\s+/i, "").trim(), qty: p.qty || 1, raw: s };
   }).filter(Boolean);
+
+  const itemsScore = scoreItems(items);
+  if (items.length === 0) notes.push("No item lines detected");
+
+  // Overall score: avg
+  const overall = +( (phoneScore + (itemsScore) + nameScore + totalScore) / 4 ).toFixed(2);
 
   return {
     rawText: raw,
     buyerName,
     phone,
     items,
-    total
+    total,
+    confidence: {
+      phone: +phoneScore.toFixed(2),
+      items: +itemsScore.toFixed(2),
+      name: +nameScore.toFixed(2),
+      total: +totalScore.toFixed(2),
+      overall
+    },
+    notes
   };
 }
 
-/* quick examples (for developer testing)
-console.log(parseOrderText("Hi John, I want 3 pairs of trousers, 3 caps and 1 tie. Phone: +254712345678 Total KES 5,000"));
-*/
 export default parseOrderText;
