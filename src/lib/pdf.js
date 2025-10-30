@@ -1,14 +1,9 @@
 // src/lib/pdf.js
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 
 /**
  * generateInvoicePdf(invoice, options)
- * invoice: {
- *   buyerName, phone, items (string or array), total, paymentNumber, // plus optional sellerName
- *   id (optional)
- * }
- * Returns: Blob (and triggers download by default)
  */
 export default function generateInvoicePdf(invoice = {}, opts = {}) {
   const {
@@ -47,7 +42,7 @@ export default function generateInvoicePdf(invoice = {}, opts = {}) {
   doc.text(paymentNumber || "-", pageWidth - 220, 126);
   doc.text(String(total || "-"), pageWidth - 220, 142);
 
-  // Items: normalize items to array of rows
+  // Normalize items into rows for table
   let itemRows = [];
   if (Array.isArray(items)) {
     itemRows = items.map((it) => {
@@ -60,7 +55,6 @@ export default function generateInvoicePdf(invoice = {}, opts = {}) {
       .map((s) => s.trim())
       .filter(Boolean);
     itemRows = list.map((row) => {
-      // try to parse qty
       let qty = "1";
       let name = row;
       const m1 = row.match(/^(\d+)\s*x\s*(.+)$/i);
@@ -78,20 +72,32 @@ export default function generateInvoicePdf(invoice = {}, opts = {}) {
     });
   }
 
-  // Table
-  doc.autoTable({
-    startY: 170,
-    head: [["Item", "Qty", "Unit Price"]],
-    body: itemRows,
-    theme: "striped",
-    headStyles: { fillColor: [237, 242, 247], textColor: 20, fontStyle: "bold" },
-    styles: { fontSize: 10, cellPadding: 6 },
-    columnStyles: {
-      0: { cellWidth: "auto" },
-      1: { halign: "right", cellWidth: 60 },
-      2: { halign: "right", cellWidth: 80 },
-    },
-  });
+  // Table using autoTable(doc, options) — robust across bundles
+  try {
+    autoTable(doc, {
+      startY: 170,
+      head: [["Item", "Qty", "Unit Price"]],
+      body: itemRows,
+      theme: "striped",
+      headStyles: { fillColor: [237, 242, 247], textColor: 20, fontStyle: "bold" },
+      styles: { fontSize: 10, cellPadding: 6 },
+      columnStyles: {
+        0: { cellWidth: "auto" },
+        1: { halign: "right", cellWidth: 60 },
+        2: { halign: "right", cellWidth: 80 },
+      },
+    });
+  } catch (err) {
+    // Fallback: if autoTable fails, print a clear error and create a minimal fallback table
+    console.error("PDF generation (autoTable) failed:", err);
+    // Minimal fallback: write items as plain text
+    let y = 170;
+    doc.setFontSize(11);
+    itemRows.forEach((r) => {
+      doc.text(`${r[0]} — ${r[1]}`, 40, y);
+      y += 16;
+    });
+  }
 
   // Totals area (place near bottom)
   const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 20 : 300;
@@ -114,6 +120,5 @@ export default function generateInvoicePdf(invoice = {}, opts = {}) {
   const fileName = `${id}.pdf`;
   doc.save(fileName);
 
-  // Return the doc in case caller wants the raw object
   return doc;
 }
