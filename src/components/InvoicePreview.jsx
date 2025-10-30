@@ -131,9 +131,16 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
             Save
           </button>
 
+          import generateInvoicePdf from "../lib/pdf"; // add at top of file
+
+          // ... later in the button area ...
           <button
             className="btn-primary"
-            onClick={() => alert("Download PDF placeholder — Step 3 will generate a real PDF.")}
+            onClick={() => generateInvoicePdf({
+              buyerName, phone, items, total, paymentNumber,
+              id: invoice.id || `INV-${Date.now().toString().slice(-6)}`,
+              sellerName: "DollarChain"
+            })}
           >
             Download PDF
           </button>
