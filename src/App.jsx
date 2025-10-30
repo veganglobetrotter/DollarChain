@@ -1,9 +1,21 @@
 import { useState } from "react";
 import "./App.css";
 import PasteBox from "./components/PasteBox";
+import InvoiceForm from "./components/InvoiceForm";
 
 function App() {
   const [parsedData, setParsedData] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+
+  const handleParse = (data) => {
+    setParsedData(data);
+    setShowForm(true);
+  };
+
+  const handleBack = () => {
+    setShowForm(false);
+    setParsedData(null);
+  };
 
   return (
     <div style={styles.container}>
@@ -12,25 +24,9 @@ function App() {
         Turn WhatsApp chats into invoices in seconds.
       </p>
 
-      <PasteBox onParse={setParsedData} />
+      {!showForm && <PasteBox onParse={handleParse} />}
 
-      {parsedData && (
-        <div style={styles.card}>
-          <h3>Parsed Result (Preview)</h3>
-          <p>
-            <strong>Buyer:</strong> {parsedData.buyerName}
-          </p>
-          <p>
-            <strong>Phone:</strong> {parsedData.phone}
-          </p>
-          <p>
-            <strong>Items:</strong> {parsedData.items}
-          </p>
-          <p>
-            <strong>Total:</strong> {parsedData.total}
-          </p>
-        </div>
-      )}
+      {showForm && <InvoiceForm parsedData={parsedData} onBack={handleBack} />}
 
       <footer style={styles.footer}>
         <p>
