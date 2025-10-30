@@ -47,6 +47,8 @@ const styles = {
     padding: "2rem",
     textAlign: "center",
     fontFamily: "Inter, system-ui, sans-serif",
+    backgroundColor: "#f5f7fa",
+    minHeight: "100vh",
   },
   title: {
     fontSize: "2rem",
