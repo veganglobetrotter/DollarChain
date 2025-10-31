@@ -7,7 +7,7 @@ export const config = { api: { bodyParser: false } };
 
 const parseForm = (req) =>
   new Promise((resolve, reject) => {
-    const form = new formidable.IncomingForm();
+    const form = formidable();
     form.parse(req, (err, fields, files) => {
       if (err) reject(err);
       else resolve({ fields, files });
@@ -22,8 +22,8 @@ export default async function handler(req, res) {
 
   try {
     const { fields, files } = await parseForm(req);
-    const { invoiceId } = fields;
-    const file = files?.file;
+    const invoiceId = Array.isArray(fields.invoiceId) ? fields.invoiceId[0] : fields.invoiceId;
+    const file = Array.isArray(files?.file) ? files.file[0] : files?.file;
     if (!file || !invoiceId) return res.status(400).json({ error: "Missing file or invoiceId" });
 
     const authHeader = req.headers.authorization || "";
