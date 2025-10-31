@@ -6,9 +6,15 @@ The application processes natural language order messages (likely from WhatsApp)
 
 # Recent Changes
 
-**October 31, 2025**: Simplified PDF download functionality
-- Removed Supabase Storage upload dependency to avoid RLS permission issues
-- PDFs are now generated client-side and downloaded directly to users' computers
+**October 31, 2025 (Evening)**: Added "Save to Cloud" feature
+- Implemented serverless API endpoint (`/api/upload-invoice`) for secure cloud storage
+- Fixed formidable v3+ API compatibility issue (changed from `new formidable.IncomingForm()` to `formidable()`)
+- Added SUPABASE_SERVICE_ROLE_KEY for server-side storage uploads with proper permissions
+- Users can now optionally save invoices to cloud storage for future access
+
+**October 31, 2025 (Morning)**: Simplified PDF download functionality
+- Removed client-side Supabase Storage upload dependency to avoid RLS permission issues
+- PDFs are now generated client-side and downloaded directly to users' computers by default
 - Maintains backward compatibility for legacy invoices that have stored pdf_path
 - Updated Vite configuration to bind to 0.0.0.0:5000 for optimal Replit compatibility
 
