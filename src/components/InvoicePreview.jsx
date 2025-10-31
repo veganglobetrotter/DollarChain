@@ -56,7 +56,7 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
     }
   };
 
-  // Download handler: use existing pdf_path if present; otherwise generate, download, upload and update
+  // Download handler: generate PDF and download directly to user's computer
   const handleDownload = async () => {
     try {
       const session = await supabase.auth.getSession();
@@ -66,12 +66,16 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
         return;
       }
 
-      // If pdf_path exists, open signed url
+      // If pdf_path exists (legacy), open signed url
       if (invoice.pdf_path) {
         const { url, error } = await createSignedUrl(invoice.pdf_path, 60 * 10);
-        if (error || !url) throw error || new Error("signed url empty");
-        window.open(url, "_blank");
-        return;
+        if (error || !url) {
+          console.warn("Signed URL failed, generating fresh PDF:", error);
+          // Fall through to generate new PDF
+        } else {
+          window.open(url, "_blank");
+          return;
+        }
       }
 
       // Build payload for PDF generator
@@ -88,36 +92,15 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
       // Generate pdf blob and trigger immediate download for user
       const { blob, fileName } = generateInvoicePdfBlob(payload);
 
-      // Trigger local download
-      const urlLocal = URL.createObjectURL(blob);
+      // Trigger download directly to user's computer
+      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = urlLocal;
+      a.href = url;
       a.download = fileName;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(urlLocal);
-
-      // Upload to Supabase Storage for future downloads
-      const { path, error } = await uploadInvoicePdf(user.id, invoiceId, blob);
-      if (error || !path) {
-        console.error("Upload error after preview download:", error);
-        alert("Downloaded locally but failed to upload to storage. See console.");
-        return;
-      }
-
-      // Update invoice row with pdf_path if invoice has an id in DB
-      if (invoiceId) {
-        const { error: updateErr } = await supabase.from("invoices").update({ pdf_path: path }).eq("id", invoiceId);
-        if (updateErr) {
-          console.error("Failed to update invoice with pdf_path:", updateErr);
-          // Not fatal; notify user
-          alert("Downloaded and uploaded, but failed to attach path to invoice record.");
-          return;
-        }
-      }
-
-      alert("Downloaded PDF and uploaded to storage for future access.");
+      URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Error generating or downloading PDF:", err);
       alert("Failed to generate or download PDF. See console for details.");

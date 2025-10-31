@@ -104,7 +104,7 @@ export default function OrdersList({ onView }) {
     }
   };
 
-  // Download helper: if pdf exists -> signed url; else generate+upload then signed url
+  // Download helper: generate PDF and download directly to user's computer
   const handleDownload = async (inv) => {
     try {
       const session = await supabase.auth.getSession();
@@ -114,15 +114,19 @@ export default function OrdersList({ onView }) {
         return;
       }
 
-      // If PDF already uploaded, get signed URL
+      // If PDF already uploaded to storage (legacy), get signed URL
       if (inv.pdf_path) {
         const { url, error } = await createSignedUrl(inv.pdf_path, 60 * 10);
-        if (error || !url) throw error || new Error("signed url empty");
-        window.open(url, "_blank");
-        return;
+        if (error || !url) {
+          console.warn("Signed URL failed, generating fresh PDF:", error);
+          // Fall through to generate new PDF
+        } else {
+          window.open(url, "_blank");
+          return;
+        }
       }
 
-      // Otherwise, generate PDF blob client-side and upload
+      // Generate PDF blob client-side
       const payload = {
         buyerName: inv.buyer_name,
         phone: inv.buyer_phone,
@@ -135,27 +139,15 @@ export default function OrdersList({ onView }) {
 
       const { blob, fileName } = generateInvoicePdfBlob(payload);
 
-      // Upload to storage
-      const { path, error } = await uploadInvoicePdf(user.id, inv.id, blob);
-      if (error || !path) {
-        console.error("Upload error:", error);
-        alert("Invoice PDF generated but uploading failed. See console.");
-        return;
-      }
-
-      // Update DB row with pdf_path
-      const { error: updateErr } = await supabase.from("invoices").update({ pdf_path: path }).eq("id", inv.id);
-      if (updateErr) {
-        console.error("Failed to update invoice pdf_path:", updateErr);
-        alert("PDF uploaded but failed to attach path to invoice. See console.");
-        return;
-      }
-
-      // Refresh local list and open signed URL
-      await fetchInvoices();
-      const { url, error: signErr } = await createSignedUrl(path, 60 * 10);
-      if (signErr || !url) throw signErr || new Error("signed url empty");
-      window.open(url, "_blank");
+      // Trigger download directly to user's computer
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Download error:", err);
       alert("Failed to download invoice. See console for details.");
