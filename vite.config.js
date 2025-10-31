@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     allowedHosts: ['.replit.dev', '.repl.co'], // ✅ allow Replit preview URLs
-    host: true, // ✅ allow external hosts like the preview domain
-    port: 5173, // (optional, default)
+    host: '0.0.0.0', // ✅ bind to all interfaces
+    port: 5000, // ✅ required for Replit webview
   },
 })
