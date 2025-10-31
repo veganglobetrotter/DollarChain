@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
 import generateInvoicePdfBlob from "../lib/pdf";
-import { uploadInvoicePdf, createSignedUrl } from "../lib/storage";
+import { createSignedUrl } from "../lib/storage";
 
 /**
  * InvoicePreview

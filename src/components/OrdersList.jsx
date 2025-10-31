@@ -1,7 +1,7 @@
 // src/components/OrdersList.jsx
 import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { createSignedUrl, uploadInvoicePdf } from "../lib/storage";
+import { createSignedUrl } from "../lib/storage";
 import generateInvoicePdfBlob from "../lib/pdf";
 
 /**
