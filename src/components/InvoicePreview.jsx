@@ -1,10 +1,13 @@
+// src/components/InvoicePreview.jsx
 import React, { useState } from "react";
-import generateInvoicePdf from "../lib/pdf"; // ensure this file exists at src/lib/pdf.js
+import { supabase } from "../lib/supabase";
+import generateInvoicePdfBlob from "../lib/pdf";
+import { uploadInvoicePdf, createSignedUrl } from "../lib/storage";
 
 /**
  * InvoicePreview
  * Props:
- * - invoice (object): { buyerName, phone, items, total, paymentNumber }
+ * - invoice (object): { buyerName, phone, items, total, paymentNumber, id, pdf_path }
  * - onBackEdit () => called when user wants to go back and edit
  * - onClose () => optional, goes back to paste screen
  * - onSave (invoice) => optional, will be used to persist the invoice
@@ -17,18 +20,18 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
     total = "",
     paymentNumber = "",
     id: invoiceIdProp,
+    pdf_path,
   } = invoice;
 
   const [savedAt, setSavedAt] = useState(null);
   const invoiceId = invoiceIdProp || `INV-${Date.now().toString().slice(-6)}`;
   const dateStr = new Date().toLocaleString();
 
-  // Simple items parsing: split by comma and trim
   const itemRows = items
-    ? items.split(",").map((it) => it.trim()).filter(Boolean)
+    ? (Array.isArray(items) ? items.map(it => `${it.qty}x ${it.name}`) : items.split(",").map((it) => it.trim()).filter(Boolean))
     : [];
 
-  const handleSave = () => {
+  const handleSave = async () => {
     try {
       const invoiceObj = {
         buyerName,
@@ -53,29 +56,71 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
     }
   };
 
-  const handleDownload = () => {
+  // Download handler: use existing pdf_path if present; otherwise generate, download, upload and update
+  const handleDownload = async () => {
     try {
-      if (typeof generateInvoicePdf !== "function") {
-        console.error("generateInvoicePdf is not available. Did you create src/lib/pdf.js?");
-        alert("PDF generator not available. See console for details.");
+      const session = await supabase.auth.getSession();
+      const user = session.data?.session?.user;
+      if (!user) {
+        alert("Please sign in to download invoices.");
         return;
       }
 
-      // build a clean payload for the PDF generator
+      // If pdf_path exists, open signed url
+      if (invoice.pdf_path) {
+        const { url, error } = await createSignedUrl(invoice.pdf_path, 60 * 10);
+        if (error || !url) throw error || new Error("signed url empty");
+        window.open(url, "_blank");
+        return;
+      }
+
+      // Build payload for PDF generator
       const payload = {
-        buyerName,
-        phone,
-        items,
-        total,
-        paymentNumber,
+        buyerName: buyerName,
+        phone: phone,
+        items: Array.isArray(items) ? items : (items || ""),
+        total: total,
+        paymentNumber: paymentNumber,
         id: invoiceId,
         sellerName: "DollarChain",
       };
 
-      generateInvoicePdf(payload);
+      // Generate pdf blob and trigger immediate download for user
+      const { blob, fileName } = generateInvoicePdfBlob(payload);
+
+      // Trigger local download
+      const urlLocal = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = urlLocal;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(urlLocal);
+
+      // Upload to Supabase Storage for future downloads
+      const { path, error } = await uploadInvoicePdf(user.id, invoiceId, blob);
+      if (error || !path) {
+        console.error("Upload error after preview download:", error);
+        alert("Downloaded locally but failed to upload to storage. See console.");
+        return;
+      }
+
+      // Update invoice row with pdf_path if invoice has an id in DB
+      if (invoiceId) {
+        const { error: updateErr } = await supabase.from("invoices").update({ pdf_path: path }).eq("id", invoiceId);
+        if (updateErr) {
+          console.error("Failed to update invoice with pdf_path:", updateErr);
+          // Not fatal; notify user
+          alert("Downloaded and uploaded, but failed to attach path to invoice record.");
+          return;
+        }
+      }
+
+      alert("Downloaded PDF and uploaded to storage for future access.");
     } catch (err) {
-      console.error("Error generating PDF:", err);
-      alert("Failed to generate PDF — see console for details.");
+      console.error("Error generating or downloading PDF:", err);
+      alert("Failed to generate or download PDF. See console for details.");
     }
   };
 
@@ -121,6 +166,7 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
           <tbody>
             {itemRows.length ? (
               itemRows.map((row, idx) => {
+                // parse "2x T-Shirt" style
                 let qty = "";
                 let name = row;
                 let unit = "";

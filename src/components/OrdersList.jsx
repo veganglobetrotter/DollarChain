@@ -1,7 +1,8 @@
 // src/components/OrdersList.jsx
 import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { createSignedUrl } from "../lib/storage";
+import { createSignedUrl, uploadInvoicePdf } from "../lib/storage";
+import generateInvoicePdfBlob from "../lib/pdf";
 
 /**
  * OrdersList
@@ -57,7 +58,6 @@ export default function OrdersList({ onView }) {
   };
 
   const handleExportCSV = (rows) => {
-    // rows: array of invoice rows
     const header = ["id", "created_at", "buyer_name", "buyer_phone", "total", "payment_number", "status", "items"];
     const csv = [
       header.join(","),
@@ -101,6 +101,64 @@ export default function OrdersList({ onView }) {
     } catch (err) {
       console.error("Status update failed:", err);
       alert("Failed to update status. See console.");
+    }
+  };
+
+  // Download helper: if pdf exists -> signed url; else generate+upload then signed url
+  const handleDownload = async (inv) => {
+    try {
+      const session = await supabase.auth.getSession();
+      const user = session.data?.session?.user;
+      if (!user) {
+        alert("Please sign in to download invoices.");
+        return;
+      }
+
+      // If PDF already uploaded, get signed URL
+      if (inv.pdf_path) {
+        const { url, error } = await createSignedUrl(inv.pdf_path, 60 * 10);
+        if (error || !url) throw error || new Error("signed url empty");
+        window.open(url, "_blank");
+        return;
+      }
+
+      // Otherwise, generate PDF blob client-side and upload
+      const payload = {
+        buyerName: inv.buyer_name,
+        phone: inv.buyer_phone,
+        items: Array.isArray(inv.items) ? inv.items : (inv.items || ""),
+        total: inv.total,
+        paymentNumber: inv.payment_number,
+        id: inv.id,
+        sellerName: "DollarChain",
+      };
+
+      const { blob, fileName } = generateInvoicePdfBlob(payload);
+
+      // Upload to storage
+      const { path, error } = await uploadInvoicePdf(user.id, inv.id, blob);
+      if (error || !path) {
+        console.error("Upload error:", error);
+        alert("Invoice PDF generated but uploading failed. See console.");
+        return;
+      }
+
+      // Update DB row with pdf_path
+      const { error: updateErr } = await supabase.from("invoices").update({ pdf_path: path }).eq("id", inv.id);
+      if (updateErr) {
+        console.error("Failed to update invoice pdf_path:", updateErr);
+        alert("PDF uploaded but failed to attach path to invoice. See console.");
+        return;
+      }
+
+      // Refresh local list and open signed URL
+      await fetchInvoices();
+      const { url, error: signErr } = await createSignedUrl(path, 60 * 10);
+      if (signErr || !url) throw signErr || new Error("signed url empty");
+      window.open(url, "_blank");
+    } catch (err) {
+      console.error("Download error:", err);
+      alert("Failed to download invoice. See console for details.");
     }
   };
 
@@ -181,20 +239,7 @@ export default function OrdersList({ onView }) {
 
                         <button
                           className="btn-primary"
-                          onClick={async () => {
-                            try {
-                              if (inv.pdf_path) {
-                                const { url, error } = await createSignedUrl(inv.pdf_path, 60 * 10); // 10 minutes
-                                if (error || !url) throw error || new Error("signed url empty");
-                                window.open(url, "_blank");
-                              } else {
-                                alert("PDF not found for this invoice. Open the invoice via View and click Download to generate and store the PDF.");
-                              }
-                            } catch (err) {
-                              console.error("Download error:", err);
-                              alert("Failed to get invoice PDF. See console for details.");
-                            }
-                          }}
+                          onClick={() => handleDownload(inv)}
                         >
                           Download
                         </button>
