@@ -1,6 +1,7 @@
 // src/components/OrdersList.jsx
 import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { createSignedUrl } from "../lib/storage";
 
 /**
  * OrdersList
@@ -177,6 +178,26 @@ export default function OrdersList({ onView }) {
                         </button>
 
                         <button className="btn-outline" onClick={() => handleDelete(inv.id)}>Delete</button>
+
+                        <button
+                          className="btn-primary"
+                          onClick={async () => {
+                            try {
+                              if (inv.pdf_path) {
+                                const { url, error } = await createSignedUrl(inv.pdf_path, 60 * 10); // 10 minutes
+                                if (error || !url) throw error || new Error("signed url empty");
+                                window.open(url, "_blank");
+                              } else {
+                                alert("PDF not found for this invoice. Open the invoice via View and click Download to generate and store the PDF.");
+                              }
+                            } catch (err) {
+                              console.error("Download error:", err);
+                              alert("Failed to get invoice PDF. See console for details.");
+                            }
+                          }}
+                        >
+                          Download
+                        </button>
                       </div>
                     </td>
                   </tr>

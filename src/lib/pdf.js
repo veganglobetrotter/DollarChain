@@ -3,9 +3,10 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 /**
- * generateInvoicePdf(invoice, options)
+ * generateInvoicePdfBlob(invoice)
+ * Returns: { blob: Blob, fileName: string }
  */
-export default function generateInvoicePdf(invoice = {}, opts = {}) {
+export default function generateInvoicePdfBlob(invoice = {}) {
   const {
     buyerName = "Buyer",
     phone = "",
@@ -42,7 +43,7 @@ export default function generateInvoicePdf(invoice = {}, opts = {}) {
   doc.text(paymentNumber || "-", pageWidth - 220, 126);
   doc.text(String(total || "-"), pageWidth - 220, 142);
 
-  // Normalize items into rows for table
+  // Items -> normalize to rows
   let itemRows = [];
   if (Array.isArray(items)) {
     itemRows = items.map((it) => {
@@ -72,7 +73,7 @@ export default function generateInvoicePdf(invoice = {}, opts = {}) {
     });
   }
 
-  // Table using autoTable(doc, options) — robust across bundles
+  // Table using autoTable
   try {
     autoTable(doc, {
       startY: 170,
@@ -88,9 +89,7 @@ export default function generateInvoicePdf(invoice = {}, opts = {}) {
       },
     });
   } catch (err) {
-    // Fallback: if autoTable fails, print a clear error and create a minimal fallback table
-    console.error("PDF generation (autoTable) failed:", err);
-    // Minimal fallback: write items as plain text
+    console.warn("autoTable failed — fallback to plain items", err);
     let y = 170;
     doc.setFontSize(11);
     itemRows.forEach((r) => {
@@ -99,7 +98,6 @@ export default function generateInvoicePdf(invoice = {}, opts = {}) {
     });
   }
 
-  // Totals area (place near bottom)
   const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 20 : 300;
   doc.setFontSize(11);
   doc.setFont(undefined, "bold");
@@ -107,7 +105,7 @@ export default function generateInvoicePdf(invoice = {}, opts = {}) {
   doc.setFont(undefined, "normal");
   doc.text(String(total || "-"), pageWidth - 120, finalY + 20);
 
-  // Footer - small
+  // Footer
   doc.setFontSize(9);
   doc.setTextColor(120);
   doc.text(
@@ -116,9 +114,9 @@ export default function generateInvoicePdf(invoice = {}, opts = {}) {
     doc.internal.pageSize.getHeight() - 40
   );
 
-  // Save PDF
+  // Export blob
   const fileName = `${id}.pdf`;
-  doc.save(fileName);
+  const blob = doc.output("blob");
 
-  return doc;
+  return { blob, fileName };
 }

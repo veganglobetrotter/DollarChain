@@ -9,6 +9,9 @@ import AuthModal from "./components/AuthModal";
 import OrdersList from "./components/OrdersList"; // NEW
 import { supabase } from "./lib/supabase";
 
+import generateInvoicePdfBlob from "./lib/pdf";
+import { uploadInvoicePdf } from "./lib/storage";
+
 function App() {
   const [parsedData, setParsedData] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -126,13 +129,48 @@ function App() {
         total: invoice.total || "",
         payment_number: invoice.paymentNumber || "",
         status: "pending",
+        // pdf_path initially null; we'll update after upload
       };
 
+      // Insert invoice row
       const { data, error } = await supabase.from("invoices").insert([payload]).select().maybeSingle();
       if (error) throw error;
 
-      alert("✅ Invoice saved to your account.");
-      console.log("Saved invoice:", data);
+      const saved = data; // this has id and created_at
+      const invoiceId = saved.id;
+
+      // Generate PDF blob client-side
+      const { blob, fileName } = generateInvoicePdfBlob({
+        buyerName: payload.buyer_name,
+        phone: payload.buyer_phone,
+        items: itemsArray,
+        total: payload.total,
+        paymentNumber: payload.payment_number,
+        id: invoiceId, // use DB id for filename
+        sellerName: "DollarChain",
+      });
+
+      // Upload to Supabase Storage
+      const { path, error: uploadError } = await uploadInvoicePdf(user.id, invoiceId, blob);
+      if (uploadError) {
+        console.error("Upload failed:", uploadError);
+        alert("Invoice saved but uploading PDF to storage failed. See console.");
+        return;
+      }
+
+      // Update invoice row with pdf_path
+      const { error: updateErr } = await supabase
+        .from("invoices")
+        .update({ pdf_path: path })
+        .eq("id", invoiceId);
+      if (updateErr) {
+        console.error("Failed to update invoice with pdf_path:", updateErr);
+        alert("Invoice saved but failed to attach PDF path. See console.");
+        return;
+      }
+
+      alert("✅ Invoice saved and PDF uploaded.");
+      console.log("Saved invoice + pdf_path:", saved, path);
     } catch (err) {
       console.error("Save error:", err);
       alert("Failed to save invoice. See console for details.");
