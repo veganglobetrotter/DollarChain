@@ -2,12 +2,13 @@
 import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
 import generateInvoicePdfBlob from "../lib/pdf";
-import { createSignedUrl } from "../lib/storage";
+import { uploadInvoicePdf, createSignedUrl } from "../lib/storage";
+import uploadInvoicePdfToServer from "../lib/uploadClient"; // NEW helper
 
 /**
  * InvoicePreview
  * Props:
- * - invoice (object): { buyerName, phone, items, total, paymentNumber, id, pdf_path }
+ * - invoice (object): { buyerName, phone, items, total, paymentNumber, id, pdf_path, user_id }
  * - onBackEdit () => called when user wants to go back and edit
  * - onClose () => optional, goes back to paste screen
  * - onSave (invoice) => optional, will be used to persist the invoice
@@ -24,6 +25,8 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
   } = invoice;
 
   const [savedAt, setSavedAt] = useState(null);
+  const [savingCloud, setSavingCloud] = useState(false); // new
+  const [cloudMsg, setCloudMsg] = useState(null);
   const invoiceId = invoiceIdProp || `INV-${Date.now().toString().slice(-6)}`;
   const dateStr = new Date().toLocaleString();
 
@@ -56,7 +59,7 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
     }
   };
 
-  // Download handler: generate PDF and download directly to user's computer
+  // Existing download handler: generates PDF blob and downloads locally. Also tries storage upload if pdf_path exists.
   const handleDownload = async () => {
     try {
       const session = await supabase.auth.getSession();
@@ -66,16 +69,12 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
         return;
       }
 
-      // If pdf_path exists (legacy), open signed url
+      // If pdf_path exists, open signed url
       if (invoice.pdf_path) {
         const { url, error } = await createSignedUrl(invoice.pdf_path, 60 * 10);
-        if (error || !url) {
-          console.warn("Signed URL failed, generating fresh PDF:", error);
-          // Fall through to generate new PDF
-        } else {
-          window.open(url, "_blank");
-          return;
-        }
+        if (error || !url) throw error || new Error("signed url empty");
+        window.open(url, "_blank");
+        return;
       }
 
       // Build payload for PDF generator
@@ -92,18 +91,61 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
       // Generate pdf blob and trigger immediate download for user
       const { blob, fileName } = generateInvoicePdfBlob(payload);
 
-      // Trigger download directly to user's computer
-      const url = URL.createObjectURL(blob);
+      // Trigger local download
+      const urlLocal = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url;
+      a.href = urlLocal;
       a.download = fileName;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(urlLocal);
+
+      // Optional: still attempt to upload to Supabase storage (existing flow) - but ignore failures here
+      try {
+        // If you still want to upload via client-side (not recommended), you'd call uploadInvoicePdf here.
+        // For cloud-safe server upload use the "Save to Cloud" button below which calls serverless endpoint.
+      } catch (err) {
+        console.warn("Non-fatal upload attempt failed (ignored):", err);
+      }
+
+      alert("Downloaded PDF to your device.");
     } catch (err) {
       console.error("Error generating or downloading PDF:", err);
       alert("Failed to generate or download PDF. See console for details.");
+    }
+  };
+
+  // NEW: Save PDF to cloud via the serverless endpoint (service-role upload happens server-side)
+  const handleSaveToCloud = async () => {
+    setCloudMsg(null);
+    setSavingCloud(true);
+    try {
+      const payload = {
+        buyerName: buyerName,
+        phone: phone,
+        items: Array.isArray(items) ? items : (items || ""),
+        total: total,
+        paymentNumber: paymentNumber,
+        id: invoiceId,
+        sellerName: "DollarChain",
+      };
+
+      // generate pdf blob
+      const { blob, fileName } = generateInvoicePdfBlob(payload);
+
+      // call server endpoint to upload and attach pdf_path
+      const res = await uploadInvoicePdfToServer(invoiceId, blob);
+      setCloudMsg("Saved to cloud.");
+      setSavedAt(new Date().toLocaleString());
+      console.log("Saved to cloud result:", res);
+      alert("Saved invoice PDF to your account.");
+    } catch (err) {
+      console.error("Save to cloud failed:", err);
+      setCloudMsg("Save failed (see console).");
+      alert("Failed to save to cloud. See console for details.");
+    } finally {
+      setSavingCloud(false);
     }
   };
 
@@ -149,21 +191,24 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
           <tbody>
             {itemRows.length ? (
               itemRows.map((row, idx) => {
-                // parse "2x T-Shirt" style
+                // Try to parse "2x T-Shirt" style strings vs "T-Shirt x2"
                 let qty = "";
                 let name = row;
                 let unit = "";
 
+                // common pattern: "2x T-Shirt" or "2 x T-Shirt"
                 const m1 = row.match(/^(\d+)\s*x\s*(.+)$/i);
                 if (m1) {
                   qty = m1[1];
                   name = m1[2];
                 } else {
+                  // pattern "T-Shirt x2"
                   const m2 = row.match(/^(.+?)\s*x\s*(\d+)$/i);
                   if (m2) {
                     name = m2[1];
                     qty = m2[2];
                   } else {
+                    // fallback: no qty found
                     qty = "1";
                   }
                 }
@@ -196,6 +241,7 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
               ✔ Saved at {savedAt}
             </div>
           )}
+          {cloudMsg && <div style={{ marginTop: 6, color: savingCloud ? "#6b7280" : "#0f5132" }}>{cloudMsg}</div>}
         </div>
 
         <div style={{ display: "flex", gap: 8 }}>
@@ -209,6 +255,17 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
 
           <button className="btn-primary" onClick={handleDownload}>
             Download PDF
+          </button>
+
+          {/* NEW Save to Cloud button */}
+          <button
+            className="btn-primary"
+            onClick={handleSaveToCloud}
+            disabled={savingCloud}
+            title="Save a copy of this PDF to your account (cloud)"
+            style={{ background: savingCloud ? "linear-gradient(180deg,#9bd39b,#6bbf6b)" : undefined }}
+          >
+            {savingCloud ? "Saving…" : "Save to Cloud"}
           </button>
 
           <button className="btn-outline" onClick={() => onClose?.()}>
