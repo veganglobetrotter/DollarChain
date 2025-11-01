@@ -14,12 +14,13 @@ export default function Performance() {
   const [loading, setLoading] = useState(false);
   const [metrics, setMetrics] = useState(null);
   const [error, setError] = useState(null);
+  const [selectedItem, setSelectedItem] = useState(null); // NEW: item filter
 
-  const load = async (d) => {
+  const load = async (d, itemName = null) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetchPerformance(d);
+      const res = await fetchPerformance(d, itemName);
       setMetrics(res);
     } catch (err) {
       console.error("fetchPerformance error:", err);
@@ -31,8 +32,8 @@ export default function Performance() {
   };
 
   useEffect(() => {
-    load(days);
-  }, [days]);
+    load(days, selectedItem);
+  }, [days, selectedItem]);
 
   // Styles for horizontal layout
   const rowStyle = {
@@ -44,8 +45,8 @@ export default function Performance() {
   };
 
   const cardStyle = {
-    minWidth: 320,      // ensures readable card width
-    flex: "0 0 320px",  // fixed base width, can be adjusted later
+    minWidth: 320, // ensures readable card width
+    flex: "0 0 320px", // fixed base width, can be adjusted later
   };
 
   return (
@@ -68,6 +69,18 @@ export default function Performance() {
           ))}
         </div>
       </div>
+
+      {/* Filter pill */}
+      {selectedItem && (
+        <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ background: "#e7f7ec", color: "#0e6b2e", padding: "6px 10px", borderRadius: 999, fontWeight: 700 }}>
+            Filtering: {selectedItem}
+          </div>
+          <button className="btn-outline" onClick={() => setSelectedItem(null)}>
+            Clear
+          </button>
+        </div>
+      )}
 
       {/* Horizontal cards row */}
       <div style={rowStyle}>
@@ -119,8 +132,28 @@ export default function Performance() {
             <>
               <ul style={{ paddingLeft: 18 }}>
                 {(metrics.best_sellers && metrics.best_sellers.length) ? metrics.best_sellers.map((it, idx) => (
-                  <li key={idx} style={{ marginBottom: 6 }}>
-                    <strong>{it.name}</strong> — {it.qty_sold}
+                  <li
+                    key={idx}
+                    style={{
+                      marginBottom: 6,
+                      cursor: "pointer",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "4px 6px",
+                      borderRadius: 8,
+                      background: selectedItem === it.name ? "#f0fbf3" : "transparent"
+                    }}
+                    onClick={() => setSelectedItem(it.name)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setSelectedItem(it.name); }}
+                  >
+                    <span><strong>{it.name}</strong> — {it.qty_sold}</span>
+                    <button className="btn-outline" onClick={(ev) => { ev.stopPropagation(); setSelectedItem(it.name); }}>
+                      Filter
+                    </button>
                   </li>
                 )) : <li style={{ color: "#9aa3ab" }}>No data</li>}
               </ul>
