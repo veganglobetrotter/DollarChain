@@ -1,6 +1,16 @@
 // src/components/Performance.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { fetchPerformance } from "../lib/metricsClient";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  Legend,
+} from "recharts";
 
 const TIMEFRAMES = [
   { label: "7D", days: 7 },
@@ -14,7 +24,7 @@ export default function Performance() {
   const [loading, setLoading] = useState(false);
   const [metrics, setMetrics] = useState(null);
   const [error, setError] = useState(null);
-  const [selectedItem, setSelectedItem] = useState(null); // NEW: item filter
+  const [selectedItem, setSelectedItem] = useState(null);
 
   const load = async (d, itemName = null) => {
     setLoading(true);
@@ -35,18 +45,29 @@ export default function Performance() {
     load(days, selectedItem);
   }, [days, selectedItem]);
 
+  // Prepare chart data (safely convert strings to numbers)
+  const chartData = useMemo(() => {
+    if (!metrics?.timeseries || !Array.isArray(metrics.timeseries)) return [];
+    return metrics.timeseries.map((p) => ({
+      day: p.day,
+      // ensure numeric values
+      orders: typeof p.orders === "number" ? p.orders : Number(p.orders || 0),
+      revenue: typeof p.revenue === "number" ? p.revenue : Number(p.revenue || 0),
+    }));
+  }, [metrics]);
+
   // Styles for horizontal layout
   const rowStyle = {
     display: "flex",
     gap: 12,
     alignItems: "stretch",
-    overflowX: "auto", // allow horizontal scroll on small screens
+    overflowX: "auto",
     paddingBottom: 6,
   };
 
   const cardStyle = {
-    minWidth: 320, // ensures readable card width
-    flex: "0 0 320px", // fixed base width, can be adjusted later
+    minWidth: 320,
+    flex: "0 0 320px",
   };
 
   return (
@@ -100,20 +121,59 @@ export default function Performance() {
 
               <div style={{ marginTop: 12 }}>
                 <small style={{ color: "#6b7280" }}>Sales time series</small>
-                <div style={{ height: 80, marginTop: 8, background: "#fbfbfb", borderRadius: 8, padding: 8 }}>
-                  {/* Simple textual sparkline (replace with chart later) */}
-                  {Array.isArray(metrics.timeseries) && metrics.timeseries.length ? (
-                    <div style={{ fontSize: 12 }}>
-                      {metrics.timeseries.map((p, idx) => (
-                        <span key={idx} style={{ marginRight: 8 }}>
-                          {p.day.split("-").slice(1).join("/")}: {p.orders}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <div style={{ color: "#9aa3ab" }}>No data</div>
-                  )}
-                </div>
+
+                {chartData.length ? (
+                  <div style={{ width: "100%", height: 140, marginTop: 8 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData} margin={{ top: 8, right: 40, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                        <XAxis
+                          dataKey="day"
+                          tick={{ fontSize: 11 }}
+                          tickFormatter={(d) => {
+                            // show MM-DD for compactness
+                            try {
+                              return d.slice(5);
+                            } catch {
+                              return d;
+                            }
+                          }}
+                        />
+                        <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 11 }} />
+                        <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
+                        <Tooltip
+                          formatter={(value, name) => {
+                            if (name === "revenue") return [value, "Revenue"];
+                            if (name === "orders") return [value, "Orders"];
+                            return [value, name];
+                          }}
+                          labelFormatter={(label) => `Date: ${label}`}
+                        />
+                        <Legend verticalAlign="top" align="right" height={24} />
+                        <Line
+                          yAxisId="left"
+                          type="monotone"
+                          dataKey="orders"
+                          stroke="#1a8917"
+                          strokeWidth={2}
+                          dot={false}
+                          name="Orders"
+                        />
+                        <Line
+                          yAxisId="right"
+                          type="monotone"
+                          dataKey="revenue"
+                          stroke="#64748b"
+                          strokeWidth={2}
+                          dot={false}
+                          name="Revenue"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div style={{ marginTop: 8, color: "#9aa3ab" }}>No timeseries data</div>
+                )}
               </div>
             </>
           ) : (
