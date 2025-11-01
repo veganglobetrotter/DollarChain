@@ -123,15 +123,15 @@ export default function Performance() {
                 <small style={{ color: "#6b7280" }}>Sales time series</small>
 
                 {chartData.length ? (
-                  <div style={{ width: "100%", height: 140, marginTop: 8 }}>
+                  // Increased height for clearer charts
+                  <div style={{ width: "100%", height: 220, marginTop: 12 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData} margin={{ top: 8, right: 40, left: 0, bottom: 0 }}>
+                      <LineChart data={chartData} margin={{ top: 12, right: 40, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                         <XAxis
                           dataKey="day"
                           tick={{ fontSize: 11 }}
                           tickFormatter={(d) => {
-                            // show MM-DD for compactness
                             try {
                               return d.slice(5);
                             } catch {
