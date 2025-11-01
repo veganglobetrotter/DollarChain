@@ -34,6 +34,20 @@ export default function Performance() {
     load(days);
   }, [days]);
 
+  // Styles for horizontal layout
+  const rowStyle = {
+    display: "flex",
+    gap: 12,
+    alignItems: "stretch",
+    overflowX: "auto", // allow horizontal scroll on small screens
+    paddingBottom: 6,
+  };
+
+  const cardStyle = {
+    minWidth: 320,      // ensures readable card width
+    flex: "0 0 320px",  // fixed base width, can be adjusted later
+  };
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -55,9 +69,10 @@ export default function Performance() {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 12 }}>
+      {/* Horizontal cards row */}
+      <div style={rowStyle}>
         {/* Sales card */}
-        <div className="formBox">
+        <div className="formBox" style={cardStyle}>
           <h3 style={{ marginTop: 0 }}>Sales</h3>
           {loading ? (
             <div>Loading…</div>
@@ -94,7 +109,7 @@ export default function Performance() {
         </div>
 
         {/* Best sellers */}
-        <div className="formBox">
+        <div className="formBox" style={cardStyle}>
           <h3 style={{ marginTop: 0 }}>Best sellers</h3>
           {loading ? (
             <div>Loading…</div>
@@ -104,7 +119,7 @@ export default function Performance() {
             <>
               <ul style={{ paddingLeft: 18 }}>
                 {(metrics.best_sellers && metrics.best_sellers.length) ? metrics.best_sellers.map((it, idx) => (
-                  <li key={idx}>
+                  <li key={idx} style={{ marginBottom: 6 }}>
                     <strong>{it.name}</strong> — {it.qty_sold}
                   </li>
                 )) : <li style={{ color: "#9aa3ab" }}>No data</li>}
@@ -114,7 +129,7 @@ export default function Performance() {
         </div>
 
         {/* Repeat customers */}
-        <div className="formBox">
+        <div className="formBox" style={cardStyle}>
           <h3 style={{ marginTop: 0 }}>Repeat customers</h3>
           {loading ? (
             <div>Loading…</div>
