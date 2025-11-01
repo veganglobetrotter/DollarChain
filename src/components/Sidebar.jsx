@@ -1,37 +1,21 @@
+// src/components/Sidebar.jsx
 import React from "react";
 
-/**
- * Sidebar component
- * Props:
- * - sellerName (string)
- * - variant (string) "light" or "dark"
- * - onNavigate (fn) receives view string ('home' | 'orders' | 'settings' etc.)
- * - active (string) currently active view
- */
-export default function Sidebar({ sellerName = "Seller Name", variant = "light", onNavigate = () => {}, active = "home" }) {
-  const asideClass = variant === "dark" ? "sidebar sidebar--dark" : "sidebar";
-  const initial = (sellerName || "S").charAt(0).toUpperCase();
-
-  const NavItem = ({ id, children }) => (
-    <li
-      className="nav-item"
-      onClick={() => onNavigate(id)}
-      style={{
-        background: active === id ? "#f6faf6" : "transparent",
-        fontWeight: active === id ? 700 : 600,
-        cursor: "pointer",
-      }}
-    >
-      {children}
-    </li>
-  );
+export default function Sidebar({ sellerName = "Seller Name", onNavigate = () => {}, active = "home" }) {
+  const nav = [
+    { id: "home", label: "Dashboard" },
+    { id: "performance", label: "Performance" }, // <-- replaced Item 1
+    { id: "item2", label: "Item 2" },
+    { id: "item3", label: "Item 3" },
+    { id: "settings", label: "Settings" },
+  ];
 
   return (
-    <aside className={asideClass} aria-label="Sidebar">
+    <aside className="sidebar" aria-label="Sidebar">
       <div className="sidebar-card">
         <div className="sidebar-top">
-          <div className="avatar" aria-hidden>
-            {initial}
+          <div className="avatar">
+            {(sellerName || "S").charAt(0).toUpperCase()}
           </div>
 
           <div className="seller-info">
@@ -41,12 +25,19 @@ export default function Sidebar({ sellerName = "Seller Name", variant = "light",
         </div>
 
         <nav className="sidebar-nav" aria-label="Main navigation">
-          <ul style={{ padding: 0, margin: 0 }}>
-            <NavItem id="home">Dashboard</NavItem>
-            <NavItem id="orders">Orders</NavItem>
-            <NavItem id="item1">Item 1</NavItem>
-            <NavItem id="item2">Item 2</NavItem>
-            <NavItem id="settings">Settings</NavItem>
+          <ul>
+            {nav.map((n) => (
+              <li
+                key={n.id}
+                className={`nav-item ${active === n.id ? "nav-active" : ""}`}
+                onClick={() => onNavigate(n.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => (e.key === "Enter" ? onNavigate(n.id) : null)}
+              >
+                {n.label}
+              </li>
+            ))}
           </ul>
         </nav>
 

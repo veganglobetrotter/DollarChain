@@ -98,6 +98,13 @@ body {
 }
 .nav-item:hover { background: #f6faf6; transform: translateX(4px); }
 
+/* small active nav style */
+.nav-item.nav-active {
+  background: #e7f7ec;
+  color: var(--accent);
+  transform: translateX(4px);
+}
+
 /* small footer inside sidebar container (below card) */
 .sidebar-footer {
   font-size: 12px;

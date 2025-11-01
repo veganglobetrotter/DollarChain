@@ -11,6 +11,7 @@ import { supabase } from "./lib/supabase";
 
 import generateInvoicePdfBlob from "./lib/pdf";
 import { uploadInvoicePdf } from "./lib/storage";
+import Performance from "./components/Performance"; // <-- added import
 
 function App() {
   const [parsedData, setParsedData] = useState(null);
@@ -207,6 +208,9 @@ function App() {
               />
             )}
 
+            {/* Performance view */}
+            {!previewData && currentView === "performance" && <Performance />}
+
             {/* Orders view */}
             {!previewData && currentView === "orders" && (
               <OrdersList onView={handleViewFromOrders} />
@@ -233,7 +237,7 @@ function App() {
             )}
 
             {/* Fallback small message for other views */}
-            {!previewData && !["home", "orders"].includes(currentView) && (
+            {!previewData && !["home", "orders", "performance"].includes(currentView) && (
               <div className="formBox">
                 <h3 style={{ marginTop: 0 }}>Coming soon</h3>
                 <p style={{ color: "#6b7280" }}>This section ({currentView}) is a placeholder for future features.</p>
