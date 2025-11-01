@@ -11,7 +11,7 @@
   --radius: 16px;
   --sidebar-width: 256px;   /* w-64 */
   --gutter: 32px;
-  --max-width: 1200px;
+  --max-width: 1600px;      /* increased so pages have more horizontal room */
 }
 
 /* Reset */
@@ -30,16 +30,18 @@ body {
 .app-root {
   display: flex;
   gap: var(--gutter);
+  width: calc(100% - 48px);    /* use most of the viewport width while keeping small outer padding */
   max-width: var(--max-width);
-  margin: 28px auto;
-  padding: 0 16px;
+  margin: 28px auto;           /* centered but now much wider */
+  padding: 0 24px;             /* small horizontal padding on very wide screens */
   align-items: start;
   min-height: calc(100vh - 56px);
 }
 
-/* Sidebar container (slightly darker vertical strip) */
+/* Ensure sidebar stays a fixed column and doesn't flex */
 .sidebar {
   width: var(--sidebar-width);
+  flex: 0 0 var(--sidebar-width);
   background: var(--sidebar-bg); /* the subtle vertical field */
   border-radius: calc(var(--radius) + 4px);
   padding: 20px;
@@ -98,13 +100,6 @@ body {
 }
 .nav-item:hover { background: #f6faf6; transform: translateX(4px); }
 
-/* small active nav style */
-.nav-item.nav-active {
-  background: #e7f7ec;
-  color: var(--accent);
-  transform: translateX(4px);
-}
-
 /* small footer inside sidebar container (below card) */
 .sidebar-footer {
   font-size: 12px;
@@ -153,9 +148,10 @@ body {
   gap: 12px;
 }
 
-/* Centered content wrapper for the main card (keeps it hugging sidebar) */
+/* Allow the main content wrapper to take full available width */
 .content-inner {
-  max-width: 760px;
+  max-width: 100%;       /* allow it to expand with the main area */
+  width: 100%;
   margin-left: 0; /* no huge center gutter — card sits next to sidebar due to flex layout */
 }
 
@@ -170,6 +166,7 @@ body {
   padding: 16px;
   box-shadow: var(--soft-shadow);
   transition: transform 0.12s ease, box-shadow 0.18s ease;
+  width: 100%;
 }
 .paste-card:hover { transform: translateY(-6px); box-shadow: 0 18px 36px rgba(18,22,26,0.07); }
 
@@ -226,6 +223,9 @@ body {
 @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
 /* Responsive */
+@media (max-width: 1200px) {
+  .app-root { width: calc(100% - 32px); padding: 0 16px; max-width: 1200px; }
+}
 @media (max-width: 900px) {
   .app-root { flex-direction: column; padding: 16px; margin: 12px auto; }
   .sidebar { width: 100%; display: none; } /* hide sidebar on small screens */
