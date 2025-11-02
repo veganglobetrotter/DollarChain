@@ -15,6 +15,7 @@ import {
 import TopSellersChart from "./TopSellersChart";
 import RepeatCustomersChart from "./RepeatCustomersChart";
 import SummaryCard from "./SummaryCard";
+import PerformanceTopRow from "./PerformanceTopRow"; // <-- new import (surgical)
 
 const TIMEFRAMES = [
   { label: "7D", days: 7 },
@@ -99,105 +100,14 @@ export default function Performance() {
         </div>
       </div>
 
-      {/* Top summary row (expandable cards) */}
-      <div className="summary-row" style={{ marginBottom: 12 }}>
-        <div style={summaryCardStyle}>
-          <SummaryCard
-            title="Sales"
-            value={metrics?.orders_count ?? 0}
-            subtitle={`Revenue: ${metrics?.revenue ?? 0}`}
-            delta={null}
-            sparklineData={sparkRevenue.length ? sparkRevenue : sparkOrders}
-          >
-            {/* Expanded content: full sales chart */}
-            <div style={{ width: "100%", height: 260 }}>
-              {chartData.length ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData} margin={{ top: 12, right: 40, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis
-                      dataKey="day"
-                      tick={{ fontSize: 11 }}
-                      tickFormatter={(d) => {
-                        try {
-                          return d.slice(5);
-                        } catch {
-                          return d;
-                        }
-                      }}
-                    />
-                    <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 11 }} />
-                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
-                    <Tooltip
-                      formatter={(value, name) => {
-                        if (name === "revenue") return [value, "Revenue"];
-                        if (name === "orders") return [value, "Orders"];
-                        return [value, name];
-                      }}
-                      labelFormatter={(label) => `Date: ${label}`}
-                    />
-                    <Legend verticalAlign="top" align="right" height={24} />
-                    <Line
-                      yAxisId="left"
-                      type="monotone"
-                      dataKey="orders"
-                      stroke="#1a8917"
-                      strokeWidth={2}
-                      dot={false}
-                      name="Orders"
-                    />
-                    <Line
-                      yAxisId="right"
-                      type="monotone"
-                      dataKey="revenue"
-                      stroke="#64748b"
-                      strokeWidth={2}
-                      dot={false}
-                      name="Revenue"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div style={{ padding: 12, color: "#9aa3ab" }}>No timeseries data</div>
-              )}
-            </div>
-          </SummaryCard>
-        </div>
-
-        <div style={{ ...summaryCardStyle, maxWidth: 420 }}>
-          <SummaryCard
-            title="Best sellers (top 5)"
-            value={topSeller ? topSeller.name : "—"}
-            subtitle={topSeller ? `${topSeller.qty_sold} sold` : "No sales"}
-            sparklineData={metrics?.best_sellers?.slice(0,5).map(b => Number(b.qty_sold || 0)) || []}
-          >
-            {/* Expanded content: top sellers chart (bar/horizontal) */}
-            <div style={{ paddingTop: 6 }}>
-              <TopSellersChart
-                data={metrics?.best_sellers ?? []}
-                onSelect={(name) => setSelectedItem(name)}
-                highlightName={selectedItem}
-              />
-            </div>
-          </SummaryCard>
-        </div>
-
-        <div style={{ ...summaryCardStyle, maxWidth: 360 }}>
-          <SummaryCard
-            title="Repeat customers"
-            value={`${metrics?.repeat_stats?.repeat_pct ?? 0}%`}
-            subtitle={`${metrics?.repeat_stats?.repeat_count ?? 0} repeat / ${metrics?.repeat_stats?.unique_customers ?? 0} unique`}
-            sparklineData={metrics?.repeat_customers?.slice(0,8).map(r => Number(r.count || 0)) || []}
-          >
-            <div style={{ paddingTop: 6 }}>
-              <RepeatCustomersChart
-                repeatCustomers={metrics?.repeat_customers ?? []}
-                repeatPct={metrics?.repeat_stats?.repeat_pct ?? 0}
-              />
-            </div>
-          </SummaryCard>
-        </div>
-      </div>
+      {/* ---------- SURGICAL CHANGE: replaced old top-row markup with PerformanceTopRow ---------- */}
+      <PerformanceTopRow
+        metrics={metrics}
+        chartData={chartData}
+        onSelectItem={setSelectedItem}
+        selectedItem={selectedItem}
+      />
+      {/* ---------- end surgical change ---------- */}
 
       {/* Filter pill (kept for item filtering) */}
       {selectedItem && (
