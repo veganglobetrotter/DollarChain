@@ -81,11 +81,11 @@ export default function RepeatCustomersChart({ repeatCustomers = [], repeatPct =
               width: "70%",
             }}
           >
-            <div style={{ fontSize: 12, color: "var(--muted, #6b7280)" }}>Repeat customers</div>
+            <div className="text-muted" style={{ fontSize: 12 }}>Repeat customers</div>
             <div style={{ fontWeight: 800, fontSize: 18, lineHeight: 1.05, marginTop: 6 }}>
               {Math.round(Number(repeatPct || 0))}%
             </div>
-            <div style={{ fontSize: 12, color: "var(--muted, #6b7280)", marginTop: 4 }}>
+            <div className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
               of customers
             </div>
           </div>
@@ -95,7 +95,7 @@ export default function RepeatCustomersChart({ repeatCustomers = [], repeatPct =
       {/* Full list below the pie */}
       <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
         {top.length === 0 ? (
-          <div style={{ color: "#9aa3ab", padding: 8 }}>No repeat buyers yet</div>
+          <div className="text-muted" style={{ padding: 8 }}>No repeat buyers yet</div>
         ) : (
           top.map((r, i) => {
             const pct = Math.round((r.count / totalRepeatCount) * 100);
@@ -107,13 +107,8 @@ export default function RepeatCustomersChart({ repeatCustomers = [], repeatPct =
                 tabIndex={0}
                 onClick={() => onSelect?.(r.label)}
                 onKeyDown={(e) => (e.key === "Enter" || e.key === " " ? onSelect?.(r.label) : null)}
+                className="list-row"
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "8px 10px",
-                  borderRadius: 8,
-                  cursor: "pointer",
                   background: "transparent",
                 }}
                 aria-label={`${i + 1}. ${r.label}: ${r.count} orders (${pct}%)`}
@@ -129,7 +124,7 @@ export default function RepeatCustomersChart({ repeatCustomers = [], repeatPct =
                   <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {truncate(r.label, 40)}
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--muted, #6b7280)", marginTop: 4 }}>
+                  <div className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
                     {formatNumber(r.count)} orders • {pct}% of repeat
                   </div>
                 </div>
