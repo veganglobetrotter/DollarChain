@@ -12,6 +12,9 @@ import {
   Legend,
 } from "recharts";
 
+import TopSellersChart from "./TopSellersChart";
+import RepeatCustomersChart from "./RepeatCustomersChart";
+
 const TIMEFRAMES = [
   { label: "7D", days: 7 },
   { label: "28D", days: 28 },
@@ -30,6 +33,7 @@ export default function Performance() {
     setLoading(true);
     setError(null);
     try {
+      // fetchPerformance should accept (days, itemName) — RPC updated to accept item_name
       const res = await fetchPerformance(d, itemName);
       setMetrics(res);
     } catch (err) {
@@ -56,13 +60,19 @@ export default function Performance() {
     }));
   }, [metrics]);
 
-  // Styles for horizontal layout
+  // Layout styles (surgically tweaked: wider sales card so chart isn't squeezed)
   const rowStyle = {
     display: "flex",
     gap: 12,
     alignItems: "stretch",
     overflowX: "auto",
     paddingBottom: 6,
+  };
+
+  // Sales card is wider and flexible; other cards keep compact width
+  const salesCardStyle = {
+    minWidth: 560,
+    flex: "1 1 560px",
   };
 
   const cardStyle = {
@@ -105,8 +115,8 @@ export default function Performance() {
 
       {/* Horizontal cards row */}
       <div style={rowStyle}>
-        {/* Sales card */}
-        <div className="formBox" style={cardStyle}>
+        {/* Sales card (wider) */}
+        <div className="formBox" style={salesCardStyle}>
           <h3 style={{ marginTop: 0 }}>Sales</h3>
           {loading ? (
             <div>Loading…</div>
@@ -124,7 +134,7 @@ export default function Performance() {
 
                 {chartData.length ? (
                   // Increased height for clearer charts
-                  <div style={{ width: "100%", height: 220, marginTop: 12 }}>
+                  <div style={{ width: "100%", height: 260, marginTop: 12 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={chartData} margin={{ top: 12, right: 40, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -133,6 +143,7 @@ export default function Performance() {
                           tick={{ fontSize: 11 }}
                           tickFormatter={(d) => {
                             try {
+                              // show month/day for readability
                               return d.slice(5);
                             } catch {
                               return d;
@@ -181,47 +192,27 @@ export default function Performance() {
           )}
         </div>
 
-        {/* Best sellers */}
+        {/* Best sellers (chart) */}
         <div className="formBox" style={cardStyle}>
-          <h3 style={{ marginTop: 0 }}>Best sellers</h3>
+          <h3 style={{ marginTop: 0 }}>Best sellers (top 5)</h3>
           {loading ? (
             <div>Loading…</div>
           ) : error ? (
             <div style={{ color: "red" }}>{error}</div>
           ) : metrics ? (
-            <>
-              <ul style={{ paddingLeft: 18 }}>
-                {(metrics.best_sellers && metrics.best_sellers.length) ? metrics.best_sellers.map((it, idx) => (
-                  <li
-                    key={idx}
-                    style={{
-                      marginBottom: 6,
-                      cursor: "pointer",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: "4px 6px",
-                      borderRadius: 8,
-                      background: selectedItem === it.name ? "#f0fbf3" : "transparent"
-                    }}
-                    onClick={() => setSelectedItem(it.name)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setSelectedItem(it.name); }}
-                  >
-                    <span><strong>{it.name}</strong> — {it.qty_sold}</span>
-                    <button className="btn-outline" onClick={(ev) => { ev.stopPropagation(); setSelectedItem(it.name); }}>
-                      Filter
-                    </button>
-                  </li>
-                )) : <li style={{ color: "#9aa3ab" }}>No data</li>}
-              </ul>
-            </>
-          ) : null}
+            <div>
+              <TopSellersChart
+                data={metrics.best_sellers ?? []}
+                onSelect={(name) => setSelectedItem(name)}
+                highlightName={selectedItem}
+              />
+            </div>
+          ) : (
+            <div>No data</div>
+          )}
         </div>
 
-        {/* Repeat customers */}
+        {/* Repeat customers (chart + donut) */}
         <div className="formBox" style={cardStyle}>
           <h3 style={{ marginTop: 0 }}>Repeat customers</h3>
           {loading ? (
@@ -229,15 +220,15 @@ export default function Performance() {
           ) : error ? (
             <div style={{ color: "red" }}>{error}</div>
           ) : metrics ? (
-            <>
-              <div style={{ fontSize: 24, fontWeight: 700 }}>
-                {metrics.repeat_stats?.repeat_pct ?? 0}% 
-              </div>
-              <div style={{ color: "#6b7280" }}>
-                {metrics.repeat_stats?.repeat_count ?? 0} repeat buyers — {metrics.repeat_stats?.unique_customers ?? 0} unique buyers
-              </div>
-            </>
-          ) : null}
+            <div>
+              <RepeatCustomersChart
+                repeatCustomers={metrics.repeat_customers ?? []}
+                repeatPct={metrics.repeat_stats?.repeat_pct ?? 0}
+              />
+            </div>
+          ) : (
+            <div>No data</div>
+          )}
         </div>
       </div>
     </div>
