@@ -15,9 +15,19 @@ export default function Header({ onBuyCredits, activeRange = "28D", onRangeChang
         justifyContent: "space-between",
         gap: 12,
         padding: "0.5rem 0",
+        width: "100%", // ensure header fills the main column
       }}
     >
-      <div className="header-left" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div
+        className="header-left"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          flex: "1 1 auto", // allow left side to shrink/grow before pushing controls
+          minWidth: 0,
+        }}
+      >
         <div className="brand" style={{ fontWeight: 800 }}>
           DollarChain
         </div>
@@ -25,7 +35,16 @@ export default function Header({ onBuyCredits, activeRange = "28D", onRangeChang
         <div style={{ color: "#6b7280", fontSize: 13 }}>Analytics</div>
       </div>
 
-      <div className="header-right" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div
+        className="header-right"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          flex: "0 0 auto",
+          flexWrap: "wrap", // allow controls to wrap on narrow screens
+        }}
+      >
         {/* Optional range controls — rendered only when parent cares to handle them */}
         {typeof onRangeChange === "function" && (
           <div className="header-controls" role="toolbar" aria-label="Date range">
