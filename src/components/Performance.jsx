@@ -1,7 +1,6 @@
 // src/components/Performance.jsx
 import React, { useEffect, useState, useMemo } from "react";
 import { fetchPerformance } from "../lib/metricsClient";
-import SummaryCard from "./SummaryCard";
 import {
   ResponsiveContainer,
   LineChart,
@@ -12,6 +11,9 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
+
+import TopSellersChart from "./TopSellersChart";
+import RepeatCustomersChart from "./RepeatCustomersChart";
 
 const TIMEFRAMES = [
   { label: "7D", days: 7 },
@@ -31,6 +33,7 @@ export default function Performance() {
     setLoading(true);
     setError(null);
     try {
+      // fetchPerformance should accept (days, itemName) — RPC will filter when itemName provided
       const res = await fetchPerformance(d, itemName);
       setMetrics(res);
     } catch (err) {
@@ -51,24 +54,12 @@ export default function Performance() {
     if (!metrics?.timeseries || !Array.isArray(metrics.timeseries)) return [];
     return metrics.timeseries.map((p) => ({
       day: p.day,
-      // ensure numeric values
       orders: typeof p.orders === "number" ? p.orders : Number(p.orders || 0),
       revenue: typeof p.revenue === "number" ? p.revenue : Number(p.revenue || 0),
     }));
   }, [metrics]);
 
-  // Summary values for top row cards (gracefully handle missing metrics)
-  const totalOrders = metrics?.orders_count ?? 0;
-  const revenue = metrics?.revenue ?? 0;
-  const topSellers = Array.isArray(metrics?.best_sellers) ? metrics.best_sellers.slice(0, 5) : [];
-  const repeatPct = metrics?.repeat_stats?.repeat_pct ?? 0;
-  const repeatCount = metrics?.repeat_stats?.repeat_count ?? 0;
-  const uniqueCustomers = metrics?.repeat_stats?.unique_customers ?? 0;
-
-  // sparkline data for summary small charts (use orders array)
-  const sparkline = chartData.map((d) => d.orders);
-
-  // Styles for horizontal layout
+  // Styles
   const rowStyle = {
     display: "flex",
     gap: 12,
@@ -76,92 +67,10 @@ export default function Performance() {
     overflowX: "auto",
     paddingBottom: 6,
   };
-
-  const cardStyle = {
-    minWidth: 320,
-    flex: "0 0 320px",
-  };
+  const cardStyle = { minWidth: 320, flex: "0 0 320px" };
 
   return (
     <div>
-      {/* Top summary row using SummaryCard */}
-      <div style={{ marginBottom: 12 }}>
-        <div className="summary-row" style={{ display: "flex", gap: 12 }}>
-          <div style={{ flex: 1 }}>
-            <SummaryCard
-              title="Sales"
-              value={totalOrders}
-              subtitle={`Revenue: KES ${Number(revenue).toLocaleString()}`}
-              delta={/* if you have a delta value put it here */ null}
-              deltaDirection={null}
-              sparklineData={sparkline}
-            >
-              {/* Expanded content: mini chart preview (sales) */}
-              <div style={{ width: "100%", height: 220 }}>
-                {chartData.length ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 12, right: 40, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis dataKey="day" tick={{ fontSize: 11 }} tickFormatter={(d) => d.slice(5)} />
-                      <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 11 }} />
-                      <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
-                      <Tooltip formatter={(v) => (typeof v === "number" ? v.toLocaleString() : v)} />
-                      <Legend verticalAlign="top" align="right" height={24} />
-                      <Line yAxisId="left" type="monotone" dataKey="orders" stroke="#1a8917" strokeWidth={2} dot={false} name="Orders" />
-                      <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#64748b" strokeWidth={2} dot={false} name="Revenue" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div style={{ padding: 12, color: "#9aa3ab" }}>No timeseries data</div>
-                )}
-              </div>
-            </SummaryCard>
-          </div>
-
-          <div style={{ flex: 1 }}>
-            <SummaryCard
-              title={`Best sellers (top ${Math.min(5, topSellers.length || 5)})`}
-              value={topSellers.length}
-              subtitle={topSellers[0] ? `${topSellers[0].name} — ${topSellers[0].qty_sold}` : "No data"}
-              sparklineData={sparkline}
-            >
-              <div style={{ paddingTop: 8 }}>
-                <ul style={{ paddingLeft: 18, margin: 0 }}>
-                  {topSellers.length ? topSellers.map((it, idx) => (
-                    <li key={idx} style={{ marginBottom: 6 }}>
-                      <strong>{it.name}</strong> — {it.qty_sold}
-                    </li>
-                  )) : <li style={{ color: "#9aa3ab" }}>No data</li>}
-                </ul>
-              </div>
-            </SummaryCard>
-          </div>
-
-          <div style={{ flex: 1 }}>
-            <SummaryCard
-              title="Repeat customers"
-              value={`${repeatPct}%`}
-              subtitle={`${repeatCount} repeat — ${uniqueCustomers} unique`}
-              sparklineData={sparkline}
-            >
-              <div style={{ paddingTop: 8 }}>
-                <div style={{ color: "#6b7280", marginBottom: 8 }}>Top repeat customers</div>
-                <ul style={{ paddingLeft: 18, margin: 0 }}>
-                  {/* show top few repeat customers if available */}
-                  {(metrics?.repeat_stats?.top_repeat && metrics.repeat_stats.top_repeat.length) ? (
-                    metrics.repeat_stats.top_repeat.slice(0, 5).map((r, i) => (
-                      <li key={i}>{r.label} — {r.count}</li>
-                    ))
-                  ) : (
-                    <li style={{ color: "#9aa3ab" }}>No detailed repeat data</li>
-                  )}
-                </ul>
-              </div>
-            </SummaryCard>
-          </div>
-        </div>
-      </div>
-
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div>
           <h2 style={{ margin: 0 }}>Performance</h2>
@@ -181,9 +90,17 @@ export default function Performance() {
         </div>
       </div>
 
-      {/* Horizontal cards row */}
+      {selectedItem && (
+        <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ background: "#e7f7ec", color: "#0e6b2e", padding: "6px 10px", borderRadius: 999, fontWeight: 700 }}>
+            Filtering: {selectedItem}
+          </div>
+          <button className="btn-outline" onClick={() => setSelectedItem(null)}>Clear</button>
+        </div>
+      )}
+
       <div style={rowStyle}>
-        {/* Sales card (detailed) */}
+        {/* Sales card */}
         <div className="formBox" style={cardStyle}>
           <h3 style={{ marginTop: 0 }}>Sales</h3>
           {loading ? (
@@ -193,9 +110,7 @@ export default function Performance() {
           ) : metrics ? (
             <>
               <div style={{ fontSize: 28, fontWeight: 700 }}>{metrics.orders_count ?? 0}</div>
-              <div style={{ color: "#6b7280" }}>
-                Revenue: {metrics.revenue ?? 0}
-              </div>
+              <div style={{ color: "#6b7280" }}>Revenue: {metrics.revenue ?? 0}</div>
 
               <div style={{ marginTop: 12 }}>
                 <small style={{ color: "#6b7280" }}>Sales time series</small>
@@ -208,13 +123,7 @@ export default function Performance() {
                         <XAxis
                           dataKey="day"
                           tick={{ fontSize: 11 }}
-                          tickFormatter={(d) => {
-                            try {
-                              return d.slice(5);
-                            } catch {
-                              return d;
-                            }
-                          }}
+                          tickFormatter={(d) => (typeof d === "string" && d.length >= 5 ? d.slice(5) : d)}
                         />
                         <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 11 }} />
                         <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
@@ -227,24 +136,8 @@ export default function Performance() {
                           labelFormatter={(label) => `Date: ${label}`}
                         />
                         <Legend verticalAlign="top" align="right" height={24} />
-                        <Line
-                          yAxisId="left"
-                          type="monotone"
-                          dataKey="orders"
-                          stroke="#1a8917"
-                          strokeWidth={2}
-                          dot={false}
-                          name="Orders"
-                        />
-                        <Line
-                          yAxisId="right"
-                          type="monotone"
-                          dataKey="revenue"
-                          stroke="#64748b"
-                          strokeWidth={2}
-                          dot={false}
-                          name="Revenue"
-                        />
+                        <Line yAxisId="left" type="monotone" dataKey="orders" stroke="#1a8917" strokeWidth={2} dot={false} name="Orders" />
+                        <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#64748b" strokeWidth={2} dot={false} name="Revenue" />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
@@ -258,63 +151,28 @@ export default function Performance() {
           )}
         </div>
 
-        {/* Best sellers */}
+        {/* Best sellers (chart) */}
         <div className="formBox" style={cardStyle}>
-          <h3 style={{ marginTop: 0 }}>Best sellers</h3>
-          {loading ? (
-            <div>Loading…</div>
-          ) : error ? (
-            <div style={{ color: "red" }}>{error}</div>
-          ) : metrics ? (
-            <>
-              <ul style={{ paddingLeft: 18 }}>
-                {(metrics.best_sellers && metrics.best_sellers.length) ? metrics.best_sellers.map((it, idx) => (
-                  <li
-                    key={idx}
-                    style={{
-                      marginBottom: 6,
-                      cursor: "pointer",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: "4px 6px",
-                      borderRadius: 8,
-                      background: selectedItem === it.name ? "#f0fbf3" : "transparent"
-                    }}
-                    onClick={() => setSelectedItem(it.name)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setSelectedItem(it.name); }}
-                  >
-                    <span><strong>{it.name}</strong> — {it.qty_sold}</span>
-                    <button className="btn-outline" onClick={(ev) => { ev.stopPropagation(); setSelectedItem(it.name); }}>
-                      Filter
-                    </button>
-                  </li>
-                )) : <li style={{ color: "#9aa3ab" }}>No data</li>}
-              </ul>
-            </>
-          ) : null}
+          <h3 style={{ marginTop: 0 }}>Best sellers (top 5)</h3>
+          {loading ? <div>Loading…</div> : error ? <div style={{ color: "red" }}>{error}</div> : metrics ? (
+            <div>
+              <TopSellersChart
+                data={metrics.best_sellers}
+                onSelect={(name) => setSelectedItem(name)}
+                highlightName={selectedItem}
+              />
+            </div>
+          ) : <div>No data</div>}
         </div>
 
-        {/* Repeat customers */}
+        {/* Repeat customers (chart + donut) */}
         <div className="formBox" style={cardStyle}>
           <h3 style={{ marginTop: 0 }}>Repeat customers</h3>
-          {loading ? (
-            <div>Loading…</div>
-          ) : error ? (
-            <div style={{ color: "red" }}>{error}</div>
-          ) : metrics ? (
-            <>
-              <div style={{ fontSize: 24, fontWeight: 700 }}>
-                {metrics.repeat_stats?.repeat_pct ?? 0}% 
-              </div>
-              <div style={{ color: "#6b7280" }}>
-                {metrics.repeat_stats?.repeat_count ?? 0} repeat buyers — {metrics.repeat_stats?.unique_customers ?? 0} unique buyers
-              </div>
-            </>
-          ) : null}
+          {loading ? <div>Loading…</div> : error ? <div style={{ color: "red" }}>{error}</div> : metrics ? (
+            <div>
+              <RepeatCustomersChart repeatCustomers={metrics.repeat_customers} repeatPct={metrics.repeat_stats?.repeat_pct ?? 0} />
+            </div>
+          ) : <div>No data</div>}
         </div>
       </div>
     </div>
