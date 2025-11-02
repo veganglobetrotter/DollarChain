@@ -1,5 +1,6 @@
 // src/components/SummaryCard.jsx
 import React, { useState, useMemo } from "react";
+import { ResponsiveContainer, AreaChart, Area, Tooltip, XAxis } from "recharts";
 
 /**
  * SummaryCard
@@ -28,30 +29,21 @@ export default function SummaryCard({
   const [open, setOpen] = useState(!!defaultOpen);
 
   const toggle = (e) => {
-    // if called by an actual click event, allow it; if called programmatically, e may be undefined
+    // stop propagation if called from a button click inside header
     if (e && e.stopPropagation) e.stopPropagation();
     const next = !open;
     setOpen(next);
     if (typeof onToggle === "function") onToggle(next);
   };
 
-  // Tiny sparkline path generation (simple)
-  const sparkPath = useMemo(() => {
-    if (!Array.isArray(sparklineData) || sparklineData.length === 0) return null;
-    const w = 120;
-    const h = 36;
-    const max = Math.max(...sparklineData);
-    const min = Math.min(...sparklineData);
-    const range = max - min || 1;
-    const step = w / (sparklineData.length - 1 || 1);
-    return sparklineData
-      .map((v, i) => {
-        const x = Math.round(i * step);
-        const y = Math.round(h - ((v - min) / range) * h);
-        return `${i === 0 ? "M" : "L"} ${x} ${y}`;
-      })
-      .join(" ");
+  // Build small chart-friendly array
+  const chartData = useMemo(() => {
+    if (!Array.isArray(sparklineData) || sparklineData.length === 0) return [];
+    return sparklineData.map((v, i) => ({ i, v: Number(v || 0) }));
   }, [sparklineData]);
+
+  // unique gradient id for area fill (keeps multiple cards safe)
+  const gradId = `g-${Math.random().toString(36).slice(2, 8)}`;
 
   return (
     <div className={`summary-card ${open ? "expanded" : ""}`} role="region" aria-expanded={open}>
@@ -77,13 +69,23 @@ export default function SummaryCard({
           {subtitle ? <div className="summary-sub">{subtitle}</div> : null}
         </div>
 
-        <div className="summary-right" onClick={(e) => e.stopPropagation()}>
+        <div className="summary-right" onClick={(e) => e.stopPropagation()} >
           {/* tiny sparkline */}
           <div className="summary-sparkline" aria-hidden>
-            {sparkPath ? (
-              <svg width="120" height="36" viewBox="0 0 120 36" preserveAspectRatio="none">
-                <path d={sparkPath} stroke="#16a34a" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+            {chartData.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#16a34a" stopOpacity={0.28} />
+                      <stop offset="100%" stopColor="#16a34a" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="i" hide />
+                  <Tooltip formatter={(v) => [v, title]} />
+                  <Area type="monotone" dataKey="v" stroke="#16a34a" fill={`url(#${gradId})`} strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
             ) : (
               <div style={{ width: 120, height: 36 }} />
             )}

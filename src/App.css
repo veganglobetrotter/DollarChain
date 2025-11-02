@@ -258,7 +258,17 @@ body {
 
 /* right side (sparkline + toggle) */
 .summary-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
-.summary-sparkline { display: block; }
+
+/* Summary sparkline sizing (Patch 2) */
+.summary-sparkline {
+  width: 120px;
+  height: 36px;
+  display: block;
+}
+.summary-sparkline svg {
+  width: 100% !important;
+  height: 100% !important;
+}
 
 /* expanded/collapsed body */
 .summary-card-body {
