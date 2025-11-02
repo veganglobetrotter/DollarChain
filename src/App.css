@@ -349,3 +349,64 @@ body {
   position: relative;
   z-index: 3;
 }
+/* --- Performance cards: consistent sizing & responsive grid --- */
+
+/* basic card surface used by summary cards */
+.surface-card,
+.summary-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 8px 24px rgba(16,24,40,0.06);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 160px; /* comfortable preview height */
+  box-sizing: border-box;
+}
+
+/* top-row grid for summary cards (desktop 3, tablet 2, mobile 1) */
+.card-row,
+.performance-top-row {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+@media (min-width: 640px) {
+  .card-row,
+  .performance-top-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 1024px) {
+  .card-row,
+  .performance-top-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ensure summary-card body (expanded area) has room for charts */
+.summary-card.expanded .summary-card-body {
+  min-height: 320px; /* chart comfortable height */
+  transition: min-height 220ms ease;
+}
+
+/* keep header and actions aligned inside card */
+.summary-card-header { gap: 12px; align-items: center; display: flex; justify-content: space-between; }
+
+/* small helper for pill buttons (range etc.) */
+.btn-pill {
+  border-radius: 9999px;
+  padding: 6px 10px;
+  border: 1px solid rgba(0,0,0,0.06);
+  background: transparent;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn-pill.active {
+  background: #16a34a;
+  color: white;
+  border-color: transparent;
+}
