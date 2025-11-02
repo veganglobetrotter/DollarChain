@@ -214,3 +214,118 @@ button:focus-visible {
 
 /* utilities */
 .visually-hidden { position: absolute !important; height: 1px; width: 1px; overflow: hidden; clip: rect(1px,1px,1px,1px); white-space: nowrap; }
+
+/* --------------------
+   App-specific helpers added for Step C
+   These focus on layout/spacing only (no color forcing).
+   Use these classes to replace repeated inline styles in components.
+   -------------------- */
+
+/* Summary card header layout (clickable header region) */
+.summary-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  padding: 0; /* card already provides padding */
+}
+
+/* Left side of the header (title + metrics) */
+.summary-left {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* Right side of the header (controls / sparkline / toggle) */
+.summary-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: 12px;
+  flex: 0 0 auto;
+}
+
+/* Primary value styling used inside header */
+.summary-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+/* small subtitle under the value */
+.summary-sub {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* small sparkline container used in card header */
+.summary-sparkline {
+  width: 120px;
+  height: 36px;
+  min-width: 120px;
+}
+
+/* Body area of the summary card — will be transitioned by inline JS */
+.summary-card-body {
+  overflow: hidden;
+  transition: max-height 320ms cubic-bezier(.2,.9,.2,1), opacity 220ms ease;
+}
+
+/* Generic chart wrapper used in PerformanceTopRow for consistent heights/margins */
+.chart-wrap {
+  width: 100%;
+  height: 100%;
+  display: block;
+  box-sizing: border-box;
+}
+
+/* List row used in sellers / repeat lists */
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* muted helper class for consistent muted color usage */
+.text-muted {
+  color: var(--muted);
+}
+
+/* Outline button used in cards/headers */
+.btn-outline {
+  background: transparent;
+  border: 1px solid rgba(0,0,0,0.08);
+  padding: 0.45em 0.9em;
+  border-radius: 8px;
+}
+
+/* Primary buy button (keeps a consistent look) */
+.btn-buy {
+  background: #16a34a;
+  color: #fff;
+  border: 1px solid transparent;
+  padding: 0.5em 0.9em;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+/* small responsive tweak: when cards are narrow, stack header content */
+@media (max-width: 520px) {
+  .summary-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .summary-right {
+    margin-left: 0;
+  }
+}
