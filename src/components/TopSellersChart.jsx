@@ -94,7 +94,7 @@ export default function TopSellersChart({ data = [], onSelect = () => {}, highli
 
           <Tooltip formatter={tooltipFormatter} />
 
-          {/* background full-length track to provide context for small bars */}
+          {/* background full-length track to provide context for small bars nice */}
           <Bar dataKey="max" barSize={18} isAnimationActive={false} fill="#eef2f6" radius={[8, 8, 8, 8]} />
 
           {/* foreground bar showing quantity; LabelList places numeric label to the right */}
