@@ -18,7 +18,7 @@ import {
  * - highlightName (optional)
  */
 export default function TopSellersChart({ data = [], onSelect = () => {}, highlightName = null }) {
-  // Normalize, sort descending, take top 5
+  // Normalize, sort descending, take top 5 (largest -> smallest)
   const rows = useMemo(() => {
     const arr = (Array.isArray(data) ? data : []).map((d) => ({
       name: d.name || d.label || d.product || "Unknown",
@@ -31,44 +31,49 @@ export default function TopSellersChart({ data = [], onSelect = () => {}, highli
     return <div style={{ color: "#9aa3ab", padding: 12 }}>No best sellers yet</div>;
   }
 
-  // Compute max for the background track and to compute percent if needed
+  // max for background track and percent calculations
   const maxQty = Math.max(...rows.map((r) => r.qty), 1);
 
-  // Prepare chart data with rank (1 = top)
-  const chartData = rows.map((r, i) => ({ ...r, rank: i + 1, max: maxQty }));
+  // Prepare chart data in reverse so highest appears at the top visually
+  // (Recharts draws the first item at the bottom for vertical layout in many contexts,
+  //   reversing ensures the largest appears at the top.)
+  const chartData = rows
+    .map((r, i) => ({ ...r, rank: i + 1, max: maxQty }))
+    .slice()
+    .reverse();
 
   // Visual tokens
   const colors = ["#16a34a", "#22c55e", "#34d399", "#86efac", "#c7f9d1"];
   const highlightColor = "#065f46";
 
-  // Height: comfortable row spacing (about 52-56px per row)
-  const height = Math.max(160, chartData.length * 56);
+  // dimensions
+  const height = Math.max(180, chartData.length * 56); // comfortable rows
 
-  // Truncate helper for label rendering
-  const truncate = (s, n = 28) => (typeof s === "string" && s.length > n ? s.slice(0, n - 1) + "…" : s);
+  // small helpers
+  const truncate = (s, n = 32) => (typeof s === "string" && s.length > n ? s.slice(0, n - 1) + "…" : s);
+  const formatNumber = (v) => (typeof v === "number" ? v.toLocaleString() : v);
 
-  // Custom Y tick renderer: show "1. Product name…" truncated, full name in <title>
+  // Render Y tick: "1. Product name…" with full name in <title>
   const renderYAxisTick = ({ x, y, payload }) => {
-    const { name, rank } = payload.payload || { name: payload.value, rank: null };
-    const short = truncate(name, 28);
+    const full = payload?.value ?? "";
+    // try to detect rank from payload.payload (our prepared object)
+    const rank = payload?.payload?.rank ?? null;
+    const label = truncate(full, 32);
     return (
       <g transform={`translate(${x},${y})`}>
-        <title>{name}</title>
+        <title>{full}</title>
         <text x={6} y={6} fontSize={13} fill="currentColor" style={{ pointerEvents: "none", fontWeight: 700 }}>
-          {rank ? `${rank}. ${short}` : short}
+          {rank ? `${rank}. ${label}` : label}
         </text>
       </g>
     );
   };
 
-  // Tooltip shows qty and percent of top
+  // Tooltip shows qty and percent-of-top
   const tooltipFormatter = (value) => {
     const pct = Math.round((value / maxQty) * 100);
-    return [`${value}`, `${pct}% of top`];
+    return [`${formatNumber(value)}`, `${pct}% of top`];
   };
-
-  // number formatting
-  const formatNumber = (v) => (typeof v === "number" ? v.toLocaleString() : v);
 
   return (
     <div style={{ width: "100%", height }}>
@@ -76,17 +81,17 @@ export default function TopSellersChart({ data = [], onSelect = () => {}, highli
         <BarChart
           data={chartData}
           layout="vertical"
-          margin={{ top: 6, right: 8, left: 8, bottom: 6 }}
-          barCategoryGap="24%"
+          margin={{ top: 6, right: 12, left: 8, bottom: 6 }}
+          barCategoryGap="22%"
         >
-          {/* hide numeric X axis */}
+          {/* numeric axis hidden but domain set to maxQty so bars fill proportionally */}
           <XAxis type="number" hide domain={[0, maxQty]} />
 
-          {/* Y axis shows rank + truncated name */}
+          {/* label column — increased width so names have room but not too wide */}
           <YAxis
             type="category"
             dataKey="name"
-            width={200}
+            width={160} /* tweak this to 180/200 if you have very long product names */
             tick={renderYAxisTick}
             axisLine={false}
             tickLine={false}
@@ -94,11 +99,12 @@ export default function TopSellersChart({ data = [], onSelect = () => {}, highli
 
           <Tooltip formatter={tooltipFormatter} />
 
-          {/* background full-length track to provide context for small bars nice */}
-          <Bar dataKey="max" barSize={18} isAnimationActive={false} fill="#eef2f6" radius={[8, 8, 8, 8]} />
+          {/* subtle background track so small values are visible relative to top */}
+          <Bar dataKey="max" barSize={20} isAnimationActive={false} fill="#eef2f6" radius={[10, 10, 10, 10]} />
 
-          {/* foreground bar showing quantity; LabelList places numeric label to the right */}
-          <Bar dataKey="qty" barSize={18} isAnimationActive={false} radius={[8, 8, 8, 8]}>
+          {/* actual quantity bars */}
+          <Bar dataKey="qty" barSize={20} isAnimationActive={false} radius={[10, 10, 10, 10]}>
+            {/* numeric label on the right */}
             <LabelList
               dataKey="qty"
               position="right"
@@ -107,8 +113,10 @@ export default function TopSellersChart({ data = [], onSelect = () => {}, highli
               offset={8}
             />
             {chartData.map((entry, i) => {
+              // because we reversed chartData, original order index = chartData.length - 1 - i
+              const originalIndex = chartData.length - 1 - i;
               const isSelected = highlightName && highlightName === entry.name;
-              const fill = isSelected ? highlightColor : colors[i % colors.length];
+              const fill = isSelected ? highlightColor : colors[originalIndex % colors.length];
               return (
                 <Cell
                   key={`cell-${i}`}
