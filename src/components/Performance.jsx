@@ -1,7 +1,7 @@
 // src/components/Performance.jsx
 import React, { useEffect, useState, useMemo } from "react";
 import { fetchPerformance } from "../lib/metricsClient";
-import {
+import PerformanceTopRow from "./PerformanceTopRow";
   ResponsiveContainer,
   LineChart,
   Line,
@@ -97,7 +97,7 @@ export default function Performance() {
         </div>
       </div>
 
-      {/* Top summary row (delegated to PerformanceTopRow) */}
+      {/* Top summary row (replaced by PerformanceTopRow) */}
       <PerformanceTopRow
         metrics={metrics || {}}
         chartData={chartData}
