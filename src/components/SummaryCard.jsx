@@ -13,11 +13,6 @@ import React, { useState, useMemo } from "react";
  * - defaultOpen: boolean
  * - onToggle(open) optional callback
  * - children: expanded area (chart/details)
- *
- * Usage:
- * <SummaryCard title="Sales" value="1,200" delta="+12%" sparklineData={[1,4,3,2]}>
- *   <MyLargeChart ... />
- * </SummaryCard>
  */
 export default function SummaryCard({
   title,
@@ -32,7 +27,9 @@ export default function SummaryCard({
 }) {
   const [open, setOpen] = useState(!!defaultOpen);
 
-  const toggle = () => {
+  const toggle = (e) => {
+    // if called by an actual click event, allow it; if called programmatically, e may be undefined
+    if (e && e.stopPropagation) e.stopPropagation();
     const next = !open;
     setOpen(next);
     if (typeof onToggle === "function") onToggle(next);
@@ -58,7 +55,15 @@ export default function SummaryCard({
 
   return (
     <div className={`summary-card ${open ? "expanded" : ""}`} role="region" aria-expanded={open}>
-      <div className="summary-card-header">
+      {/* clickable header: clicking anywhere on header toggles the card */}
+      <div
+        className="summary-card-header"
+        onClick={toggle}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(e); } }}
+        aria-pressed={open}
+      >
         <div className="summary-left">
           <div className="summary-title">{title}</div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
@@ -72,7 +77,7 @@ export default function SummaryCard({
           {subtitle ? <div className="summary-sub">{subtitle}</div> : null}
         </div>
 
-        <div className="summary-right">
+        <div className="summary-right" onClick={(e) => e.stopPropagation()}>
           {/* tiny sparkline */}
           <div className="summary-sparkline" aria-hidden>
             {sparkPath ? (
@@ -84,9 +89,9 @@ export default function SummaryCard({
             )}
           </div>
 
-          {/* toggle button */}
+          {/* toggle button (stops propagation so header keyboard handler remains clean) */}
           <button
-            onClick={toggle}
+            onClick={(e) => { e.stopPropagation(); toggle(e); }}
             aria-expanded={open}
             aria-label={`${open ? "Collapse" : "Expand"} ${title}`}
             className="btn-outline"

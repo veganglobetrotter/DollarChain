@@ -75,15 +75,7 @@ export default function Performance() {
   // Extract best seller top item for summary value
   const topSeller = (metrics?.best_sellers && metrics.best_sellers.length) ? metrics.best_sellers[0] : null;
 
-  // Layout styles
-  const rowStyle = {
-    display: "flex",
-    gap: 12,
-    alignItems: "stretch",
-    overflowX: "auto",
-    paddingBottom: 12,
-  };
-
+  // Layout styles (kept inline here so CSS remains the single source of visual truth)
   const summaryCardStyle = { flex: "1 1 0", minWidth: 260 };
 
   return (
@@ -207,10 +199,6 @@ export default function Performance() {
         </div>
       </div>
 
-      {/* If you still want the larger detailed row below, you can keep it.
-          Right now the expanded SummaryCard contains the charts so we don't repeat.
-      */}
-
       {/* Filter pill (kept for item filtering) */}
       {selectedItem && (
         <div style={{ marginTop: 6, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
@@ -222,7 +210,6 @@ export default function Performance() {
           </button>
         </div>
       )}
-
     </div>
   );
 }

@@ -218,6 +218,63 @@ body {
   box-shadow: var(--soft-shadow);
 }
 
+/* ----------------------------------------------------------------
+   Summary strip & cards (YT studio style)
+   ---------------------------------------------------------------- */
+.summary-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap; /* wrap on narrow screens */
+}
+
+/* visual for each summary card */
+.summary-card {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: var(--soft-shadow);
+  border: 1px solid rgba(15,23,42,0.04);
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 220px;
+}
+.summary-card:hover { transform: translateY(-6px); box-shadow: var(--soft-shadow-strong); }
+
+/* header row is clickable */
+.summary-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+}
+.summary-left { flex: 1 1 auto; min-width: 0; }
+.summary-title { font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+.summary-value { font-size: 20px; font-weight: 800; color: #07131a; line-height: 1; }
+.summary-sub { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+/* right side (sparkline + toggle) */
+.summary-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.summary-sparkline { display: block; }
+
+/* expanded/collapsed body */
+.summary-card-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 260ms cubic-bezier(.2,.9,.3,1), padding 160ms ease;
+  padding-top: 0;
+}
+.summary-card.expanded .summary-card-body {
+  max-height: 900px; /* enough to reveal charts */
+  padding-top: 12px;
+}
+
+/* controls area */
+.summary-controls { display:flex; gap:8px; justify-content:flex-end; margin-bottom: 8px; }
+
 /* Small utility animations */
 .fade-in { animation: fadeIn 340ms ease both; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
@@ -230,4 +287,6 @@ body {
   .app-root { flex-direction: column; padding: 16px; margin: 12px auto; }
   .sidebar { width: 100%; display: none; } /* hide sidebar on small screens */
   .content-inner { max-width: 100%; }
+  .summary-row { gap: 10px; }
+  .summary-card { min-width: 100%; } /* stack on narrow screens */
 }
