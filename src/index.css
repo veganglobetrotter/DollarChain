@@ -66,3 +66,44 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+/* --- APPEND: Minimal layout fixes (safe, non-visual) ---
+   This will stop vertical centering and give a small app grid so
+   sidebar + main content can lay out without squeezing cards.
+   Appends only; does not change colors or card visuals.
+*/
+
+body {
+  /* override centering to allow top-aligned layout */
+  display: block;
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  /* keep existing background/color from :root */
+}
+
+/* basic app grid — safe and minimal */
+.app-root {
+  display: grid;
+  grid-template-columns: var(--sidebar-width, 240px) 1fr;
+  min-height: 100vh;
+}
+
+/* main area padding so header/content sit normally */
+.main-area {
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+/* let the performance top row use a responsive grid (prevents squeezing) */
+.performance-top-row {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 640px) {
+  .performance-top-row { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1024px) {
+  .performance-top-row { grid-template-columns: repeat(3, 1fr); }
+}
