@@ -12,7 +12,8 @@ import { ResponsiveContainer, AreaChart, Area, Tooltip, XAxis } from "recharts";
  * - deltaDirection: "up" | "down" | null
  * - sparklineData: optional array of numbers for the tiny sparkline
  * - defaultOpen: boolean (uncontrolled mode)
- * - open: boolean (controlled mode) — optional, if provided component is controlled
+ * - open: boolean (controlled mode) — optional
+ * - isOpen: boolean (alternate controlled prop name — supported for compatibility)
  * - onToggle(open) optional callback (called in both controlled & uncontrolled modes)
  * - children: expanded area (chart/details)
  */
@@ -25,21 +26,28 @@ export default function SummaryCard({
   sparklineData = [],
   defaultOpen = false,
   open: openProp,
+  isOpen, // accept both prop names for compatibility
   onToggle,
   children,
 }) {
-  const isControlled = typeof openProp !== "undefined";
+  // prefer explicit `openProp` if provided, otherwise fallback to `isOpen`
+  const controlledValue = typeof openProp !== "undefined" ? openProp : (typeof isOpen !== "undefined" ? isOpen : undefined);
+  const isControlled = typeof controlledValue !== "undefined";
+
   const [internalOpen, setInternalOpen] = useState(!!defaultOpen);
-  const currentOpen = isControlled ? !!openProp : internalOpen;
+  const currentOpen = isControlled ? !!controlledValue : internalOpen;
 
   const bodyRef = useRef(null);
   const idRef = useRef(`summary-body-${Math.random().toString(36).slice(2, 9)}`);
   const gradId = useMemo(() => `g-${Math.random().toString(36).slice(2, 8)}`, []);
 
-  // Build small chart-friendly array
+  // Build small chart-friendly array (use Number.isFinite for safety)
   const chartData = useMemo(() => {
     if (!Array.isArray(sparklineData) || sparklineData.length === 0) return [];
-    return sparklineData.map((v, i) => ({ i, v: Number(isFinite(Number(v)) ? Number(v) : 0) }));
+    return sparklineData.map((v, i) => {
+      const n = Number(v);
+      return { i, v: Number.isFinite(n) ? n : 0 };
+    });
   }, [sparklineData]);
 
   // Toggle handler (works for both controlled and uncontrolled)
@@ -72,7 +80,6 @@ export default function SummaryCard({
     if (!el) return;
     // force reflow when children change while open
     if (currentOpen) {
-      // measure and set
       const scroll = el.scrollHeight;
       el.style.maxHeight = `${scroll}px`;
       el.style.opacity = "1";

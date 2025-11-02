@@ -1,5 +1,5 @@
 // src/components/PerformanceTopRow.jsx
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import SummaryCard from "./SummaryCard";
 import TopSellersChart from "./TopSellersChart";
 import RepeatCustomersChart from "./RepeatCustomersChart";
@@ -22,14 +22,18 @@ import {
  * - onSelectItem(name) -> called when best-seller clicked
  * - selectedItem -> currently selected item name
  */
-export default function PerformanceTopRow({ metrics = {}, chartData = [], onSelectItem, selectedItem }) {
+export default function PerformanceTopRow({ metrics = {}, chartData = [], onSelectItem = () => {}, selectedItem }) {
   const [expandedKey, setExpandedKey] = useState(null); // "sales" | "sellers" | "repeat" | null
 
-  const toggleKey = (key) => {
+  // stable toggle handler
+  const toggleKey = useCallback((key) => {
     setExpandedKey((prev) => (prev === key ? null : key));
-  };
+  }, []);
 
-  const topSeller = (metrics?.best_sellers && metrics.best_sellers.length) ? metrics.best_sellers[0] : null;
+  const topSeller = useMemo(
+    () => (metrics?.best_sellers && metrics.best_sellers.length ? metrics.best_sellers[0] : null),
+    [metrics]
+  );
 
   return (
     <div className="performance-top-row" style={{ display: "flex", gap: 12, marginBottom: 12, alignItems: "stretch" }}>
@@ -39,8 +43,8 @@ export default function PerformanceTopRow({ metrics = {}, chartData = [], onSele
           title="Sales"
           value={metrics?.orders_count ?? 0}
           subtitle={`Revenue: ${metrics?.revenue ?? 0}`}
-          sparklineData={(chartData || []).slice(-12).map(d => Number(d.revenue || 0))}
-          isOpen={expandedKey === "sales"}
+          sparklineData={(chartData || []).slice(-12).map((d) => Number(d.revenue || 0))}
+          open={expandedKey === "sales"}
           onToggle={(open) => toggleKey(open ? "sales" : null)}
         >
           {/* Expanded content */}
@@ -71,8 +75,8 @@ export default function PerformanceTopRow({ metrics = {}, chartData = [], onSele
           title="Best sellers (top 5)"
           value={topSeller ? topSeller.name : "—"}
           subtitle={topSeller ? `${topSeller.qty_sold} sold` : "No sales"}
-          sparklineData={(metrics?.best_sellers || []).slice(0,5).map(b => Number(b.qty_sold || 0))}
-          isOpen={expandedKey === "sellers"}
+          sparklineData={(metrics?.best_sellers || []).slice(0,5).map((b) => Number(b.qty_sold || 0))}
+          open={expandedKey === "sellers"}
           onToggle={(open) => toggleKey(open ? "sellers" : null)}
         >
           <div style={{ paddingTop: 6 }}>
@@ -94,8 +98,8 @@ export default function PerformanceTopRow({ metrics = {}, chartData = [], onSele
           title="Repeat customers"
           value={`${metrics?.repeat_stats?.repeat_pct ?? 0}%`}
           subtitle={`${metrics?.repeat_stats?.repeat_count ?? 0} repeat / ${metrics?.repeat_stats?.unique_customers ?? 0} unique`}
-          sparklineData={(metrics?.repeat_customers || []).slice(0,8).map(r => Number(r.count || 0))}
-          isOpen={expandedKey === "repeat"}
+          sparklineData={(metrics?.repeat_customers || []).slice(0,8).map((r) => Number(r.count || 0))}
+          open={expandedKey === "repeat"}
           onToggle={(open) => toggleKey(open ? "repeat" : null)}
         >
           <div style={{ paddingTop: 6 }}>
