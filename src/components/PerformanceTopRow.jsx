@@ -5,10 +5,10 @@ import TopSellersChart from "./TopSellersChart";
 import RepeatCustomersChart from "./RepeatCustomersChart";
 import {
   ResponsiveContainer,
-  BarChart,
-  Bar,
   ComposedChart,
+  Bar,
   Line,
+  Area,
   XAxis,
   YAxis,
   Tooltip,
@@ -45,11 +45,47 @@ export default function PerformanceTopRow({
     [metrics]
   );
 
-  // Helper to format currency for tooltip / axis
-  const formatKES = (v) => {
-    if (v == null || Number.isNaN(Number(v))) return "KES 0";
-    return "KES " + Number(v).toLocaleString("en-KE");
+  // Currency formatting helper (supports metrics.currency when provided).
+  // Uses simple prefix like "KES 1,234" for now — this keeps it consistent across markets.
+  const currencyCode = metrics?.currency || "KES";
+  const formatCurrency = (v) => {
+    if (v == null || Number.isNaN(Number(v))) return `${currencyCode} 0`;
+    return `${currencyCode} ${Number(v).toLocaleString()}`;
   };
+
+  // Build augmented chart data (add max and 7-day moving average for orders).
+  const chartDataAug = useMemo(() => {
+    if (!Array.isArray(chartData) || chartData.length === 0) return [];
+
+    // Ensure numeric coercion and stable sort by day order (assumes chartData is already ordered by day).
+    const normalized = chartData.map((p) => ({
+      day: p.day,
+      orders: typeof p.orders === "number" ? p.orders : Number(p.orders || 0),
+      revenue: typeof p.revenue === "number" ? p.revenue : Number(p.revenue || 0),
+    }));
+
+    // compute max orders for the background track
+    const maxOrders = Math.max(...normalized.map((r) => r.orders), 1);
+
+    // compute 7-day simple moving average for orders
+    const window = 7;
+    const ma = [];
+    for (let i = 0; i < normalized.length; i += 1) {
+      let sum = 0;
+      let count = 0;
+      for (let j = Math.max(0, i - (window - 1)); j <= i; j += 1) {
+        sum += normalized[j].orders;
+        count += 1;
+      }
+      ma.push(count > 0 ? sum / count : 0);
+    }
+
+    return normalized.map((row, idx) => ({
+      ...row,
+      maxOrders,
+      maOrders: Number.isFinite(ma[idx]) ? +ma[idx].toFixed(2) : 0,
+    }));
+  }, [chartData]);
 
   // Container uses flex-wrap so cards will wrap on small screens.
   // Each card cell uses minWidth: 0 so it can shrink safely (avoids overflow).
@@ -75,22 +111,22 @@ export default function PerformanceTopRow({
         <SummaryCard
           title="Sales"
           value={metrics?.orders_count ?? 0}
-          subtitle={`Revenue: ${metrics?.revenue ?? 0}`}
+          subtitle={`Revenue: ${formatCurrency(metrics?.revenue ?? 0)}`}
           /* preview sparkline intentionally removed to keep header metric-first */
           open={expandedKey === "sales"}
           onToggle={(open) => toggleKey(open ? "sales" : null)}
         >
-          {/* Expanded content: stacked & synchronized charts */}
-          <div style={{ width: "100%", height: 360 }}>
-            {chartData && chartData.length ? (
+          {/* Expanded content: stacked & synchronized charts (Orders top, Revenue bottom) */}
+          <div style={{ width: "100%", height: 380 }}>
+            {chartDataAug && chartDataAug.length ? (
               <>
-                {/* Top chart: Orders (bars) */}
-                <div style={{ height: 180, marginBottom: 8 }}>
+                {/* Top chart: Orders (background track, bars + 7-day MA line) */}
+                <div style={{ height: 200, marginBottom: 8 }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={chartData}
+                    <ComposedChart
+                      data={chartDataAug}
                       syncId="salesSync"
-                      margin={{ top: 8, right: 24, left: 0, bottom: 0 }}
+                      margin={{ top: 8, right: 40, left: 0, bottom: 6 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis
@@ -98,20 +134,45 @@ export default function PerformanceTopRow({
                         tick={{ fontSize: 11 }}
                         tickFormatter={(d) => (d?.slice ? d.slice(5) : d)}
                       />
-                      <YAxis tick={{ fontSize: 11 }} label={{ value: "Orders", angle: -90, position: "insideLeft", offset: -6 }} />
-                      <Tooltip formatter={(val, name) => [val, name]} />
-                      <Bar dataKey="orders" name="Orders" fill="#16a34a" barSize={12} />
-                    </BarChart>
+                      <YAxis
+                        tick={{ fontSize: 11 }}
+                        label={{ value: "Orders", angle: -90, position: "insideLeft", offset: -6 }}
+                      />
+                      <Tooltip
+                        formatter={(val, name) => {
+                          if (name === "maOrders") return [Math.round(val), "7d avg"];
+                          return [val, name];
+                        }}
+                      />
+
+                      {/* background full-width track */}
+                      <Bar dataKey="maxOrders" barSize={20} fill="#eef2f6" radius={[8, 8, 8, 8]} />
+
+                      {/* actual orders bar */}
+                      <Bar dataKey="orders" name="Orders" fill="#16a34a" barSize={12} radius={[6, 6, 6, 6]} />
+
+                      {/* moving average line */}
+                      <Line
+                        type="monotone"
+                        dataKey="maOrders"
+                        name="7d avg"
+                        stroke="#0ea5a4"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+
+                      <Legend verticalAlign="top" align="right" height={24} />
+                    </ComposedChart>
                   </ResponsiveContainer>
                 </div>
 
-                {/* Bottom chart: Revenue (line) */}
-                <div style={{ height: 180 }}>
+                {/* Bottom chart: Revenue (area) */}
+                <div style={{ height: 160 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart
-                      data={chartData}
+                      data={chartDataAug}
                       syncId="salesSync"
-                      margin={{ top: 8, right: 24, left: 0, bottom: 0 }}
+                      margin={{ top: 8, right: 40, left: 0, bottom: 6 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis
@@ -119,15 +180,29 @@ export default function PerformanceTopRow({
                         tick={{ fontSize: 11 }}
                         tickFormatter={(d) => (d?.slice ? d.slice(5) : d)}
                       />
-                      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => Number(v).toLocaleString()} label={{ value: "Revenue (KES)", angle: -90, position: "insideLeft", offset: -6 }} />
+                      <YAxis
+                        tick={{ fontSize: 11 }}
+                        tickFormatter={(v) => Number(v).toLocaleString()}
+                        label={{ value: `Revenue (${currencyCode})`, angle: -90, position: "insideLeft", offset: -6 }}
+                      />
                       <Tooltip
                         formatter={(val, name) => {
-                          if (name === "revenue") return [formatKES(val), "Revenue"];
+                          if (name === "revenue") return [formatCurrency(val), "Revenue"];
                           return [val, name];
                         }}
                       />
                       <Legend verticalAlign="top" align="right" height={24} />
-                      <Line type="monotone" dataKey="revenue" name="Revenue" stroke="#0f172a" strokeWidth={2} dot={false} />
+
+                      {/* revenue area (stronger visual weight) */}
+                      <Area
+                        type="monotone"
+                        dataKey="revenue"
+                        name="Revenue"
+                        fill="#c7f9d1"
+                        stroke="#0f172a"
+                        strokeWidth={2}
+                        fillOpacity={0.6}
+                      />
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>
