@@ -5,7 +5,9 @@ import TopSellersChart from "./TopSellersChart";
 import RepeatCustomersChart from "./RepeatCustomersChart";
 import {
   ResponsiveContainer,
-  LineChart,
+  BarChart,
+  Bar,
+  ComposedChart,
   Line,
   XAxis,
   YAxis,
@@ -43,6 +45,12 @@ export default function PerformanceTopRow({
     [metrics]
   );
 
+  // Helper to format currency for tooltip / axis
+  const formatKES = (v) => {
+    if (v == null || Number.isNaN(Number(v))) return "KES 0";
+    return "KES " + Number(v).toLocaleString("en-KE");
+  };
+
   // Container uses flex-wrap so cards will wrap on small screens.
   // Each card cell uses minWidth: 0 so it can shrink safely (avoids overflow).
   return (
@@ -72,44 +80,58 @@ export default function PerformanceTopRow({
           open={expandedKey === "sales"}
           onToggle={(open) => toggleKey(open ? "sales" : null)}
         >
-          {/* Expanded content */}
-          <div style={{ width: "100%", height: 260 }}>
+          {/* Expanded content: stacked & synchronized charts */}
+          <div style={{ width: "100%", height: 360 }}>
             {chartData && chartData.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={chartData}
-                  margin={{ top: 12, right: 40, left: 0, bottom: 0 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis
-                    dataKey="day"
-                    tick={{ fontSize: 11 }}
-                    tickFormatter={(d) => (d?.slice ? d.slice(5) : d)}
-                  />
-                  <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Legend verticalAlign="top" align="right" height={24} />
-                  <Line
-                    yAxisId="left"
-                    type="monotone"
-                    dataKey="orders"
-                    stroke="#1a8917"
-                    strokeWidth={2}
-                    dot={false}
-                    name="Orders"
-                  />
-                  <Line
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#64748b"
-                    strokeWidth={2}
-                    dot={false}
-                    name="Revenue"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <>
+                {/* Top chart: Orders (bars) */}
+                <div style={{ height: 180, marginBottom: 8 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={chartData}
+                      syncId="salesSync"
+                      margin={{ top: 8, right: 24, left: 0, bottom: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis
+                        dataKey="day"
+                        tick={{ fontSize: 11 }}
+                        tickFormatter={(d) => (d?.slice ? d.slice(5) : d)}
+                      />
+                      <YAxis tick={{ fontSize: 11 }} label={{ value: "Orders", angle: -90, position: "insideLeft", offset: -6 }} />
+                      <Tooltip formatter={(val, name) => [val, name]} />
+                      <Bar dataKey="orders" name="Orders" fill="#16a34a" barSize={12} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Bottom chart: Revenue (line) */}
+                <div style={{ height: 180 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart
+                      data={chartData}
+                      syncId="salesSync"
+                      margin={{ top: 8, right: 24, left: 0, bottom: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis
+                        dataKey="day"
+                        tick={{ fontSize: 11 }}
+                        tickFormatter={(d) => (d?.slice ? d.slice(5) : d)}
+                      />
+                      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => Number(v).toLocaleString()} label={{ value: "Revenue (KES)", angle: -90, position: "insideLeft", offset: -6 }} />
+                      <Tooltip
+                        formatter={(val, name) => {
+                          if (name === "revenue") return [formatKES(val), "Revenue"];
+                          return [val, name];
+                        }}
+                      />
+                      <Legend verticalAlign="top" align="right" height={24} />
+                      <Line type="monotone" dataKey="revenue" name="Revenue" stroke="#0f172a" strokeWidth={2} dot={false} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              </>
             ) : (
               <div style={{ padding: 12, color: "#9aa3ab" }}>No timeseries data</div>
             )}
