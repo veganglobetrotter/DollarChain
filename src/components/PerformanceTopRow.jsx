@@ -68,7 +68,7 @@ export default function PerformanceTopRow({
           title="Sales"
           value={metrics?.orders_count ?? 0}
           subtitle={`Revenue: ${metrics?.revenue ?? 0}`}
-          sparklineData={(chartData || []).slice(-12).map((d) => Number(d.revenue || 0))}
+          /* preview sparkline intentionally removed to keep header metric-first */
           open={expandedKey === "sales"}
           onToggle={(open) => toggleKey(open ? "sales" : null)}
         >
@@ -128,7 +128,7 @@ export default function PerformanceTopRow({
           title="Best sellers (top 5)"
           value={topSeller ? topSeller.name : "—"}
           subtitle={topSeller ? `${topSeller.qty_sold} sold` : "No sales"}
-          sparklineData={(metrics?.best_sellers || []).slice(0, 5).map((b) => Number(b.qty_sold || 0))}
+          /* preview sparkline intentionally removed to keep header metric-first */
           open={expandedKey === "sellers"}
           onToggle={(open) => toggleKey(open ? "sellers" : null)}
         >
@@ -157,7 +157,7 @@ export default function PerformanceTopRow({
           title="Repeat customers"
           value={`${metrics?.repeat_stats?.repeat_pct ?? 0}%`}
           subtitle={`${metrics?.repeat_stats?.repeat_count ?? 0} repeat / ${metrics?.repeat_stats?.unique_customers ?? 0} unique`}
-          sparklineData={(metrics?.repeat_customers || []).slice(0, 8).map((r) => Number(r.count || 0))}
+          /* preview sparkline intentionally removed to keep header metric-first */
           open={expandedKey === "repeat"}
           onToggle={(open) => toggleKey(open ? "repeat" : null)}
         >

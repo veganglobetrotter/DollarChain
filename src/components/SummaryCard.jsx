@@ -16,6 +16,7 @@ import { ResponsiveContainer, AreaChart, Area, Tooltip, XAxis } from "recharts";
  * - isOpen: boolean (alternate controlled prop name — supported for compatibility)
  * - onToggle(open) optional callback (called in both controlled & uncontrolled modes)
  * - children: expanded area (chart/details)
+ * - showSparklineInPreview: boolean (optional) - when true, renders the 120x36 sparkline even in preview
  */
 export default function SummaryCard({
   title,
@@ -29,6 +30,7 @@ export default function SummaryCard({
   isOpen, // accept both prop names for compatibility
   onToggle,
   children,
+  showSparklineInPreview = false, // NEW: control whether sparkline is visible in preview
 }) {
   // prefer explicit `openProp` if provided, otherwise fallback to `isOpen`
   const controlledValue =
@@ -97,6 +99,10 @@ export default function SummaryCard({
     el.style.overflow = "hidden";
   }, [currentOpen, children]);
 
+  // Determine whether to render the full sparkline area:
+  // show it when the card is expanded or when explicitly requested via prop.
+  const showSparklineNow = currentOpen || showSparklineInPreview;
+
   return (
     // Make the card a column flex container so footer/action sits at the bottom.
     // We keep the CSS className for compatibility with existing styles.
@@ -108,8 +114,8 @@ export default function SummaryCard({
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
-        height: "100%",       // allow parent to control overall card height
-        minHeight: 120,       // sensible minimum so card doesn't collapse too small
+        height: "100%", // allow parent to control overall card height
+        minHeight: 120, // sensible minimum so card doesn't collapse too small
         boxSizing: "border-box",
       }}
     >
@@ -194,29 +200,34 @@ export default function SummaryCard({
             flex: "0 0 auto",
           }}
         >
-          {/* tiny sparkline */}
+          {/* tiny sparkline or compact placeholder depending on state */}
           <div
             className="summary-sparkline"
             aria-hidden
-            style={{ width: 120, height: 36, minWidth: 120 }}
+            style={showSparklineNow ? { width: 120, height: 36, minWidth: 120 } : { width: 36, height: 10, minWidth: 36 }}
             title={Array.isArray(sparklineData) ? sparklineData.join(", ") : undefined}
           >
-            {chartData.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#16a34a" stopOpacity={0.28} />
-                      <stop offset="100%" stopColor="#16a34a" stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="i" hide />
-                  <Tooltip formatter={(v) => [v, title]} />
-                  <Area type="monotone" dataKey="v" stroke="#16a34a" fill={`url(#${gradId})`} strokeWidth={2} />
-                </AreaChart>
-              </ResponsiveContainer>
+            {showSparklineNow ? (
+              chartData.length ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#16a34a" stopOpacity={0.28} />
+                        <stop offset="100%" stopColor="#16a34a" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="i" hide />
+                    <Tooltip formatter={(v) => [v, title]} />
+                    <Area type="monotone" dataKey="v" stroke="#16a34a" fill={`url(#${gradId})`} strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div style={{ width: 120, height: 36 }} />
+              )
             ) : (
-              <div style={{ width: 120, height: 36 }} />
+              // compact placeholder (no large micro-chart in preview)
+              <div style={{ width: 36, height: 10 }} />
             )}
           </div>
 
