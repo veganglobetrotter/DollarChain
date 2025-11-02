@@ -300,3 +300,52 @@ body {
   .summary-row { gap: 10px; }
   .summary-card { min-width: 100%; } /* stack on narrow screens */
 }
+/* --- SURGICAL LAYOUT FIXES (paste at end of App.css) --- */
+/* ensure app uses full available width but stays constrained by max-width */
+.app-root {
+  width: 100% !important;
+  max-width: var(--max-width) !important;
+  padding-left: 24px !important;
+  padding-right: 24px !important;
+}
+
+/* make main area fill remaining width reliably */
+.main-area {
+  flex: 1 1 auto !important;
+}
+
+/* make the content wrapper use full available width next to the sidebar */
+.content-inner {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-left: 0 !important;
+}
+
+/* ensure the summary row aligns start (not centered) */
+.performance-top-row,
+.summary-row {
+  display: flex !important;
+  justify-content: flex-start !important;
+  align-items: stretch !important;
+  gap: 12px !important;
+}
+
+/* allow summary cards to shrink properly (avoid forced min width overflow) */
+.summary-card,
+.formBox {
+  min-width: 0 !important;
+}
+
+/* keep sidebar a fixed column and above main content (no overlap) */
+.sidebar {
+  flex: 0 0 var(--sidebar-width) !important;
+  z-index: 2;
+}
+
+/* keep header action above content (avoids visual overlap) */
+.top-header,
+.header, /* if you have a .header class */
+.btn-buy {
+  position: relative;
+  z-index: 3;
+}
