@@ -1,5 +1,5 @@
 // src/components/SummaryCard.jsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { ResponsiveContainer, AreaChart, Area, Tooltip, XAxis } from "recharts";
 
 /**
@@ -11,8 +11,9 @@ import { ResponsiveContainer, AreaChart, Area, Tooltip, XAxis } from "recharts";
  * - delta (string) optional e.g. "+12%"
  * - deltaDirection: "up" | "down" | null
  * - sparklineData: optional array of numbers for the tiny sparkline
- * - defaultOpen: boolean
- * - onToggle(open) optional callback
+ * - defaultOpen: boolean (uncontrolled mode)
+ * - open: boolean (controlled mode) — optional, if provided component is controlled
+ * - onToggle(open) optional callback (called in both controlled & uncontrolled modes)
  * - children: expanded area (chart/details)
  */
 export default function SummaryCard({
@@ -23,55 +24,119 @@ export default function SummaryCard({
   deltaDirection,
   sparklineData = [],
   defaultOpen = false,
+  open: openProp,
   onToggle,
   children,
 }) {
-  const [open, setOpen] = useState(!!defaultOpen);
+  const isControlled = typeof openProp !== "undefined";
+  const [internalOpen, setInternalOpen] = useState(!!defaultOpen);
+  const currentOpen = isControlled ? !!openProp : internalOpen;
 
-  const toggle = (e) => {
-    // stop propagation if called from a button click inside header
-    if (e && e.stopPropagation) e.stopPropagation();
-    const next = !open;
-    setOpen(next);
-    if (typeof onToggle === "function") onToggle(next);
-  };
+  const bodyRef = useRef(null);
+  const idRef = useRef(`summary-body-${Math.random().toString(36).slice(2, 9)}`);
+  const gradId = useMemo(() => `g-${Math.random().toString(36).slice(2, 8)}`, []);
 
   // Build small chart-friendly array
   const chartData = useMemo(() => {
     if (!Array.isArray(sparklineData) || sparklineData.length === 0) return [];
-    return sparklineData.map((v, i) => ({ i, v: Number(v || 0) }));
+    return sparklineData.map((v, i) => ({ i, v: Number(isFinite(Number(v)) ? Number(v) : 0) }));
   }, [sparklineData]);
 
-  // unique gradient id for area fill (keeps multiple cards safe)
-  const gradId = `g-${Math.random().toString(36).slice(2, 8)}`;
+  // Toggle handler (works for both controlled and uncontrolled)
+  const toggle = (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    const next = !currentOpen;
+    if (!isControlled) setInternalOpen(next);
+    if (typeof onToggle === "function") {
+      try {
+        onToggle(next);
+      } catch (err) {
+        // swallow callback errors so UI remains stable
+        // eslint-disable-next-line no-console
+        console.error("SummaryCard onToggle error:", err);
+      }
+    }
+  };
+
+  // Keyboard handler on header
+  const handleHeaderKey = (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggle(e);
+    }
+  };
+
+  // Manage smooth expand/collapse using inline maxHeight to avoid requiring extra CSS
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    // force reflow when children change while open
+    if (currentOpen) {
+      // measure and set
+      const scroll = el.scrollHeight;
+      el.style.maxHeight = `${scroll}px`;
+      el.style.opacity = "1";
+    } else {
+      el.style.maxHeight = "0px";
+      el.style.opacity = "0";
+    }
+    // ensure transition style present
+    el.style.transition = "max-height 320ms cubic-bezier(.2,.9,.2,1), opacity 220ms ease";
+    el.style.overflow = "hidden";
+  }, [currentOpen, children]);
 
   return (
-    <div className={`summary-card ${open ? "expanded" : ""}`} role="region" aria-expanded={open}>
-      {/* clickable header: clicking anywhere on header toggles the card */}
+    <div className={`summary-card ${currentOpen ? "expanded" : ""}`} role="region" aria-expanded={currentOpen}>
+      {/* clickable header: clicking anywhere toggles */}
       <div
         className="summary-card-header"
         onClick={toggle}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(e); } }}
-        aria-pressed={open}
+        onKeyDown={handleHeaderKey}
+        aria-pressed={currentOpen}
+        aria-controls={idRef.current}
+        aria-expanded={currentOpen}
+        style={{ cursor: "pointer" }}
       >
-        <div className="summary-left">
+        <div className="summary-left" style={{ minWidth: 0 }}>
           <div className="summary-title">{title}</div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-            <div className="summary-value">{value}</div>
+
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, minWidth: 0, flexWrap: "wrap" }}>
+            <div className="summary-value" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {value}
+            </div>
+
             {delta ? (
-              <div style={{ fontSize: 13, color: deltaDirection === "down" ? "#b91c1c" : "#065f46", fontWeight: 700 }}>
-                {deltaDirection === "up" ? "▲ " : deltaDirection === "down" ? "▼ " : ""}{delta}
+              <div
+                style={{
+                  fontSize: 13,
+                  color: deltaDirection === "down" ? "#b91c1c" : "#065f46",
+                  fontWeight: 700,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {deltaDirection === "up" ? "▲ " : deltaDirection === "down" ? "▼ " : ""}
+                {delta}
               </div>
             ) : null}
           </div>
-          {subtitle ? <div className="summary-sub">{subtitle}</div> : null}
+
+          {subtitle ? <div className="summary-sub" style={{ marginTop: 6 }}>{subtitle}</div> : null}
         </div>
 
-        <div className="summary-right" onClick={(e) => e.stopPropagation()} >
+        <div
+          className="summary-right"
+          onClick={(e) => e.stopPropagation()}
+          style={{ display: "flex", alignItems: "center", gap: 12, marginLeft: 12 }}
+        >
           {/* tiny sparkline */}
-          <div className="summary-sparkline" aria-hidden>
+          <div
+            className="summary-sparkline"
+            aria-hidden
+            style={{ width: 120, height: 36, minWidth: 120 }}
+            title={Array.isArray(sparklineData) ? sparklineData.join(", ") : undefined}
+          >
             {chartData.length ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
@@ -91,22 +156,33 @@ export default function SummaryCard({
             )}
           </div>
 
-          {/* toggle button (stops propagation so header keyboard handler remains clean) */}
+          {/* toggle button */}
           <button
+            type="button"
             onClick={(e) => { e.stopPropagation(); toggle(e); }}
-            aria-expanded={open}
-            aria-label={`${open ? "Collapse" : "Expand"} ${title}`}
+            aria-expanded={currentOpen}
+            aria-controls={idRef.current}
+            aria-label={`${currentOpen ? "Collapse" : "Expand"} ${title}`}
             className="btn-outline"
             style={{ whiteSpace: "nowrap" }}
           >
-            {open ? "Hide" : "See more"}
+            {currentOpen ? "Hide" : "See more"}
           </button>
         </div>
       </div>
 
-      <div className="summary-card-body" aria-hidden={!open}>
+      <div
+        id={idRef.current}
+        ref={bodyRef}
+        className="summary-card-body"
+        aria-hidden={!currentOpen}
+        style={{
+          maxHeight: currentOpen ? undefined : "0px",
+          opacity: currentOpen ? 1 : 0,
+        }}
+      >
         {/* small controls placeholder area (can be used for export buttons) */}
-        <div className="summary-controls" style={{ justifyContent: "flex-end" }}>
+        <div className="summary-controls" style={{ justifyContent: "flex-end", display: "flex" }}>
           {/* placeholder for export / actions */}
         </div>
 
