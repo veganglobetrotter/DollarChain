@@ -107,3 +107,28 @@ body {
 @media (min-width: 1024px) {
   .performance-top-row { grid-template-columns: repeat(3, 1fr); }
 }
+/* --- Fix: remove dark top band by aligning page/app background with content (theme-aware) --- */
+
+/* default (darkish) app background — matches your existing root */
+:root {
+  --app-bg: #242424;    /* dark fallback (keeps current behavior for dark-prefers) */
+  --app-content-bg: #f4f7f7; /* desired light page/content background for light mode */
+}
+
+/* light theme: make the app background the light surface used by page */
+@media (prefers-color-scheme: light) {
+  :root {
+    --app-bg: var(--app-content-bg);
+  }
+}
+
+/* ensure the HTML/body and the app-root share the same background color */
+html, body {
+  height: 100%;
+  background-color: var(--app-bg);
+}
+
+/* ensure the app container also uses same background (covers full width) */
+.app-root {
+  background-color: var(--app-bg);
+}
