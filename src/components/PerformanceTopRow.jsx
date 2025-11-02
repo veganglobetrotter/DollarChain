@@ -262,6 +262,11 @@ export default function PerformanceTopRow({
             <RepeatCustomersChart
               repeatCustomers={metrics?.repeat_customers ?? []}
               repeatPct={metrics?.repeat_stats?.repeat_pct ?? 0}
+              onSelect={(name) => {
+                // forward selection to parent handler and keep card open
+                onSelectItem?.(name);
+                setExpandedKey("repeat");
+              }}
             />
           </div>
         </SummaryCard>
