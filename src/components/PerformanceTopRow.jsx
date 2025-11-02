@@ -87,41 +87,25 @@ export default function PerformanceTopRow({
     }));
   }, [chartData]);
 
-  // Container uses flex-wrap so cards will wrap on small screens.
-  // Each card cell uses minWidth: 0 so it can shrink safely (avoids overflow).
+  // Root uses the CSS grid helper .performance-top-row (defined in src/index.css).
+  // Each immediate child keeps minWidth:0 so it can shrink safely in the grid.
   return (
-    <div
-      className="performance-top-row"
-      style={{
-        display: "flex",
-        gap: 12,
-        marginBottom: 12,
-        alignItems: "stretch",
-        flexWrap: "wrap",
-        width: "100%",
-      }}
-    >
-      {/* Sales (prefer larger/growable) */}
-      <div
-        style={{
-          flex: "2 1 360px", // allow this one to grow more, but still shrink
-          minWidth: 0,
-        }}
-      >
+    <div className="performance-top-row">
+      {/* Sales (grid cell) */}
+      <div style={{ minWidth: 0 }}>
         <SummaryCard
           title="Sales"
           value={metrics?.orders_count ?? 0}
           subtitle={`Revenue: ${formatCurrency(metrics?.revenue ?? 0)}`}
-          /* preview sparkline intentionally removed to keep header metric-first */
           open={expandedKey === "sales"}
           onToggle={(open) => toggleKey(open ? "sales" : null)}
         >
           {/* Expanded content: stacked & synchronized charts (Orders top, Revenue bottom) */}
-          <div style={{ width: "100%", height: 380 }}>
+          <div className="chart-wrap" style={{ height: 380 }}>
             {chartDataAug && chartDataAug.length ? (
               <>
                 {/* Top chart: Orders (background track, bars + 7-day MA line) */}
-                <div style={{ height: 200, marginBottom: 8 }}>
+                <div className="chart-wrap" style={{ height: 200, marginBottom: 8 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart
                       data={chartDataAug}
@@ -167,7 +151,7 @@ export default function PerformanceTopRow({
                 </div>
 
                 {/* Bottom chart: Revenue (area) */}
-                <div style={{ height: 160 }}>
+                <div className="chart-wrap" style={{ height: 160 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart
                       data={chartDataAug}
@@ -214,18 +198,12 @@ export default function PerformanceTopRow({
         </SummaryCard>
       </div>
 
-      {/* Best sellers */}
-      <div
-        style={{
-          flex: "1 1 280px",
-          minWidth: 0,
-        }}
-      >
+      {/* Best sellers (grid cell) */}
+      <div style={{ minWidth: 0 }}>
         <SummaryCard
           title="Best sellers (top 5)"
           value={topSeller ? topSeller.name : "—"}
           subtitle={topSeller ? `${topSeller.qty_sold} sold` : "No sales"}
-          /* preview sparkline intentionally removed to keep header metric-first */
           open={expandedKey === "sellers"}
           onToggle={(open) => toggleKey(open ? "sellers" : null)}
         >
@@ -243,18 +221,12 @@ export default function PerformanceTopRow({
         </SummaryCard>
       </div>
 
-      {/* Repeat customers */}
-      <div
-        style={{
-          flex: "1 1 260px",
-          minWidth: 0,
-        }}
-      >
+      {/* Repeat customers (grid cell) */}
+      <div style={{ minWidth: 0 }}>
         <SummaryCard
           title="Repeat customers"
           value={`${metrics?.repeat_stats?.repeat_pct ?? 0}%`}
           subtitle={`${metrics?.repeat_stats?.repeat_count ?? 0} repeat / ${metrics?.repeat_stats?.unique_customers ?? 0} unique`}
-          /* preview sparkline intentionally removed to keep header metric-first */
           open={expandedKey === "repeat"}
           onToggle={(open) => toggleKey(open ? "repeat" : null)}
         >
