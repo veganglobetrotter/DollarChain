@@ -104,20 +104,11 @@ export default function SummaryCard({
   const showSparklineNow = currentOpen || showSparklineInPreview;
 
   return (
-    // Make the card a column flex container so footer/action sits at the bottom.
-    // We keep the CSS className for compatibility with existing styles.
+    // Keep the CSS className for compatibility with existing styles.
     <div
       className={`summary-card ${currentOpen ? "expanded" : ""}`}
       role="region"
       aria-expanded={currentOpen}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
-        height: "100%", // allow parent to control overall card height
-        minHeight: 120, // sensible minimum so card doesn't collapse too small
-        boxSizing: "border-box",
-      }}
     >
       {/* clickable header: clicking anywhere toggles */}
       <div
@@ -129,17 +120,12 @@ export default function SummaryCard({
         aria-pressed={currentOpen}
         aria-controls={idRef.current}
         aria-expanded={currentOpen}
-        style={{
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          flex: "0 0 auto", // header should not grow; stays its content size
-        }}
       >
-        <div className="summary-left" style={{ minWidth: 0, flex: "1 1 auto" }}>
-          <div className="summary-title" style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>
+        <div className="summary-left">
+          <div
+            className="summary-title"
+            style={{ fontWeight: 700, fontSize: 13, color: "inherit" }}
+          >
             {title}
           </div>
 
@@ -153,19 +139,7 @@ export default function SummaryCard({
               marginTop: 6,
             }}
           >
-            <div
-              className="summary-value"
-              style={{
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                fontSize: 20,
-                fontWeight: 800,
-                color: "#111827",
-              }}
-            >
-              {value}
-            </div>
+            <div className="summary-value">{value}</div>
 
             {delta ? (
               <div
@@ -183,28 +157,19 @@ export default function SummaryCard({
           </div>
 
           {subtitle ? (
-            <div className="summary-sub" style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
-              {subtitle}
-            </div>
+            <div className="summary-sub">{subtitle}</div>
           ) : null}
         </div>
 
         <div
           className="summary-right"
           onClick={(e) => e.stopPropagation()}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            marginLeft: 12,
-            flex: "0 0 auto",
-          }}
         >
           {/* tiny sparkline or compact placeholder depending on state */}
           <div
             className="summary-sparkline"
             aria-hidden
-            style={showSparklineNow ? { width: 120, height: 36, minWidth: 120 } : { width: 36, height: 10, minWidth: 36 }}
+            style={showSparklineNow ? undefined : { width: 36, height: 10, minWidth: 36 }}
             title={Array.isArray(sparklineData) ? sparklineData.join(", ") : undefined}
           >
             {showSparklineNow ? (
@@ -242,7 +207,6 @@ export default function SummaryCard({
             aria-controls={idRef.current}
             aria-label={`${currentOpen ? "Collapse" : "Expand"} ${title}`}
             className="btn-outline"
-            style={{ whiteSpace: "nowrap", flex: "0 0 auto" }}
           >
             {currentOpen ? "Hide" : "See more"}
           </button>
