@@ -22,14 +22,21 @@ a:hover {
   color: #535bf2;
 }
 
+/* --- SANE BODY / APP LAYOUT (patched) ---
+   Important change: do not center the whole app with flex on body.
+   Instead we use an .app-root grid that reserves a left column for the sidebar
+   and lets the main content fill the rest of the viewport.
+*/
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  /* do not center the app — allow full-width layout for sidebar + header */
+  display: block;
+  background-color: var(--page-bg, #242424);
 }
 
+/* page-level headings */
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
@@ -65,4 +72,103 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+}
+
+/* -----------------------
+   App layout helpers (surgical additions)
+   - .app-root defines the left sidebar + main column grid
+   - .main-area contains Header + content
+   - .content-inner centers page content and limits width
+   ----------------------- */
+
+/* Root layout: left sidebar + main content */
+.app-root {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: var(--sidebar-width, 240px) 1fr;
+  gap: 0;
+}
+
+/* Main area (header + content) */
+.main-area {
+  padding: 24px;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+/* Center page content with a max width while allowing main area to grow */
+.content-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Sidebar safe defaults (keeps it in-flow) */
+.sidebar {
+  position: relative;
+  display: block;
+}
+
+/* Ensure header sits naturally in the main area */
+.top-header {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Card surfaces used across the page */
+.surface-card,
+.summary-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 8px 24px rgba(16,24,40,0.06);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 160px;
+  box-sizing: border-box;
+}
+
+/* Responsive top row grid: 1 -> 2 -> 3 columns */
+.card-row,
+.performance-top-row {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+@media (min-width: 640px) {
+  .card-row,
+  .performance-top-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 1024px) {
+  .card-row,
+  .performance-top-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ensure expanded summary has room for charts */
+.summary-card.expanded .summary-card-body {
+  min-height: 320px;
+  transition: min-height 220ms ease;
+}
+
+/* small helpers */
+.btn-pill {
+  border-radius: 9999px;
+  padding: 6px 10px;
+  border: 1px solid rgba(0,0,0,0.06);
+  background: transparent;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn-pill.active {
+  background: #16a34a;
+  color: white;
+  border-color: transparent;
 }
