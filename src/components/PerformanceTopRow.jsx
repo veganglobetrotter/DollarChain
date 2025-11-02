@@ -22,23 +22,48 @@ import {
  * - onSelectItem(name) -> called when best-seller clicked
  * - selectedItem -> currently selected item name
  */
-export default function PerformanceTopRow({ metrics = {}, chartData = [], onSelectItem = () => {}, selectedItem }) {
+export default function PerformanceTopRow({
+  metrics = {},
+  chartData = [],
+  onSelectItem = () => {},
+  selectedItem,
+}) {
   const [expandedKey, setExpandedKey] = useState(null); // "sales" | "sellers" | "repeat" | null
 
-  // stable toggle handler
+  // stable toggle handler (keeps logic same as before)
   const toggleKey = useCallback((key) => {
     setExpandedKey((prev) => (prev === key ? null : key));
   }, []);
 
   const topSeller = useMemo(
-    () => (metrics?.best_sellers && metrics.best_sellers.length ? metrics.best_sellers[0] : null),
+    () =>
+      metrics?.best_sellers && metrics.best_sellers.length
+        ? metrics.best_sellers[0]
+        : null,
     [metrics]
   );
 
+  // Container uses flex-wrap so cards will wrap on small screens.
+  // Each card cell uses minWidth: 0 so it can shrink safely (avoids overflow).
   return (
-    <div className="performance-top-row" style={{ display: "flex", gap: 12, marginBottom: 12, alignItems: "stretch" }}>
-      {/* Sales */}
-      <div style={{ flex: "1 1 0", minWidth: 320 }}>
+    <div
+      className="performance-top-row"
+      style={{
+        display: "flex",
+        gap: 12,
+        marginBottom: 12,
+        alignItems: "stretch",
+        flexWrap: "wrap",
+        width: "100%",
+      }}
+    >
+      {/* Sales (prefer larger/growable) */}
+      <div
+        style={{
+          flex: "2 1 360px", // allow this one to grow more, but still shrink
+          minWidth: 0,
+        }}
+      >
         <SummaryCard
           title="Sales"
           value={metrics?.orders_count ?? 0}
@@ -51,15 +76,38 @@ export default function PerformanceTopRow({ metrics = {}, chartData = [], onSele
           <div style={{ width: "100%", height: 260 }}>
             {chartData && chartData.length ? (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 12, right: 40, left: 0, bottom: 0 }}>
+                <LineChart
+                  data={chartData}
+                  margin={{ top: 12, right: 40, left: 0, bottom: 0 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="day" tick={{ fontSize: 11 }} tickFormatter={(d) => d?.slice?.(5) ?? d} />
+                  <XAxis
+                    dataKey="day"
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={(d) => (d?.slice ? d.slice(5) : d)}
+                  />
                   <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 11 }} />
                   <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
                   <Tooltip />
                   <Legend verticalAlign="top" align="right" height={24} />
-                  <Line yAxisId="left" type="monotone" dataKey="orders" stroke="#1a8917" strokeWidth={2} dot={false} name="Orders" />
-                  <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#64748b" strokeWidth={2} dot={false} name="Revenue" />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="orders"
+                    stroke="#1a8917"
+                    strokeWidth={2}
+                    dot={false}
+                    name="Orders"
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#64748b"
+                    strokeWidth={2}
+                    dot={false}
+                    name="Revenue"
+                  />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
@@ -70,12 +118,17 @@ export default function PerformanceTopRow({ metrics = {}, chartData = [], onSele
       </div>
 
       {/* Best sellers */}
-      <div style={{ flex: "0 0 420px", minWidth: 320 }}>
+      <div
+        style={{
+          flex: "1 1 280px",
+          minWidth: 0,
+        }}
+      >
         <SummaryCard
           title="Best sellers (top 5)"
           value={topSeller ? topSeller.name : "—"}
           subtitle={topSeller ? `${topSeller.qty_sold} sold` : "No sales"}
-          sparklineData={(metrics?.best_sellers || []).slice(0,5).map((b) => Number(b.qty_sold || 0))}
+          sparklineData={(metrics?.best_sellers || []).slice(0, 5).map((b) => Number(b.qty_sold || 0))}
           open={expandedKey === "sellers"}
           onToggle={(open) => toggleKey(open ? "sellers" : null)}
         >
@@ -84,7 +137,8 @@ export default function PerformanceTopRow({ metrics = {}, chartData = [], onSele
               data={metrics?.best_sellers ?? []}
               onSelect={(name) => {
                 onSelectItem?.(name);
-                setExpandedKey("sellers"); // keep open when selecting
+                // keep the sellers card open when selecting
+                setExpandedKey("sellers");
               }}
               highlightName={selectedItem}
             />
@@ -93,12 +147,17 @@ export default function PerformanceTopRow({ metrics = {}, chartData = [], onSele
       </div>
 
       {/* Repeat customers */}
-      <div style={{ flex: "0 0 360px", minWidth: 300 }}>
+      <div
+        style={{
+          flex: "1 1 260px",
+          minWidth: 0,
+        }}
+      >
         <SummaryCard
           title="Repeat customers"
           value={`${metrics?.repeat_stats?.repeat_pct ?? 0}%`}
           subtitle={`${metrics?.repeat_stats?.repeat_count ?? 0} repeat / ${metrics?.repeat_stats?.unique_customers ?? 0} unique`}
-          sparklineData={(metrics?.repeat_customers || []).slice(0,8).map((r) => Number(r.count || 0))}
+          sparklineData={(metrics?.repeat_customers || []).slice(0, 8).map((r) => Number(r.count || 0))}
           open={expandedKey === "repeat"}
           onToggle={(open) => toggleKey(open ? "repeat" : null)}
         >

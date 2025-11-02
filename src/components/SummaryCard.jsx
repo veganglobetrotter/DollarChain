@@ -31,7 +31,12 @@ export default function SummaryCard({
   children,
 }) {
   // prefer explicit `openProp` if provided, otherwise fallback to `isOpen`
-  const controlledValue = typeof openProp !== "undefined" ? openProp : (typeof isOpen !== "undefined" ? isOpen : undefined);
+  const controlledValue =
+    typeof openProp !== "undefined"
+      ? openProp
+      : typeof isOpen !== "undefined"
+      ? isOpen
+      : undefined;
   const isControlled = typeof controlledValue !== "undefined";
 
   const [internalOpen, setInternalOpen] = useState(!!defaultOpen);
@@ -93,7 +98,21 @@ export default function SummaryCard({
   }, [currentOpen, children]);
 
   return (
-    <div className={`summary-card ${currentOpen ? "expanded" : ""}`} role="region" aria-expanded={currentOpen}>
+    // Make the card a column flex container so footer/action sits at the bottom.
+    // We keep the CSS className for compatibility with existing styles.
+    <div
+      className={`summary-card ${currentOpen ? "expanded" : ""}`}
+      role="region"
+      aria-expanded={currentOpen}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        height: "100%",       // allow parent to control overall card height
+        minHeight: 120,       // sensible minimum so card doesn't collapse too small
+        boxSizing: "border-box",
+      }}
+    >
       {/* clickable header: clicking anywhere toggles */}
       <div
         className="summary-card-header"
@@ -104,13 +123,41 @@ export default function SummaryCard({
         aria-pressed={currentOpen}
         aria-controls={idRef.current}
         aria-expanded={currentOpen}
-        style={{ cursor: "pointer" }}
+        style={{
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          flex: "0 0 auto", // header should not grow; stays its content size
+        }}
       >
-        <div className="summary-left" style={{ minWidth: 0 }}>
-          <div className="summary-title">{title}</div>
+        <div className="summary-left" style={{ minWidth: 0, flex: "1 1 auto" }}>
+          <div className="summary-title" style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>
+            {title}
+          </div>
 
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8, minWidth: 0, flexWrap: "wrap" }}>
-            <div className="summary-value" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              gap: 8,
+              minWidth: 0,
+              flexWrap: "wrap",
+              marginTop: 6,
+            }}
+          >
+            <div
+              className="summary-value"
+              style={{
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                fontSize: 20,
+                fontWeight: 800,
+                color: "#111827",
+              }}
+            >
               {value}
             </div>
 
@@ -129,13 +176,23 @@ export default function SummaryCard({
             ) : null}
           </div>
 
-          {subtitle ? <div className="summary-sub" style={{ marginTop: 6 }}>{subtitle}</div> : null}
+          {subtitle ? (
+            <div className="summary-sub" style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
+              {subtitle}
+            </div>
+          ) : null}
         </div>
 
         <div
           className="summary-right"
           onClick={(e) => e.stopPropagation()}
-          style={{ display: "flex", alignItems: "center", gap: 12, marginLeft: 12 }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            marginLeft: 12,
+            flex: "0 0 auto",
+          }}
         >
           {/* tiny sparkline */}
           <div
@@ -166,12 +223,15 @@ export default function SummaryCard({
           {/* toggle button */}
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); toggle(e); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggle(e);
+            }}
             aria-expanded={currentOpen}
             aria-controls={idRef.current}
             aria-label={`${currentOpen ? "Collapse" : "Expand"} ${title}`}
             className="btn-outline"
-            style={{ whiteSpace: "nowrap" }}
+            style={{ whiteSpace: "nowrap", flex: "0 0 auto" }}
           >
             {currentOpen ? "Hide" : "See more"}
           </button>
@@ -183,9 +243,15 @@ export default function SummaryCard({
         ref={bodyRef}
         className="summary-card-body"
         aria-hidden={!currentOpen}
+        // let useEffect manage maxHeight/opacity for smooth transitions, but ensure body participates in flex
         style={{
           maxHeight: currentOpen ? undefined : "0px",
           opacity: currentOpen ? 1 : 0,
+          flex: "1 1 auto",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+          overflow: "hidden",
         }}
       >
         {/* small controls placeholder area (can be used for export buttons) */}
@@ -194,8 +260,12 @@ export default function SummaryCard({
         </div>
 
         {/* the expanded children area */}
-        <div>
-          {children ? children : <div style={{ color: "var(--muted)", padding: 8 }}>Details will appear here.</div>}
+        <div style={{ flex: "1 1 auto" }}>
+          {children ? (
+            children
+          ) : (
+            <div style={{ color: "var(--muted, #9aa3ab)", padding: 8 }}>Details will appear here.</div>
+          )}
         </div>
       </div>
     </div>
