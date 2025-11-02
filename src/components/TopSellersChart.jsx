@@ -27,7 +27,7 @@ export default function TopSellersChart({ data = [], onSelect = () => {}, highli
   }, [data]);
 
   if (!rows || rows.length === 0) {
-    return <div style={{ color: "#9aa3ab", padding: 12 }}>No best sellers yet</div>;
+    return <div className="text-muted" style={{ padding: 12 }}>No best sellers yet</div>;
   }
 
   const total = rows.reduce((s, r) => s + r.qty, 0) || 1;
@@ -102,11 +102,11 @@ export default function TopSellersChart({ data = [], onSelect = () => {}, highli
               width: "70%",
             }}
           >
-            <div style={{ fontSize: 12, color: "var(--muted, #6b7280)" }}>Top seller</div>
+            <div className="text-muted" style={{ fontSize: 12 }}>Top seller</div>
             <div style={{ fontWeight: 800, fontSize: 14, lineHeight: 1.1, marginTop: 6 }}>
               {truncate(top.name, 22)}
             </div>
-            <div style={{ fontSize: 12, color: "var(--muted, #6b7280)", marginTop: 4 }}>
+            <div className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
               {formatNumber(top.qty)} sold
             </div>
           </div>
@@ -125,14 +125,10 @@ export default function TopSellersChart({ data = [], onSelect = () => {}, highli
               tabIndex={0}
               onClick={() => onSelect?.(row.name)}
               onKeyDown={(e) => (e.key === "Enter" || e.key === " " ? onSelect?.(row.name) : null)}
+              className="list-row"
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "8px 10px",
-                borderRadius: 8,
-                cursor: "pointer",
                 background: isSelected ? "rgba(6,95,70,0.06)" : "transparent",
+                ariaPressed: !!isSelected,
               }}
               aria-pressed={!!isSelected}
               aria-label={`${i + 1}. ${row.name}: ${row.value} sold (${row.pct}%)`}
@@ -148,7 +144,7 @@ export default function TopSellersChart({ data = [], onSelect = () => {}, highli
                 <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {truncate(row.name, 40)}
                 </div>
-                <div style={{ fontSize: 12, color: "var(--muted, #6b7280)", marginTop: 4 }}>
+                <div className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
                   {formatNumber(row.value)} sold • {row.pct}% of top
                 </div>
               </div>
