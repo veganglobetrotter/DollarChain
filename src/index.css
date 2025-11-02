@@ -1,11 +1,20 @@
+/* src/index.css - theme-aware, layout-safe version */
+
+/* --------------------
+   Base tokens & typography
+   -------------------- */
 :root {
+  --page-bg: #242424;               /* dark default page background */
+  --text: rgba(255,255,255,0.87);   /* dark-mode text */
+  --muted: rgba(255,255,255,0.6);
+
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color: var(--text);
+  background-color: var(--page-bg);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -13,6 +22,16 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Light-mode overrides (browser/OS preference) */
+@media (prefers-color-scheme: light) {
+  :root {
+    --page-bg: #ffffff;
+    --text: #213547;
+    --muted: #6b7280;
+  }
+}
+
+/* Links */
 a {
   font-weight: 500;
   color: #646cff;
@@ -22,19 +41,76 @@ a:hover {
   color: #535bf2;
 }
 
-body {
+/* --------------------
+   Page layout - IMPORTANT: layout-only, no color forcing
+   - Prevent vertical centering
+   - Provide left sidebar + main grid for app-root
+   - Ensure html/body and app-root share the same background so no top band appears
+   -------------------- */
+
+/* Make sure the html/body occupy full height so background covers viewport */
+html, body {
+  height: 100%;
   margin: 0;
-  display: flex;
-  place-items: center;
+  background-color: var(--page-bg);
+  color: var(--text);
+}
+
+/* Do not vertically center the whole app; allow normal top-aligned flow */
+body {
+  display: block;
   min-width: 320px;
   min-height: 100vh;
 }
+
+/* App grid: left column for sidebar, right flexible column for main content */
+.app-root {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: var(--sidebar-width, 240px) 1fr;
+  gap: 0;
+  background-color: var(--page-bg); /* ensure matching paint at edges */
+  box-sizing: border-box;
+}
+
+/* Main column area (header + content) */
+.main-area {
+  padding: 24px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Content wrapper that centers content to a readable width */
+.content-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Keep header in-flow and full-width of the main area */
+.top-header {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Sidebar stays in-flow (no fixed positioning) */
+.sidebar {
+  position: relative;
+  display: block;
+}
+
+/* --------------------
+   Controls & text sizing
+   -------------------- */
 
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
 }
 
+/* Buttons - visual tokens only, colors are not forced beyond normal palette */
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -54,15 +130,87 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+/* In light mode make default buttons lighter (keeps your previous intent) */
 @media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+  button {
+    background-color: #f9f9f9;
   }
   a:hover {
     color: #747bff;
   }
-  button {
-    background-color: #f9f9f9;
+}
+
+/* small muted text helper */
+.muted { color: var(--muted); }
+
+/* --------------------
+   Card/grid helpers (do not force white backgrounds)
+   - These helpers make cards layout consistently but do NOT change colors
+   -------------------- */
+
+.surface-card,
+.summary-card {
+  /* do not change color here; components should set visual surfaces.
+     Keep spacing / sizing consistent so layout is predictable */
+  border-radius: 12px;
+  padding: 20px;
+  box-sizing: border-box;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 8px 24px rgba(16,24,40,0.06);
+}
+
+/* Responsive top row grid: 1 -> 2 -> 3 columns for neat card sizing */
+.card-row,
+.performance-top-row {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+@media (min-width: 640px) {
+  .card-row,
+  .performance-top-row {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
+@media (min-width: 1024px) {
+  .card-row,
+  .performance-top-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* When a summary-card is expanded, give it more vertical room for charts */
+.summary-card.expanded .summary-card-body {
+  min-height: 320px;
+  transition: min-height 220ms ease;
+}
+
+/* Small pill helper (visual tokens) */
+.btn-pill {
+  border-radius: 9999px;
+  padding: 6px 10px;
+  border: 1px solid rgba(0,0,0,0.06);
+  background: transparent;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn-pill.active {
+  background: #16a34a;
+  color: white;
+  border-color: transparent;
+}
+
+/* keep header controls tidy on small screens */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* utilities */
+.visually-hidden { position: absolute !important; height: 1px; width: 1px; overflow: hidden; clip: rect(1px,1px,1px,1px); white-space: nowrap; }
