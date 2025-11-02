@@ -2,17 +2,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { fetchPerformance } from "../lib/metricsClient";
 import PerformanceTopRow from "./PerformanceTopRow";
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  Legend,
-} from "recharts";
-
-import PerformanceTopRow from "./PerformanceTopRow";
 
 const TIMEFRAMES = [
   { label: "7D", days: 7 },
@@ -97,7 +86,7 @@ export default function Performance() {
         </div>
       </div>
 
-      /* Top summary row (replaced by PerformanceTopRow) */}
+      {/* Top summary row (replaced by PerformanceTopRow) */}
       <PerformanceTopRow
         metrics={metrics || {}}
         chartData={chartData}
