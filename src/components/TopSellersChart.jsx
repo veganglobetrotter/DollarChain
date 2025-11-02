@@ -23,7 +23,25 @@ export default function TopSellersChart({ data = [], onSelect = () => {}, highli
 
   const colors = ["#16a34a", "#22c55e", "#34d399", "#86efac", "#c7f9d1"];
 
-  const height = Math.max(160, rows.length * 40);
+  // height: base 160, +48 per row (gives comfortable spacing)
+  const height = Math.max(160, rows.length * 48);
+
+  // Truncate long labels for compact display (use full name in <title> for hover/accessibility)
+  const truncate = (s, n = 30) => (typeof s === "string" && s.length > n ? s.slice(0, n - 1) + "…" : s);
+
+  // custom tick renderer for Y axis (shows truncated label and full name in <title>)
+  const renderYAxisTick = ({ x, y, payload }) => {
+    const full = payload?.value ?? "";
+    const short = truncate(full, 30);
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <title>{full}</title>
+        <text x={6} y={6} fontSize={13} fill="currentColor" style={{ pointerEvents: "none", fontWeight: 600 }}>
+          {short}
+        </text>
+      </g>
+    );
+  };
 
   return (
     <div style={{ width: "100%", height }}>
@@ -40,26 +58,27 @@ export default function TopSellersChart({ data = [], onSelect = () => {}, highli
             <YAxis
               type="category"
               dataKey="name"
-              width={140}
-              tick={{ fontSize: 13 }}
+              width={180}               /* give label area enough room */
+              tick={renderYAxisTick}    /* custom tick with title + truncation */
               axisLine={false}
               tickLine={false}
             />
-            <Tooltip formatter={(v) => [v, "Sold"]} />
+            <Tooltip formatter={(v) => [`${v}`, "Sold"]} />
             <Bar
               dataKey="qty"
-              barSize={14}
-              isAnimationActive={true}
-              onClick={(payload) => onSelect?.(payload?.name)}
+              barSize={18}
+              isAnimationActive={false} /* avoid animation jank */
             >
               {rows.map((entry, i) => {
                 const isSelected = highlightName && highlightName === entry.name;
+                const fill = isSelected ? "#065f46" : colors[i % colors.length];
                 return (
                   <Cell
                     key={`cell-${i}`}
-                    fill={isSelected ? "#065f46" : colors[i % colors.length]}
+                    fill={fill}
                     cursor={onSelect ? "pointer" : "default"}
                     opacity={isSelected ? 1 : 0.95}
+                    onClick={() => onSelect?.(entry.name)}
                   />
                 );
               })}
