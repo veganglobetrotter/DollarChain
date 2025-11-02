@@ -14,6 +14,7 @@ import {
 
 import TopSellersChart from "./TopSellersChart";
 import RepeatCustomersChart from "./RepeatCustomersChart";
+import SummaryCard from "./SummaryCard";
 
 const TIMEFRAMES = [
   { label: "7D", days: 7 },
@@ -60,25 +61,30 @@ export default function Performance() {
     }));
   }, [metrics]);
 
-  // Layout styles (surgically tweaked: wider sales card so chart isn't squeezed)
+  // Build small sparkline arrays for summary cards (take revenue)
+  const sparkRevenue = useMemo(() => {
+    if (!chartData || !chartData.length) return [];
+    return chartData.map((d) => d.revenue || 0).slice(-12);
+  }, [chartData]);
+
+  const sparkOrders = useMemo(() => {
+    if (!chartData || !chartData.length) return [];
+    return chartData.map((d) => d.orders || 0).slice(-12);
+  }, [chartData]);
+
+  // Extract best seller top item for summary value
+  const topSeller = (metrics?.best_sellers && metrics.best_sellers.length) ? metrics.best_sellers[0] : null;
+
+  // Layout styles
   const rowStyle = {
     display: "flex",
     gap: 12,
     alignItems: "stretch",
     overflowX: "auto",
-    paddingBottom: 6,
+    paddingBottom: 12,
   };
 
-  // Sales card is wider and flexible; other cards keep compact width
-  const salesCardStyle = {
-    minWidth: 560,
-    flex: "1 1 560px",
-  };
-
-  const cardStyle = {
-    minWidth: 320,
-    flex: "0 0 320px",
-  };
+  const summaryCardStyle = { flex: "1 1 0", minWidth: 260 };
 
   return (
     <div>
@@ -101,9 +107,113 @@ export default function Performance() {
         </div>
       </div>
 
-      {/* Filter pill */}
+      {/* Top summary row (expandable cards) */}
+      <div className="summary-row" style={{ marginBottom: 12 }}>
+        <div style={summaryCardStyle}>
+          <SummaryCard
+            title="Sales"
+            value={metrics?.orders_count ?? 0}
+            subtitle={`Revenue: ${metrics?.revenue ?? 0}`}
+            delta={null}
+            sparklineData={sparkRevenue.length ? sparkRevenue : sparkOrders}
+          >
+            {/* Expanded content: full sales chart */}
+            <div style={{ width: "100%", height: 260 }}>
+              {chartData.length ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} margin={{ top: 12, right: 40, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis
+                      dataKey="day"
+                      tick={{ fontSize: 11 }}
+                      tickFormatter={(d) => {
+                        try {
+                          return d.slice(5);
+                        } catch {
+                          return d;
+                        }
+                      }}
+                    />
+                    <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 11 }} />
+                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
+                    <Tooltip
+                      formatter={(value, name) => {
+                        if (name === "revenue") return [value, "Revenue"];
+                        if (name === "orders") return [value, "Orders"];
+                        return [value, name];
+                      }}
+                      labelFormatter={(label) => `Date: ${label}`}
+                    />
+                    <Legend verticalAlign="top" align="right" height={24} />
+                    <Line
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="orders"
+                      stroke="#1a8917"
+                      strokeWidth={2}
+                      dot={false}
+                      name="Orders"
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#64748b"
+                      strokeWidth={2}
+                      dot={false}
+                      name="Revenue"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div style={{ padding: 12, color: "#9aa3ab" }}>No timeseries data</div>
+              )}
+            </div>
+          </SummaryCard>
+        </div>
+
+        <div style={{ ...summaryCardStyle, maxWidth: 420 }}>
+          <SummaryCard
+            title="Best sellers (top 5)"
+            value={topSeller ? topSeller.name : "—"}
+            subtitle={topSeller ? `${topSeller.qty_sold} sold` : "No sales"}
+            sparklineData={metrics?.best_sellers?.slice(0,5).map(b => Number(b.qty_sold || 0)) || []}
+          >
+            {/* Expanded content: top sellers chart (bar/horizontal) */}
+            <div style={{ paddingTop: 6 }}>
+              <TopSellersChart
+                data={metrics?.best_sellers ?? []}
+                onSelect={(name) => setSelectedItem(name)}
+                highlightName={selectedItem}
+              />
+            </div>
+          </SummaryCard>
+        </div>
+
+        <div style={{ ...summaryCardStyle, maxWidth: 360 }}>
+          <SummaryCard
+            title="Repeat customers"
+            value={`${metrics?.repeat_stats?.repeat_pct ?? 0}%`}
+            subtitle={`${metrics?.repeat_stats?.repeat_count ?? 0} repeat / ${metrics?.repeat_stats?.unique_customers ?? 0} unique`}
+            sparklineData={metrics?.repeat_customers?.slice(0,8).map(r => Number(r.count || 0)) || []}
+          >
+            <div style={{ paddingTop: 6 }}>
+              <RepeatCustomersChart
+                repeatCustomers={metrics?.repeat_customers ?? []}
+                repeatPct={metrics?.repeat_stats?.repeat_pct ?? 0}
+              />
+            </div>
+          </SummaryCard>
+        </div>
+      </div>
+
+      {/* If you still want the larger detailed row below, you can keep it.
+          Right now the expanded SummaryCard contains the charts so we don't repeat.
+      */}
+
+      {/* Filter pill (kept for item filtering) */}
       {selectedItem && (
-        <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ marginTop: 6, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ background: "#e7f7ec", color: "#0e6b2e", padding: "6px 10px", borderRadius: 999, fontWeight: 700 }}>
             Filtering: {selectedItem}
           </div>
@@ -113,124 +223,6 @@ export default function Performance() {
         </div>
       )}
 
-      {/* Horizontal cards row */}
-      <div style={rowStyle}>
-        {/* Sales card (wider) */}
-        <div className="formBox" style={salesCardStyle}>
-          <h3 style={{ marginTop: 0 }}>Sales</h3>
-          {loading ? (
-            <div>Loading…</div>
-          ) : error ? (
-            <div style={{ color: "red" }}>{error}</div>
-          ) : metrics ? (
-            <>
-              <div style={{ fontSize: 28, fontWeight: 700 }}>{metrics.orders_count ?? 0}</div>
-              <div style={{ color: "#6b7280" }}>
-                Revenue: {metrics.revenue ?? 0}
-              </div>
-
-              <div style={{ marginTop: 12 }}>
-                <small style={{ color: "#6b7280" }}>Sales time series</small>
-
-                {chartData.length ? (
-                  // Increased height for clearer charts
-                  <div style={{ width: "100%", height: 260, marginTop: 12 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData} margin={{ top: 12, right: 40, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                        <XAxis
-                          dataKey="day"
-                          tick={{ fontSize: 11 }}
-                          tickFormatter={(d) => {
-                            try {
-                              // show month/day for readability
-                              return d.slice(5);
-                            } catch {
-                              return d;
-                            }
-                          }}
-                        />
-                        <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 11 }} />
-                        <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
-                        <Tooltip
-                          formatter={(value, name) => {
-                            if (name === "revenue") return [value, "Revenue"];
-                            if (name === "orders") return [value, "Orders"];
-                            return [value, name];
-                          }}
-                          labelFormatter={(label) => `Date: ${label}`}
-                        />
-                        <Legend verticalAlign="top" align="right" height={24} />
-                        <Line
-                          yAxisId="left"
-                          type="monotone"
-                          dataKey="orders"
-                          stroke="#1a8917"
-                          strokeWidth={2}
-                          dot={false}
-                          name="Orders"
-                        />
-                        <Line
-                          yAxisId="right"
-                          type="monotone"
-                          dataKey="revenue"
-                          stroke="#64748b"
-                          strokeWidth={2}
-                          dot={false}
-                          name="Revenue"
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <div style={{ marginTop: 8, color: "#9aa3ab" }}>No timeseries data</div>
-                )}
-              </div>
-            </>
-          ) : (
-            <div>No data</div>
-          )}
-        </div>
-
-        {/* Best sellers (chart) */}
-        <div className="formBox" style={cardStyle}>
-          <h3 style={{ marginTop: 0 }}>Best sellers (top 5)</h3>
-          {loading ? (
-            <div>Loading…</div>
-          ) : error ? (
-            <div style={{ color: "red" }}>{error}</div>
-          ) : metrics ? (
-            <div>
-              <TopSellersChart
-                data={metrics.best_sellers ?? []}
-                onSelect={(name) => setSelectedItem(name)}
-                highlightName={selectedItem}
-              />
-            </div>
-          ) : (
-            <div>No data</div>
-          )}
-        </div>
-
-        {/* Repeat customers (chart + donut) */}
-        <div className="formBox" style={cardStyle}>
-          <h3 style={{ marginTop: 0 }}>Repeat customers</h3>
-          {loading ? (
-            <div>Loading…</div>
-          ) : error ? (
-            <div style={{ color: "red" }}>{error}</div>
-          ) : metrics ? (
-            <div>
-              <RepeatCustomersChart
-                repeatCustomers={metrics.repeat_customers ?? []}
-                repeatPct={metrics.repeat_stats?.repeat_pct ?? 0}
-              />
-            </div>
-          ) : (
-            <div>No data</div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

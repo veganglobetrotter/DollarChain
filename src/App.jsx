@@ -1,3 +1,4 @@
+// src/App.jsx
 import { useEffect, useState } from "react";
 import "./App.css";
 import Sidebar from "./components/Sidebar";
@@ -12,7 +13,6 @@ import { supabase } from "./lib/supabase";
 import generateInvoicePdfBlob from "./lib/pdf";
 import { uploadInvoicePdf } from "./lib/storage";
 import Performance from "./components/Performance"; // <-- added import
-import SummaryCard from "./components/SummaryCard"; // <-- temporary test import
 
 function App() {
   const [parsedData, setParsedData] = useState(null);
@@ -227,21 +227,6 @@ function App() {
                       Copy and paste your WhatsApp order chat here to automatically generate
                       an invoice. You can edit details before creating the PDF.
                     </p>
-
-                    {/* TEMP: SummaryCard visual test (remove when happy) */}
-                    <SummaryCard
-                      title="Sales"
-                      value="8"
-                      subtitle="Overview (last 28 days)"
-                      delta="+12%"
-                      deltaDirection="up"
-                      sparklineData={[2,4,5,3,6,4]}
-                    >
-                      <div style={{ height: 160 }}>
-                        <div style={{ padding: 8, color: "#6b7280" }}>This is a placeholder for the expanded chart area.</div>
-                      </div>
-                    </SummaryCard>
-                    {/* END TEMP */}
 
                     <PasteBox onParse={handleParse} />
                   </>
