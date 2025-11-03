@@ -1,3 +1,4 @@
+// src/App.jsx
 import { useEffect, useState } from "react";
 import "./App.css";
 import Sidebar from "./components/Sidebar";
@@ -200,7 +201,7 @@ function App() {
 
   return (
     // Add conditional class so CSS can show/hide sidebar on mobile
-    <div className={`app-root ${mobileSidebarOpen ? "sidebar--open" : ""}`}>
+    <div className={`app-root ${mobileSidebarOpen ? "sidebar-open" : ""}`}>
       <Sidebar
         sellerName={localStorage.getItem("sellerName") || "Seller Name"}
         onNavigate={(view) => {
