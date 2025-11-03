@@ -50,6 +50,10 @@ export default function Sidebar({
         // prevent clicks inside sidebar from bubbling out to overlay/backdrop
         e.stopPropagation();
       }}
+      onTouchStart={(e) => {
+        // prevent touch events inside sidebar from bubbling out to overlay/backdrop
+        e.stopPropagation();
+      }}
       onKeyDown={(e) => {
         // ensure keyboard events don't bubble and accidentally trigger other handlers
         // allow typical navigation keys through however (so don't swallow Tab/Arrow etc.)
@@ -58,7 +62,7 @@ export default function Sidebar({
         }
       }}
     >
-      <div className="sidebar-card" onClick={(e) => e.stopPropagation()}>
+      <div className="sidebar-card" onClick={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
         <div className="sidebar-top">
           <div className="avatar">
             {(sellerName || "S").charAt(0).toUpperCase()}
@@ -84,6 +88,10 @@ export default function Sidebar({
                     if (typeof onClose === "function") onClose();
                   }}
                   onKeyDown={(e) => handleKeyNav(e, n.id)}
+                  onTouchStart={(e) => {
+                    // prevent touch events on the button from bubbling (prevents overlay from closing)
+                    e.stopPropagation();
+                  }}
                   aria-current={active === n.id ? "page" : undefined}
                   aria-pressed={active === n.id}
                   style={{

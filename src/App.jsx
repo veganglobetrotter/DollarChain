@@ -1,5 +1,5 @@
 // src/App.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import "./App.css";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
@@ -199,6 +199,26 @@ function App() {
     setShowForm(false);
   };
 
+  // Robust overlay click handler: only close when overlay itself was clicked,
+  // and defensively ignore clicks that fall inside the sidebar region (in case overlay overlaps).
+  const handleOverlayClick = useCallback((e) => {
+    // ensure event is on the overlay element itself
+    if (e.target !== e.currentTarget) return;
+
+    // defensive: if the click coordinates are inside the sidebar rect, do not close
+    const sidebarEl = document.getElementById("sidebar");
+    if (sidebarEl) {
+      const rect = sidebarEl.getBoundingClientRect();
+      const { clientX: x, clientY: y } = e;
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+        // click landed inside sidebar — ignore
+        return;
+      }
+    }
+
+    setMobileSidebarOpen(false);
+  }, []);
+
   return (
     // Add conditional class so CSS can show/hide sidebar on mobile
     <div className={`app-root ${mobileSidebarOpen ? "sidebar-open" : ""}`}>
@@ -286,12 +306,16 @@ function App() {
         </section>
       </main>
 
-      {/* Mobile overlay/backdrop — clicking it closes the sidebar */}
+      {/* Mobile overlay/backdrop — clicking it closes the sidebar.
+          Use a robust handler so accidental clicks that fall inside the visible
+          sidebar do not close it (defensive for stacking/transform issues). */}
       {mobileSidebarOpen && (
         <div
           className="mobile-overlay"
-          onClick={() => setMobileSidebarOpen(false)}
+          onClick={handleOverlayClick}
           aria-hidden="true"
+          role="button"
+          tabIndex={0}
           style={{
             position: "fixed",
             inset: 0,
