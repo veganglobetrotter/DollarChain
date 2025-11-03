@@ -1,4 +1,3 @@
-// src/components/Sidebar.jsx
 import React, { useEffect } from "react";
 
 export default function Sidebar({
@@ -50,6 +49,10 @@ export default function Sidebar({
         // prevent clicks inside sidebar from bubbling out to overlay/backdrop
         e.stopPropagation();
       }}
+      onTouchStart={(e) => {
+        // prevent touch events inside sidebar from bubbling out to overlay/backdrop
+        e.stopPropagation();
+      }}
       onKeyDown={(e) => {
         // ensure keyboard events don't bubble and accidentally trigger other handlers
         // allow typical navigation keys through however (so don't swallow Tab/Arrow etc.)
@@ -58,7 +61,7 @@ export default function Sidebar({
         }
       }}
     >
-      <div className="sidebar-card" onClick={(e) => e.stopPropagation()}>
+      <div className="sidebar-card" onClick={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
         <div className="sidebar-top">
           <div className="avatar">
             {(sellerName || "S").charAt(0).toUpperCase()}
@@ -73,7 +76,7 @@ export default function Sidebar({
         <nav className="sidebar-nav" aria-label="Main navigation">
           <ul>
             {nav.map((n) => (
-              <li key={n.id} className={`nav-item ${active === n.id ? "nav-active" : ""}`}>
+              <li key={n.id} className={`nav-item ${active === n.id ? "nav-active" : ""}`}> 
                 <button
                   type="button"
                   className="nav-link"
@@ -84,6 +87,10 @@ export default function Sidebar({
                     if (typeof onClose === "function") onClose();
                   }}
                   onKeyDown={(e) => handleKeyNav(e, n.id)}
+                  onTouchStart={(e) => {
+                    // prevent touch events on the button from bubbling (prevents overlay from closing)
+                    e.stopPropagation();
+                  }}
                   aria-current={active === n.id ? "page" : undefined}
                   aria-pressed={active === n.id}
                   style={{
