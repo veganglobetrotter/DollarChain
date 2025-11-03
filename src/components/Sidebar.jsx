@@ -10,7 +10,7 @@ export default function Sidebar({
 }) {
   const nav = [
     { id: "home", label: "Dashboard" },
-    { id: "performance", label: "Performance" },
+    { id: "performance", label: "Performance" }, // <-- replaced Item 1
     { id: "item2", label: "Item 2" },
     { id: "item3", label: "Item 3" },
     { id: "settings", label: "Settings" },
@@ -21,6 +21,7 @@ export default function Sidebar({
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       onNavigate(id);
+      // allow parent to close if needed
       if (typeof onClose === "function") onClose();
     }
   };
@@ -38,27 +39,14 @@ export default function Sidebar({
   }, [open, onClose]);
 
   return (
-    /* id so Header aria-controls points here; visibility handled by CSS (not inline style)
-       Note: stopPropagation on the aside prevents clicks inside the sidebar from
-       bubbling to the page overlay/backdrop which would close the sidebar prematurely. */
+    // id so Header aria-controls points here; visibility handled by CSS (not inline style)
     <aside
       id="sidebar"
       className="sidebar"
       aria-label="Sidebar"
       aria-hidden={!open}
-      onClick={(e) => {
-        // prevent clicks inside sidebar from bubbling out to overlay/backdrop
-        e.stopPropagation();
-      }}
-      onKeyDown={(e) => {
-        // ensure keyboard events don't bubble and accidentally trigger other handlers
-        // allow typical navigation keys through however (so don't swallow Tab/Arrow etc.)
-        if (e.key === "Enter" || e.key === " " || e.key === "Escape") {
-          e.stopPropagation();
-        }
-      }}
     >
-      <div className="sidebar-card" onClick={(e) => e.stopPropagation()}>
+      <div className="sidebar-card">
         <div className="sidebar-top">
           <div className="avatar">
             {(sellerName || "S").charAt(0).toUpperCase()}
@@ -73,28 +61,25 @@ export default function Sidebar({
         <nav className="sidebar-nav" aria-label="Main navigation">
           <ul>
             {nav.map((n) => (
-              <li key={n.id} className={`nav-item ${active === n.id ? "nav-active" : ""}`}>
+              <li
+                key={n.id}
+                className={`nav-item ${active === n.id ? "nav-active" : ""}`}
+              >
+                {/* semantic button improves touch/keyboard reliability */}
                 <button
                   type="button"
                   className="nav-link"
                   onClick={(e) => {
-                    // make click handling robust: prevent bubbling, navigate, close
+                    // prevent overlay/backdrop from reacting to the same click
                     e.stopPropagation();
                     onNavigate(n.id);
+                    // tell parent to close the mobile sidebar (parent can close immediately or delay new)
                     if (typeof onClose === "function") onClose();
                   }}
                   onKeyDown={(e) => handleKeyNav(e, n.id)}
                   aria-current={active === n.id ? "page" : undefined}
                   aria-pressed={active === n.id}
-                  style={{
-                    all: "unset",
-                    cursor: "pointer",
-                    display: "block",
-                    width: "100%",
-                    textAlign: "left",
-                    padding: "8px 10px",
-                    borderRadius: 6,
-                  }}
+                  style={{ all: "unset", cursor: "pointer", display: "inline-block", width: "100%", textAlign: "left", padding: "8px 10px", borderRadius: 6 }}
                 >
                   {n.label}
                 </button>
