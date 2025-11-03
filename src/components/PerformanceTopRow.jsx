@@ -16,6 +16,9 @@ import {
   Legend,
 } from "recharts";
 
+// use centralized formatters
+import { formatCurrency, formatNumber } from "../lib/formatters";
+
 /**
  * PerformanceTopRow
  * Props:
@@ -45,13 +48,8 @@ export default function PerformanceTopRow({
     [metrics]
   );
 
-  // Currency formatting helper (supports metrics.currency when provided).
-  // Uses simple prefix like "KES 1,234" for now — this keeps it consistent across markets.
+  // Currency code (used by formatCurrency)
   const currencyCode = metrics?.currency || "KES";
-  const formatCurrency = (v) => {
-    if (v == null || Number.isNaN(Number(v))) return `${currencyCode} 0`;
-    return `${currencyCode} ${Number(v).toLocaleString()}`;
-  };
 
   // Build augmented chart data (add max and 7-day moving average for orders).
   const chartDataAug = useMemo(() => {
@@ -96,7 +94,7 @@ export default function PerformanceTopRow({
         <SummaryCard
           title="Sales"
           value={metrics?.orders_count ?? 0}
-          subtitle={`Revenue: ${formatCurrency(metrics?.revenue ?? 0)}`}
+          subtitle={`${formatCurrency(metrics?.revenue ?? 0, currencyCode)}`}
           open={expandedKey === "sales"}
           onToggle={(open) => toggleKey(open ? "sales" : null)}
         >
@@ -166,12 +164,12 @@ export default function PerformanceTopRow({
                       />
                       <YAxis
                         tick={{ fontSize: 11 }}
-                        tickFormatter={(v) => Number(v).toLocaleString()}
+                        tickFormatter={(v) => formatNumber(v)}
                         label={{ value: `Revenue (${currencyCode})`, angle: -90, position: "insideLeft", offset: -6 }}
                       />
                       <Tooltip
                         formatter={(val, name) => {
-                          if (name === "revenue") return [formatCurrency(val), "Revenue"];
+                          if (name === "revenue") return [formatCurrency(val, currencyCode), "Revenue"];
                           return [val, name];
                         }}
                       />

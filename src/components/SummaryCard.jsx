@@ -1,6 +1,7 @@
 // src/components/SummaryCard.jsx
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { ResponsiveContainer, AreaChart, Area, Tooltip, XAxis } from "recharts";
+import { formatNumber } from "../lib/formatters";
 
 /**
  * SummaryCard
@@ -103,6 +104,9 @@ export default function SummaryCard({
   // show it when the card is expanded or when explicitly requested via prop.
   const showSparklineNow = currentOpen || showSparklineInPreview;
 
+  // Present numeric `value` consistently using central formatter (leave strings alone)
+  const displayValue = typeof value === "number" ? formatNumber(value) : value;
+
   return (
     // Keep the CSS className for compatibility with existing styles.
     <div
@@ -139,7 +143,7 @@ export default function SummaryCard({
               marginTop: 6,
             }}
           >
-            <div className="summary-value">{value}</div>
+            <div className="summary-value">{displayValue}</div>
 
             {delta ? (
               <div
@@ -183,7 +187,7 @@ export default function SummaryCard({
                       </linearGradient>
                     </defs>
                     <XAxis dataKey="i" hide />
-                    <Tooltip formatter={(v) => [v, title]} />
+                    <Tooltip formatter={(v) => [formatNumber(v), title]} />
                     <Area type="monotone" dataKey="v" stroke="#16a34a" fill={`url(#${gradId})`} strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -239,7 +243,7 @@ export default function SummaryCard({
           {children ? (
             children
           ) : (
-            <div style={{ color: "var(--muted, #9aa3ab)", padding: 8 }}>Details will appear here.</div>
+            <div className="text-muted" style={{ padding: 8 }}>Details will appear here.</div>
           )}
         </div>
       </div>

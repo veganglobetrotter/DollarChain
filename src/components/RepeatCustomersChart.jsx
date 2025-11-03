@@ -7,6 +7,7 @@ import {
   Cell,
   Tooltip,
 } from "recharts";
+import { formatNumber, formatPercent } from "../lib/formatters";
 
 /**
  * Props:
@@ -35,12 +36,10 @@ export default function RepeatCustomersChart({ repeatCustomers = [], repeatPct =
 
   const colors = ["#16a34a", "#e6eef1"];
   const rowColors = ["#16a34a", "#22c55e", "#34d399", "#86efac", "#c7f9d1"];
-  const highlightColor = "#065f46";
 
   const truncate = (s, n = 36) => (typeof s === "string" && s.length > n ? s.slice(0, n - 1) + "…" : s);
-  const formatNumber = (v) => (typeof v === "number" ? v.toLocaleString() : v);
 
-  const pieTooltipFormatter = (v) => [`${v}%`, "Share"];
+  const pieTooltipFormatter = (v) => [formatPercent(v), "Share"];
 
   return (
     <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 10 }}>
@@ -83,7 +82,7 @@ export default function RepeatCustomersChart({ repeatCustomers = [], repeatPct =
           >
             <div className="text-muted" style={{ fontSize: 12 }}>Repeat customers</div>
             <div style={{ fontWeight: 800, fontSize: 18, lineHeight: 1.05, marginTop: 6 }}>
-              {Math.round(Number(repeatPct || 0))}%
+              {formatPercent(Number(repeatPct || 0))}
             </div>
             <div className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
               of customers
@@ -111,7 +110,7 @@ export default function RepeatCustomersChart({ repeatCustomers = [], repeatPct =
                 style={{
                   background: "transparent",
                 }}
-                aria-label={`${i + 1}. ${r.label}: ${r.count} orders (${pct}%)`}
+                aria-label={`${i + 1}. ${r.label}: ${formatNumber(r.count)} orders (${pct}%)`}
               >
                 {/* rank */}
                 <div style={{ minWidth: 28, fontWeight: 700 }}>{i + 1}.</div>
@@ -125,12 +124,12 @@ export default function RepeatCustomersChart({ repeatCustomers = [], repeatPct =
                     {truncate(r.label, 40)}
                   </div>
                   <div className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
-                    {formatNumber(r.count)} orders • {pct}% of repeat
+                    {formatNumber(r.count)} orders • {formatPercent(pct)}
                   </div>
                 </div>
 
                 {/* pct badge */}
-                <div style={{ flex: "0 0 auto", fontWeight: 800 }}>{pct}%</div>
+                <div style={{ flex: "0 0 auto", fontWeight: 800 }}>{formatPercent(pct)}</div>
               </div>
             );
           })

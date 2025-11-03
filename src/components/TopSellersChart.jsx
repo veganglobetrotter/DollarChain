@@ -7,6 +7,7 @@ import {
   Cell,
   Tooltip,
 } from "recharts";
+import { formatNumber, formatPercent } from "../lib/formatters";
 
 /**
  * Props:
@@ -46,11 +47,10 @@ export default function TopSellersChart({ data = [], onSelect = () => {}, highli
 
   // helpers
   const truncate = (s, n = 36) => (typeof s === "string" && s.length > n ? s.slice(0, n - 1) + "…" : s);
-  const formatNumber = (v) => (typeof v === "number" ? v.toLocaleString() : v);
 
-  const tooltipFormatter = (value, name, entry) => {
-    const pct = entry && entry.payload ? `${Math.round((entry.payload.value / total) * 100)}%` : "";
-    return [`${formatNumber(value)}`, `${pct}`];
+  const tooltipFormatter = (value, _name, entry) => {
+    const pct = entry && entry.payload ? formatPercent(entry.payload.pct) : "";
+    return [formatNumber(value), pct];
   };
 
   // Layout: column — pie on top, full legend list below
@@ -128,10 +128,9 @@ export default function TopSellersChart({ data = [], onSelect = () => {}, highli
               className="list-row"
               style={{
                 background: isSelected ? "rgba(6,95,70,0.06)" : "transparent",
-                ariaPressed: !!isSelected,
               }}
               aria-pressed={!!isSelected}
-              aria-label={`${i + 1}. ${row.name}: ${row.value} sold (${row.pct}%)`}
+              aria-label={`${i + 1}. ${row.name}: ${formatNumber(row.value)} sold (${row.pct}%)`}
             >
               {/* rank & chip */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 36 }}>
@@ -145,13 +144,13 @@ export default function TopSellersChart({ data = [], onSelect = () => {}, highli
                   {truncate(row.name, 40)}
                 </div>
                 <div className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
-                  {formatNumber(row.value)} sold • {row.pct}% of top
+                  {formatNumber(row.value)} sold • {formatPercent(row.pct)}
                 </div>
               </div>
 
               {/* pct badge on right */}
               <div style={{ flex: "0 0 auto", marginLeft: 8, fontWeight: 800 }}>
-                {row.pct}%
+                {formatPercent(row.pct)}
               </div>
             </div>
           );
