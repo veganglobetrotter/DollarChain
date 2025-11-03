@@ -6,6 +6,12 @@ The application processes natural language order messages (likely from WhatsApp)
 
 # Recent Changes
 
+**November 3, 2025**: Fixed mobile hamburger menu and sidebar visibility
+- Removed inline `display: none` style from Sidebar component that was hiding sidebar on desktop
+- Fixed conflicting CSS in App.css that prevented mobile off-canvas overlay pattern
+- Desktop sidebar now always visible, mobile sidebar uses slide-in overlay with backdrop
+- Hamburger menu (☰) appears on screens ≤720px and properly toggles sidebar visibility
+
 **October 31, 2025 (Evening)**: Added "Save to Cloud" feature
 - Implemented serverless API endpoint (`/api/upload-invoice`) for secure cloud storage
 - Fixed formidable v3+ API compatibility issue (changed from `new formidable.IncomingForm()` to `formidable()`)
