@@ -395,56 +395,67 @@ a:focus-visible {
     left: 0;
     bottom: 0;
     width: var(--sidebar-width, 240px);
-    z-index: 50;
     transform: translateX(-100%);
     transition: transform 220ms ease;
     box-shadow: 0 12px 40px rgba(2,6,23,0.3);
     background-color: var(--page-bg);
     will-change: transform;
+    /* default pointer behavior: allow sidebar interaction when visible */
+    pointer-events: auto;
   }
 
-  /* ensure sidebar sits above overlay and pointer-events are correct */
+  /* ---- Patch B: stacking/pointer order & tappable nav items ---- */
+  /* Use high z-index values so sidebar reliably sits above header and controls */
   .sidebar {
-    z-index: 100; /* keep sidebar above overlay/backdrop and main content when open */
-    -webkit-tap-highlight-color: transparent; /* nicer on mobile */
+    z-index: 10010; /* very high so it overlays header/main reliably */
   }
 
-  /* default overlay element used by App.jsx when mobileSidebarOpen is true
-     keep it below the sidebar but above main content */
-  .mobile-overlay {
+  /* backdrop / overlay should sit under the sidebar but above main content */
+  .mobile-overlay,
+  .sidebar-backdrop {
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.35);
-    z-index: 90; /* less than .sidebar (100) so sidebar receives pointer events */
+    z-index: 10000; /* just under sidebar */
     opacity: 0;
     pointer-events: none;
     transition: opacity 220ms ease;
+    display: block;
   }
 
   /* when root indicates open, mobile-overlay should become interactive */
   .app-root.sidebar-open .mobile-overlay,
-  .app-root.sidebar--open .mobile-overlay {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  /* convenience: ensure backdrop class name used by App.jsx (.mobile-overlay)
-     or older .sidebar-backdrop both behave the same */
+  .app-root.sidebar--open .mobile-overlay,
   .app-root.sidebar-open .sidebar-backdrop,
   .app-root.sidebar--open .sidebar-backdrop {
     opacity: 1;
     pointer-events: auto;
   }
 
+  /* ensure the header sits below the overlay/sidebar when open */
+  .top-header {
+    position: relative; /* creates stacking context but stays under sidebar */
+    z-index: 900;
+  }
+
+  /* ensure main-area doesn't appear above overlay */
+  .main-area {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+  }
+
   /* make sidebar nav items full-width tappable links on mobile */
   .sidebar .nav-link,
   .sidebar .nav-item {
-    display: inline-block;
+    display: block;
     width: 100%;
     padding: 10px 12px;
     border-radius: 6px;
     text-align: left;
     box-sizing: border-box;
+    -webkit-tap-highlight-color: rgba(0,0,0,0.06);
+    touch-action: manipulation;
   }
 
   /* visual feedback for touch/keyboard */
@@ -455,34 +466,17 @@ a:focus-visible {
     outline: none;
     background: rgba(0,0,0,0.04);
   }
+
   /* when the root element has the "sidebar-open" or "sidebar--open" class, show the sidebar */
   .app-root.sidebar-open .sidebar,
   .app-root.sidebar--open .sidebar {
     transform: translateX(0);
   }
 
-  /* main area remains usable under the overlay */
-  .main-area {
-    position: relative;
-    min-height: 100vh;
-  }
-
-  /* optional backdrop element (App.jsx can render this as .mobile-overlay) */
-  .sidebar-backdrop,
-  .mobile-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.35);
-    z-index: 40;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 220ms ease;
-    display: block;
-  }
+  /* convenience: ensure backdrop class name used by App.jsx (.mobile-overlay)
+     or older .sidebar-backdrop both behave the same */
   .app-root.sidebar-open .sidebar-backdrop,
-  .app-root.sidebar--open .sidebar-backdrop,
-  .app-root.sidebar-open .mobile-overlay,
-  .app-root.sidebar--open .mobile-overlay {
+  .app-root.sidebar--open .sidebar-backdrop {
     opacity: 1;
     pointer-events: auto;
   }
