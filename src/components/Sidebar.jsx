@@ -1,7 +1,13 @@
 // src/components/Sidebar.jsx
-import React from "react";
+import React, { useEffect } from "react";
 
-export default function Sidebar({ sellerName = "Seller Name", onNavigate = () => {}, active = "home" }) {
+export default function Sidebar({
+  sellerName = "Seller Name",
+  onNavigate = () => {},
+  active = "home",
+  open = true, // controls mobile visibility; defaults to true for backward compatibility
+  onClose = () => {}, // optional close handler used by mobile toggle / Escape key
+}) {
   const nav = [
     { id: "home", label: "Dashboard" },
     { id: "performance", label: "Performance" }, // <-- replaced Item 1
@@ -18,8 +24,27 @@ export default function Sidebar({ sellerName = "Seller Name", onNavigate = () =>
     }
   };
 
+  // Close on Escape when sidebar is open and onClose provided
+  useEffect(() => {
+    if (!open || typeof onClose !== "function") return undefined;
+    const handler = (e) => {
+      if (e.key === "Escape" || e.key === "Esc") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, onClose]);
+
   return (
-    <aside className="sidebar" aria-label="Sidebar">
+    // id so Header aria-controls points here; hide when open === false
+    <aside
+      id="sidebar"
+      className="sidebar"
+      aria-label="Sidebar"
+      aria-hidden={!open}
+      style={{ display: open ? undefined : "none" }}
+    >
       <div className="sidebar-card">
         <div className="sidebar-top">
           <div className="avatar">
@@ -43,7 +68,6 @@ export default function Sidebar({ sellerName = "Seller Name", onNavigate = () =>
                 tabIndex={0}
                 onKeyDown={(e) => handleKeyNav(e, n.id)}
                 aria-current={active === n.id ? "page" : undefined}
-                aria-pressed={active === n.id}
               >
                 {n.label}
               </li>

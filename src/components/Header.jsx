@@ -1,8 +1,33 @@
 // src/components/Header.jsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 
-export default function Header({ onBuyCredits, activeRange = "28D", onRangeChange }) {
+export default function Header({
+  onBuyCredits,
+  activeRange = "28D",
+  onRangeChange,
+  onToggleSidebar, // optional handler from App for mobile toggle
+}) {
   const ranges = ["7D", "28D", "90D", "365D"];
+
+  // track "narrow screen" so we only show the hamburger on small devices
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) {
+      return undefined;
+    }
+    const mq = window.matchMedia("(max-width: 720px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    // use addEventListener when available
+    if (typeof mq.addEventListener === "function") {
+      mq.addEventListener("change", update);
+      return () => mq.removeEventListener("change", update);
+    } else {
+      // fallback for older browsers
+      mq.addListener(update);
+      return () => mq.removeListener(update);
+    }
+  }, []);
 
   return (
     <header
@@ -28,6 +53,26 @@ export default function Header({ onBuyCredits, activeRange = "28D", onRangeChang
           minWidth: 0,
         }}
       >
+        {/* Hamburger — visible only on narrow screens (isMobile) */}
+        <button
+          type="button"
+          className="btn-hamburger btn-outline"
+          onClick={() => onToggleSidebar?.()}
+          aria-label="Toggle navigation"
+          aria-controls="sidebar"
+          style={{
+            display: isMobile ? "inline-flex" : "none",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "6px",
+            borderRadius: 8,
+            lineHeight: 1,
+            minWidth: 40,
+          }}
+        >
+          <span aria-hidden>☰</span>
+        </button>
+
         <div className="brand" style={{ fontWeight: 800 }}>
           DollarChain
         </div>

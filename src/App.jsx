@@ -1,4 +1,3 @@
-// src/App.jsx
 import { useEffect, useState } from "react";
 import "./App.css";
 import Sidebar from "./components/Sidebar";
@@ -22,6 +21,9 @@ function App() {
   const [authOpen, setAuthOpen] = useState(false);
   const [pendingFormData, setPendingFormData] = useState(null);
   const [currentView, setCurrentView] = useState("home"); // "home" or "orders" etc.
+
+  // Mobile sidebar open state (for small screens)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -47,6 +49,16 @@ function App() {
       listener.subscription.unsubscribe();
     };
   }, [pendingFormData]);
+
+  // close sidebar on Escape for better UX
+  useEffect(() => {
+    if (!mobileSidebarOpen) return undefined;
+    const onKey = (e) => {
+      if (e.key === "Escape") setMobileSidebarOpen(false);
+    };
+    window.addEventListener("keydown", onKey, { passive: true });
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileSidebarOpen]);
 
   const handleParse = (data) => {
     setParsedData(data);
@@ -187,15 +199,26 @@ function App() {
   };
 
   return (
-    <div className="app-root">
+    // Add conditional class so CSS can show/hide sidebar on mobile
+    <div className={`app-root ${mobileSidebarOpen ? "sidebar--open" : ""}`}>
       <Sidebar
         sellerName={localStorage.getItem("sellerName") || "Seller Name"}
-        onNavigate={(view) => setCurrentView(view)}
+        onNavigate={(view) => {
+          setCurrentView(view);
+          // close mobile sidebar after navigation for better UX
+          setMobileSidebarOpen(false);
+        }}
         active={currentView}
+        open={mobileSidebarOpen}
+        onClose={() => setMobileSidebarOpen(false)}
       />
 
       <main className="main-area">
-        <Header onBuyCredits={handleBuyCredits} />
+        <Header
+          onBuyCredits={handleBuyCredits}
+          // header can toggle sidebar on mobile (hamburger)
+          onToggleSidebar={() => setMobileSidebarOpen((s) => !s)}
+        />
 
         <section className="content">
           <div className="content-inner">
@@ -248,6 +271,21 @@ function App() {
           </div>
         </section>
       </main>
+
+      {/* Mobile overlay/backdrop — clicking it closes the sidebar */}
+      {mobileSidebarOpen && (
+        <div
+          className="mobile-overlay"
+          onClick={() => setMobileSidebarOpen(false)}
+          aria-hidden="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.35)",
+            zIndex: 40,
+          }}
+        />
+      )}
 
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} onAuthSuccess={() => setAuthOpen(false)} />
     </div>
