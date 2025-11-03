@@ -95,6 +95,8 @@ body {
   width: 100%;
   min-height: 100%;
   padding: 16px;
+  /* make sure the panel itself is visually solid */
+  background-color: transparent;
 }
 
 /* Ensure the main content occupies the second column explicitly */
@@ -400,26 +402,29 @@ a:focus-visible {
     box-shadow: 0 12px 40px rgba(2,6,23,0.3);
     background-color: var(--page-bg);
     will-change: transform;
-    -webkit-overflow-scrolling: touch;
+    /* default pointer behavior - ensure it can receive events when visible */
+    pointer-events: auto;
   }
 
   /* ensure sidebar sits above overlay and pointer-events are correct */
+  /* HIGH z-index so nothing (header or controls) floats above the sidebar */
   .sidebar {
-    z-index: 10010; /* high so it overlays header/main reliably */
-    background-color: var(--page-bg); /* ensure visible pane */
+    z-index: 10050; /* intentionally high for mobile overlay */
+    -webkit-tap-highlight-color: transparent; /* nicer on mobile */
+    background-color: var(--page-bg);
   }
 
   /* default overlay element used by App.jsx when mobileSidebarOpen is true
-     keep it under the sidebar but above main content */
+     keep it below the sidebar but above main content */
   .mobile-overlay {
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.35);
-    z-index: 10000; /* less than .sidebar (10010) so sidebar receives pointer events */
+    z-index: 10000; /* lower than .sidebar so sidebar gets pointer events */
     opacity: 0;
     pointer-events: none;
     transition: opacity 220ms ease;
-    -webkit-tap-highlight-color: transparent;
+    display: block;
   }
 
   /* when root indicates open, mobile-overlay should become interactive */
@@ -463,17 +468,15 @@ a:focus-visible {
     transform: translateX(0);
   }
 
-  /* ensure header sits underneath the sidebar when open */
+  /* ensure header and main area sit below the sidebar when it's open */
   .top-header {
     position: relative;
-    z-index: 900;
+    z-index: 900; /* below sidebar (10050) but above page content */
   }
-
-  /* main area remains usable under the overlay */
   .main-area {
     position: relative;
-    min-height: 100vh;
     z-index: 1;
+    min-height: 100vh;
   }
 
   /* optional backdrop element (App.jsx can render this as .mobile-overlay) */
@@ -482,6 +485,7 @@ a:focus-visible {
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.35);
+    /* keep the overlay z-index lower than .sidebar so sidebar receives pointer events */
     z-index: 10000;
     opacity: 0;
     pointer-events: none;
