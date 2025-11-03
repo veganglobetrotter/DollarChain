@@ -73,7 +73,7 @@ export default function Sidebar({
                     // prevent overlay/backdrop from reacting to the same click
                     e.stopPropagation();
                     onNavigate(n.id);
-                    // tell parent to close the mobile sidebar (parent can close immediately or delay)
+                    // tell parent to close the mobile sidebar (parent can close immediately or delay new)
                     if (typeof onClose === "function") onClose();
                   }}
                   onKeyDown={(e) => handleKeyNav(e, n.id)}
