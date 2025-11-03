@@ -217,7 +217,7 @@ function App() {
     }
 
     setMobileSidebarOpen(false);
-  }, []);
+  }, [setMobileSidebarOpen]);
 
   return (
     // Add conditional class so CSS can show/hide sidebar on mobile
@@ -313,14 +313,21 @@ function App() {
         <div
           className="mobile-overlay"
           onClick={handleOverlayClick}
-          aria-hidden="true"
           role="button"
+          aria-label="Close navigation"
           tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              // only close when overlay itself was the source
+              // simulate a click event to reuse same defensive logic
+              handleOverlayClick(e);
+            }
+          }}
           style={{
             position: "fixed",
             inset: 0,
             background: "rgba(0,0,0,0.35)",
-            zIndex: 40,
+            zIndex: 10000,
           }}
         />
       )}
