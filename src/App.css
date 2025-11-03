@@ -295,7 +295,7 @@ body {
 }
 @media (max-width: 900px) {
   .app-root { flex-direction: column; padding: 16px; margin: 12px auto; }
-  .sidebar { width: 100%; display: none; } /* hide sidebar on small screens */
+  /* sidebar is handled by index.css mobile styles (off-canvas overlay) */
   .content-inner { max-width: 100%; }
   .summary-row { gap: 10px; }
   .summary-card { min-width: 100%; } /* stack on narrow screens */

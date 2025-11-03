@@ -37,13 +37,12 @@ export default function Sidebar({
   }, [open, onClose]);
 
   return (
-    // id so Header aria-controls points here; hide when open === false
+    // id so Header aria-controls points here; visibility controlled by CSS
     <aside
       id="sidebar"
       className="sidebar"
       aria-label="Sidebar"
       aria-hidden={!open}
-      style={{ display: open ? undefined : "none" }}
     >
       <div className="sidebar-card">
         <div className="sidebar-top">
