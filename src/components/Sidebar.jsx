@@ -21,6 +21,8 @@ export default function Sidebar({
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       onNavigate(id);
+      // allow parent to close if needed
+      if (typeof onClose === "function") onClose();
     }
   };
 
@@ -37,7 +39,7 @@ export default function Sidebar({
   }, [open, onClose]);
 
   return (
-    // id so Header aria-controls points here; visibility controlled by CSS
+    // id so Header aria-controls points here; visibility handled by CSS (not inline style)
     <aside
       id="sidebar"
       className="sidebar"
@@ -62,13 +64,25 @@ export default function Sidebar({
               <li
                 key={n.id}
                 className={`nav-item ${active === n.id ? "nav-active" : ""}`}
-                onClick={() => onNavigate(n.id)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => handleKeyNav(e, n.id)}
-                aria-current={active === n.id ? "page" : undefined}
               >
-                {n.label}
+                {/* semantic button improves touch/keyboard reliability */}
+                <button
+                  type="button"
+                  className="nav-link"
+                  onClick={(e) => {
+                    // prevent overlay/backdrop from reacting to the same click
+                    e.stopPropagation();
+                    onNavigate(n.id);
+                    // tell parent to close the mobile sidebar (parent can close immediately or delay)
+                    if (typeof onClose === "function") onClose();
+                  }}
+                  onKeyDown={(e) => handleKeyNav(e, n.id)}
+                  aria-current={active === n.id ? "page" : undefined}
+                  aria-pressed={active === n.id}
+                  style={{ all: "unset", cursor: "pointer", display: "inline-block", width: "100%", textAlign: "left", padding: "8px 10px", borderRadius: 6 }}
+                >
+                  {n.label}
+                </button>
               </li>
             ))}
           </ul>

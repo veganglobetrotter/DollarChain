@@ -205,13 +205,26 @@ function App() {
       <Sidebar
         sellerName={localStorage.getItem("sellerName") || "Seller Name"}
         onNavigate={(view) => {
+          // navigate immediately
           setCurrentView(view);
-          // close mobile sidebar after navigation for better UX
-          setMobileSidebarOpen(false);
+
+          // On mobile we want to close the sidebar, but delay slightly so the
+          // button press / focus state registers on the device before the UI flips.
+          // This avoids race conditions where the press is swallowed or the nav
+          // visual feedback is not seen.
+          if (mobileSidebarOpen) {
+            setTimeout(() => setMobileSidebarOpen(false), 120);
+          }
         }}
         active={currentView}
         open={mobileSidebarOpen}
-        onClose={() => setMobileSidebarOpen(false)}
+        onClose={() => {
+          // allow child to ask for close immediately if it wants
+          if (mobileSidebarOpen) {
+            // small delay to ensure the click animation completes
+            setTimeout(() => setMobileSidebarOpen(false), 80);
+          }
+        }}
       />
 
       <main className="main-area">
