@@ -329,3 +329,36 @@ button:focus-visible {
     margin-left: 0;
   }
 }
+
+/* --------------------
+   Accessibility focus styles (Step E)
+   - Apply visible focus rings only for keyboard users using :focus-visible
+   - Target interactive primitives used across the performance page
+   -------------------- */
+
+/* remove default outlines for these elements, we'll show a focus-visible ring */
+.summary-card-header:focus,
+.list-row:focus,
+.btn-outline:focus,
+.btn-buy:focus,
+.btn-pill:focus,
+a:focus {
+  outline: none;
+}
+
+/* visible focus ring for keyboard users */
+.summary-card-header:focus-visible,
+.list-row:focus-visible,
+.btn-outline:focus-visible,
+.btn-buy:focus-visible,
+.btn-pill:focus-visible,
+a:focus-visible {
+  box-shadow: 0 0 0 4px rgba(99,102,241,0.18);
+  border-radius: 8px;
+  outline: none;
+}
+
+/* slight background hint for focused list rows (helps sighted keyboard users) */
+.list-row:focus-visible {
+  background: rgba(99,102,241,0.04);
+}

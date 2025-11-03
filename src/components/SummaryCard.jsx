@@ -74,9 +74,16 @@ export default function SummaryCard({
     }
   };
 
-  // Keyboard handler on header
+  // Keyboard handler on header — support Enter + Space robustly across browsers
   const handleHeaderKey = (e) => {
-    if (e.key === "Enter" || e.key === " ") {
+    // Accept Enter, Space, older "Spacebar" and keyCode fallbacks for older browsers
+    if (
+      e.key === "Enter" ||
+      e.key === " " ||
+      e.key === "Spacebar" ||
+      e.keyCode === 13 ||
+      e.keyCode === 32
+    ) {
       e.preventDefault();
       toggle(e);
     }
@@ -124,6 +131,7 @@ export default function SummaryCard({
         aria-pressed={currentOpen}
         aria-controls={idRef.current}
         aria-expanded={currentOpen}
+        aria-label={`Toggle ${title} summary`}
       >
         <div className="summary-left">
           <div

@@ -25,7 +25,7 @@ export default function RepeatCustomersChart({ repeatCustomers = [], repeatPct =
     return arr.sort((a, b) => b.count - a.count).slice(0, 5);
   }, [repeatCustomers]);
 
-  // totals for percent of repeat list
+  // totals for percent of repeat list (relative to the top slice list)
   const totalRepeatCount = top.reduce((s, r) => s + r.count, 0) || 1;
 
   // donut data (share: repeat vs one-time customers)
@@ -42,7 +42,11 @@ export default function RepeatCustomersChart({ repeatCustomers = [], repeatPct =
   const pieTooltipFormatter = (v) => [formatPercent(v), "Share"];
 
   return (
-    <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 10 }}>
+    <div
+      style={{ width: "100%", display: "flex", flexDirection: "column", gap: 10 }}
+      role="region"
+      aria-label="Repeat customers"
+    >
       {/* Pie (top) */}
       <div style={{ width: "100%", height: 140, display: "flex", justifyContent: "center", alignItems: "center" }}>
         <div style={{ width: "54%", minWidth: 120, height: "100%", position: "relative" }}>
@@ -60,7 +64,12 @@ export default function RepeatCustomersChart({ repeatCustomers = [], repeatPct =
                 isAnimationActive={false}
               >
                 {donutData.map((entry, idx) => (
-                  <Cell key={`c-${idx}`} fill={colors[idx % colors.length]} />
+                  <Cell
+                    key={`c-${idx}`}
+                    fill={colors[idx % colors.length]}
+                    onClick={() => onSelect?.(entry.name)}
+                    cursor={onSelect ? "pointer" : "default"}
+                  />
                 ))}
               </Pie>
               <Tooltip formatter={pieTooltipFormatter} />
@@ -92,25 +101,39 @@ export default function RepeatCustomersChart({ repeatCustomers = [], repeatPct =
       </div>
 
       {/* Full list below the pie */}
-      <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div role="list" style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
         {top.length === 0 ? (
           <div className="text-muted" style={{ padding: 8 }}>No repeat buyers yet</div>
         ) : (
           top.map((r, i) => {
             const pct = Math.round((r.count / totalRepeatCount) * 100);
             const fill = rowColors[i % rowColors.length];
+
             return (
               <div
                 key={`row-${i}`}
-                role="button"
+                role="listitem"
                 tabIndex={0}
                 onClick={() => onSelect?.(r.label)}
-                onKeyDown={(e) => (e.key === "Enter" || e.key === " " ? onSelect?.(r.label) : null)}
+                onKeyDown={(e) => {
+                  // robust keyboard handling: Enter, Space, older "Spacebar", and keyCode fallbacks
+                  if (
+                    e.key === "Enter" ||
+                    e.key === " " ||
+                    e.key === "Spacebar" ||
+                    e.keyCode === 13 ||
+                    e.keyCode === 32
+                  ) {
+                    e.preventDefault();
+                    onSelect?.(r.label);
+                  }
+                }}
                 className="list-row"
                 style={{
                   background: "transparent",
                 }}
                 aria-label={`${i + 1}. ${r.label}: ${formatNumber(r.count)} orders (${pct}%)`}
+                aria-pressed={false}
               >
                 {/* rank */}
                 <div style={{ minWidth: 28, fontWeight: 700 }}>{i + 1}.</div>

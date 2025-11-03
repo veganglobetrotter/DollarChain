@@ -10,6 +10,14 @@ export default function Sidebar({ sellerName = "Seller Name", onNavigate = () =>
     { id: "settings", label: "Settings" },
   ];
 
+  const handleKeyNav = (e, id) => {
+    // Accept Enter and Space to activate; prevent default for Space (avoid page scroll)
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onNavigate(id);
+    }
+  };
+
   return (
     <aside className="sidebar" aria-label="Sidebar">
       <div className="sidebar-card">
@@ -33,7 +41,9 @@ export default function Sidebar({ sellerName = "Seller Name", onNavigate = () =>
                 onClick={() => onNavigate(n.id)}
                 role="button"
                 tabIndex={0}
-                onKeyDown={(e) => (e.key === "Enter" ? onNavigate(n.id) : null)}
+                onKeyDown={(e) => handleKeyNav(e, n.id)}
+                aria-current={active === n.id ? "page" : undefined}
+                aria-pressed={active === n.id}
               >
                 {n.label}
               </li>

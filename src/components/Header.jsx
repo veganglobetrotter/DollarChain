@@ -47,7 +47,11 @@ export default function Header({ onBuyCredits, activeRange = "28D", onRangeChang
       >
         {/* Optional range controls — rendered only when parent cares to handle them */}
         {typeof onRangeChange === "function" && (
-          <div className="header-controls" role="toolbar" aria-label="Date range">
+          <div
+            className="header-controls"
+            role="toolbar"
+            aria-label="Date range"
+          >
             {ranges.map((r) => (
               <button
                 key={r}
@@ -55,6 +59,9 @@ export default function Header({ onBuyCredits, activeRange = "28D", onRangeChang
                 onClick={() => onRangeChange(r)}
                 className={`btn-pill ${r === activeRange ? "active" : ""}`}
                 aria-pressed={r === activeRange}
+                // aria-current is helpful for AT to detect the currently selected item in a small set
+                aria-current={r === activeRange ? "true" : undefined}
+                title={`Show ${r} data`}
                 style={{ marginRight: 6 }}
               >
                 {r}
