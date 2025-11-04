@@ -223,6 +223,7 @@ function App() {
     // Add conditional class so CSS can show/hide sidebar on mobile
     <div className={`app-root ${mobileSidebarOpen ? "sidebar-open" : ""}`}>
       <Sidebar
+        id="sidebar"
         sellerName={localStorage.getItem("sellerName") || "Seller Name"}
         onNavigate={(view) => {
           // navigate immediately
@@ -318,16 +319,15 @@ function App() {
           tabIndex={0}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
-              // only close when overlay itself was the source
-              // simulate a click event to reuse same defensive logic
-              handleOverlayClick(e);
+              // close overlay on keyboard activation
+              setMobileSidebarOpen(false);
             }
           }}
           style={{
             position: "fixed",
             inset: 0,
             background: "rgba(0,0,0,0.35)",
-            zIndex: 10000,
+            zIndex: 9000, // reduce so sidebar can sit above it
           }}
         />
       )}
