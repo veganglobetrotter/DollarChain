@@ -8,6 +8,7 @@ import InvoiceForm from "./components/InvoiceForm";
 import InvoicePreview from "./components/InvoicePreview";
 import AuthModal from "./components/AuthModal";
 import OrdersList from "./components/OrdersList"; // NEW
+import InvoiceList from "./components/InvoiceList"; // <-- added import for Invoices page
 import { supabase } from "./lib/supabase";
 
 import generateInvoicePdfBlob from "./lib/pdf";
@@ -199,6 +200,14 @@ function App() {
     setShowForm(false);
   };
 
+  // Called by InvoiceList when user clicks "View" (similar to OrdersList behaviour)
+  const handleViewFromInvoices = (invoice) => {
+    setPreviewData(invoice);
+    setShowForm(false);
+    // Optionally navigate to 'home' or keep on invoices — keeping it simple:
+    setCurrentView("home");
+  };
+
   // Robust overlay click handler: only close when overlay itself was clicked,
   // and defensively ignore clicks that fall inside the sidebar region (in case overlay overlaps).
   const handleOverlayClick = useCallback((e) => {
@@ -270,6 +279,11 @@ function App() {
             {/* Performance view */}
             {!previewData && currentView === "performance" && <Performance />}
 
+            {/* Invoices view */}
+            {!previewData && currentView === "invoices" && (
+              <InvoiceList onViewInvoice={(inv) => handleViewFromInvoices(inv)} />
+            )}
+
             {/* Orders view */}
             {!previewData && currentView === "orders" && (
               <OrdersList onView={handleViewFromOrders} />
@@ -297,7 +311,7 @@ function App() {
             )}
 
             {/* Fallback small message for other views */}
-            {!previewData && !["home", "orders", "performance"].includes(currentView) && (
+            {!previewData && !["home", "orders", "performance", "invoices"].includes(currentView) && (
               <div className="formBox">
                 <h3 style={{ marginTop: 0 }}>Coming soon</h3>
                 <p style={{ color: "#6b7280" }}>This section ({currentView}) is a placeholder for future features.</p>
