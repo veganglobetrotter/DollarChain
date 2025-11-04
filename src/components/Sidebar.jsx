@@ -2,6 +2,7 @@
 import React, { useEffect } from "react";
 
 export default function Sidebar({
+  id, // accept id so parent can pass id="sidebar"
   sellerName = "Seller Name",
   onNavigate = () => {},
   active = "home",
@@ -37,15 +38,30 @@ export default function Sidebar({
     return () => window.removeEventListener("keydown", handler);
   }, [open, onClose]);
 
+  // Inline style to ensure the sidebar sits above the mobile overlay/backdrop
+  // when it is open. This avoids overlay intercepting touch/click events.
+  // We keep the style minimal so it doesn't alter the internal layout.
+  const asideStyle = open
+    ? {
+        position: "fixed",
+        top: 0,
+        left: 0,
+        height: "100%",
+        zIndex: 10001,
+        pointerEvents: "auto",
+      }
+    : undefined;
+
   return (
     /* id so Header aria-controls points here; visibility handled by CSS (not inline style)
        Note: stopPropagation on the aside prevents clicks inside the sidebar from
        bubbling to the page overlay/backdrop which would close the sidebar prematurely. */
     <aside
-      id="sidebar"
+      id={id}
       className="sidebar"
       aria-label="Sidebar"
       aria-hidden={!open}
+      style={asideStyle}
       onClick={(e) => {
         // prevent clicks inside sidebar from bubbling out to overlay/backdrop
         e.stopPropagation();
