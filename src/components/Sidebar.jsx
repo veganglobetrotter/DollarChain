@@ -9,12 +9,11 @@ export default function Sidebar({
   open = true, // controls mobile visibility; defaults to true for backward compatibility
   onClose = () => {}, // optional close handler used by mobile toggle / Escape key
 }) {
-  // <-- surgically updated nav: item2/item3 replaced with meaningful pages
   const nav = [
     { id: "home", label: "Dashboard" },
-    { id: "invoices", label: "Invoices" },   // was item2 — now real page
-    { id: "orders", label: "Orders" },       // was item3 — renamed to Orders
-    { id: "reports", label: "Reports" },     // placeholder you can change later
+    { id: "performance", label: "Performance" },
+    { id: "item2", label: "Item 2" },
+    { id: "item3", label: "Item 3" },
     { id: "settings", label: "Settings" },
   ];
 
