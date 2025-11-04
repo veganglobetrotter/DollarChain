@@ -222,22 +222,6 @@ function App() {
   return (
     // Add conditional class so CSS can show/hide sidebar on mobile
     <div className={`app-root ${mobileSidebarOpen ? "sidebar-open" : ""}`}>
-      {/* Render overlay BEFORE sidebar so DOM order + z-index make sidebar reliably interactive */}
-      {mobileSidebarOpen && (
-        <div
-          className="mobile-overlay"
-          onClick={handleOverlayClick}
-          // NOTE: do NOT make the overlay focusable or give it ARIA roles/labels.
-          // That caused the "aria-hidden on focused element" warning and stole clicks.
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.35)",
-            zIndex: 10000,
-          }}
-        />
-      )}
-
       <Sidebar
         sellerName={localStorage.getItem("sellerName") || "Seller Name"}
         onNavigate={(view) => {
@@ -321,6 +305,32 @@ function App() {
           </div>
         </section>
       </main>
+
+      {/* Mobile overlay/backdrop — clicking it closes the sidebar.
+          Use a robust handler so accidental clicks that fall inside the visible
+          sidebar do not close it (defensive for stacking/transform issues). */}
+      {mobileSidebarOpen && (
+        <div
+          className="mobile-overlay"
+          onClick={handleOverlayClick}
+          role="button"
+          aria-label="Close navigation"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              // only close when overlay itself was the source
+              // simulate a click event to reuse same defensive logic
+              handleOverlayClick(e);
+            }
+          }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.35)",
+            zIndex: 10000,
+          }}
+        />
+      )}
 
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} onAuthSuccess={() => setAuthOpen(false)} />
     </div>
