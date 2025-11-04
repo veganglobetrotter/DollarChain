@@ -19,7 +19,9 @@ export default function Performance() {
 
   // Carousel state for mobile
   const carouselRef = useRef(null);
-  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.matchMedia("(max-width:640px)").matches : false);
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.matchMedia("(max-width:640px)").matches : false
+  );
   const [activeIndex, setActiveIndex] = useState(0);
   const [slidesCount, setSlidesCount] = useState(1);
 
@@ -106,52 +108,137 @@ export default function Performance() {
     el.style.boxSizing = "border-box";
   }, [isMobile]);
 
-  // When mobile, convert immediate children of carouselRef into full-width slides.
+  // Robust reflow logic for mobile slides:
+  // - compute exact pixel width of carousel container
+  // - retry a few times if container isn't measured yet (hidden or layout not settled)
+  // - observe layout changes via ResizeObserver and fallback to window resize
   useEffect(() => {
     const el = carouselRef.current;
     if (!el) return;
-    // If not mobile, remove any inline slide styles we previously set
-    if (!isMobile) {
-      setSlidesCount(el.children.length || 1);
-      setActiveIndex(0);
+
+    let destroyed = false;
+
+    // utility to determine if element is visible in layout
+    const isVisible = (node) => node && node.offsetParent !== null;
+
+    // compute a safe visible width (prefer el.clientWidth)
+    const getVisibleWidth = () => {
+      // prefer carousel clientWidth (accounts for padding/scrollbars)
+      const cw = el.clientWidth || 0;
+      if (cw && cw > 0) return cw;
+      // fallback to document or window
+      const dw = document.documentElement && document.documentElement.clientWidth ? document.documentElement.clientWidth : 0;
+      const ww = typeof window !== "undefined" ? window.innerWidth : 0;
+      return Math.max(cw, dw, ww);
+    };
+
+    // reflow function with defensive checks and limited retries
+    let retryCount = 0;
+    const MAX_RETRIES = 6;
+    const RETRY_DELAY = 80; // ms
+
+    const resizeAndReflowSlides = () => {
+      if (destroyed) return;
+      if (!el) return;
+      // If not mobile, clear any inline styles we may have set earlier and exit
+      if (!isMobile) {
+        Array.from(el.children).forEach((c) => {
+          c.style.minWidth = "";
+          c.style.flex = "";
+          c.style.boxSizing = "";
+          c.style.height = "";
+        });
+        el.style.display = "";
+        el.style.overflowX = "";
+        el.style.scrollSnapType = "";
+        el.style.webkitOverflowScrolling = "";
+        el.style.scrollBehavior = "";
+        setSlidesCount(el.children.length || 1);
+        setActiveIndex(0);
+        return;
+      }
+
+      // Ensure element is visible — if not, retry later
+      if (!isVisible(el)) {
+        if (retryCount < MAX_RETRIES) {
+          retryCount += 1;
+          setTimeout(resizeAndReflowSlides, RETRY_DELAY);
+        }
+        return;
+      }
+
+      const visibleWidth = Math.floor(getVisibleWidth());
+
+      // If width looks suspiciously small, retry instead of applying (prevents 0px collapse)
+      if (visibleWidth < 96 && retryCount < MAX_RETRIES) {
+        retryCount += 1;
+        // slightly delay to allow layout to settle (sidebar or auth changes)
+        setTimeout(resizeAndReflowSlides, RETRY_DELAY);
+        return;
+      }
+
+      // Apply mobile carousel container styles (kept here to ensure consistent runtime behavior)
+      el.style.display = "flex";
+      el.style.overflowX = "auto";
+      el.style.scrollSnapType = "x mandatory";
+      el.style.webkitOverflowScrolling = "touch";
+      el.style.scrollBehavior = "smooth";
+
+      // Apply exact pixel widths to immediate children so snapping is precise
       Array.from(el.children).forEach((c) => {
-        c.style.flex = "";
-        c.style.minWidth = "";
-        c.style.scrollSnapAlign = "";
-        c.style.height = "";
-        c.style.boxSizing = "";
+        c.style.minWidth = `${visibleWidth}px`;
+        c.style.flex = `0 0 ${visibleWidth}px`;
+        c.style.boxSizing = "border-box";
+        c.style.height = "100%"; // ensure children stretch vertically
+        c.style.scrollSnapAlign = "start";
       });
-      el.style.display = "";
-      el.style.overflowX = "";
-      el.style.scrollSnapType = "";
-      el.style.webkitOverflowScrolling = "";
-      el.style.scrollBehavior = "";
-      return;
+
+      // update pager state
+      setSlidesCount(el.children.length || 1);
+      const idx = Math.round(el.scrollLeft / Math.max(1, visibleWidth));
+      setActiveIndex(Math.min(Math.max(0, idx), Math.max(0, el.children.length - 1)));
+    };
+
+    // initial attempt
+    resizeAndReflowSlides();
+
+    // Observe layout changes to reflow when sidebar/header toggles happen
+    let ro;
+    try {
+      ro = new ResizeObserver(() => {
+        // debounce slightly with rAF
+        window.requestAnimationFrame(() => {
+          retryCount = 0; // reset retry count on layout change
+          resizeAndReflowSlides();
+        });
+      });
+      ro.observe(el);
+      ro.observe(document.documentElement);
+    } catch (err) {
+      // fallback to window resize
+      window.addEventListener("resize", resizeAndReflowSlides);
     }
 
-    // Mobile behavior: horizontal carousel
-    el.style.display = "flex";
-    el.style.overflowX = "auto";
-    el.style.scrollSnapType = "x mandatory";
-    el.style.webkitOverflowScrolling = "touch";
-    // performance: smooth snapping
-    el.style.scrollBehavior = "smooth";
+    // respond to orientation changes
+    const onOrientation = () => {
+      retryCount = 0;
+      setTimeout(resizeAndReflowSlides, 80);
+    };
+    window.addEventListener("orientationchange", onOrientation);
 
-    // Apply slide styles to immediate children
-    Array.from(el.children).forEach((c) => {
-      // ensure each immediate child fills the carousel viewport
-      c.style.flex = "0 0 100%";
-      c.style.minWidth = "100%";
-      c.style.scrollSnapAlign = "start";
-      // ensure child uses full height of carousel (carousel height set by other effect)
-      c.style.height = "100%";
-      c.style.boxSizing = "border-box";
-    });
-
-    // initial slide count and index
-    setSlidesCount(el.children.length || 1);
-    setActiveIndex(Math.round(el.scrollLeft / Math.max(1, el.clientWidth)) || 0);
-  }, [isMobile, metrics /* re-run when metrics may change number of children */]);
+    // cleanup
+    return () => {
+      destroyed = true;
+      try {
+        if (ro && typeof ro.disconnect === "function") ro.disconnect();
+      } catch (e) {
+        // ignore
+      }
+      window.removeEventListener("resize", resizeAndReflowSlides);
+      window.removeEventListener("orientationchange", onOrientation);
+    };
+    // re-run when mobile toggles or metrics change (children may be different)
+  }, [isMobile, metrics]);
 
   // Scroll handler to update activeIndex (throttled via requestAnimationFrame)
   useEffect(() => {
@@ -161,7 +248,8 @@ export default function Performance() {
     const onScroll = () => {
       if (raf) cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
-        const idx = Math.round(el.scrollLeft / Math.max(1, el.clientWidth));
+        const visibleWidth = el.clientWidth || Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+        const idx = Math.round(el.scrollLeft / Math.max(1, visibleWidth));
         setActiveIndex(idx);
         raf = null;
       });
@@ -176,7 +264,7 @@ export default function Performance() {
   const scrollToIndex = (index) => {
     const el = carouselRef.current;
     if (!el) return;
-    const width = el.clientWidth || window.innerWidth;
+    const width = el.clientWidth || Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
     el.scrollTo({ left: index * width, behavior: "smooth" });
     setActiveIndex(index);
   };
