@@ -81,6 +81,31 @@ export default function Performance() {
     };
   }, []);
 
+  // Ensure carousel fills visible area under header on mobile.
+  // This is defensive: we try to find a header element and subtract its height from 100vh.
+  useEffect(() => {
+    const el = carouselRef.current;
+    if (!el) return;
+
+    if (!isMobile) {
+      // clear inline height when leaving mobile
+      el.style.height = "";
+      return;
+    }
+
+    // Try to detect header height
+    let headerHeight = 56; // sensible default
+    const headerEl = document.querySelector("header") || document.querySelector(".header");
+    if (headerEl && typeof headerEl.offsetHeight === "number") {
+      headerHeight = headerEl.offsetHeight;
+    }
+
+    // Set carousel height to fill remaining viewport under header
+    el.style.height = `calc(100vh - ${headerHeight}px)`;
+    // Ensure the element uses box-sizing to include padding if any
+    el.style.boxSizing = "border-box";
+  }, [isMobile]);
+
   // When mobile, convert immediate children of carouselRef into full-width slides.
   useEffect(() => {
     const el = carouselRef.current;
@@ -94,11 +119,13 @@ export default function Performance() {
         c.style.minWidth = "";
         c.style.scrollSnapAlign = "";
         c.style.height = "";
+        c.style.boxSizing = "";
       });
       el.style.display = "";
       el.style.overflowX = "";
       el.style.scrollSnapType = "";
       el.style.webkitOverflowScrolling = "";
+      el.style.scrollBehavior = "";
       return;
     }
 
@@ -116,7 +143,7 @@ export default function Performance() {
       c.style.flex = "0 0 100%";
       c.style.minWidth = "100%";
       c.style.scrollSnapAlign = "start";
-      // ensure child uses full height of carousel (CSS should set carousel height)
+      // ensure child uses full height of carousel (carousel height set by other effect)
       c.style.height = "100%";
       c.style.boxSizing = "border-box";
     });
@@ -208,6 +235,7 @@ export default function Performance() {
             chartData={chartData}
             onSelectItem={(name) => setSelectedItem(name)}
             selectedItem={selectedItem}
+            asSlides={isMobile}
           />
         </div>
 

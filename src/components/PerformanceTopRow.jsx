@@ -26,12 +26,14 @@ import { formatCurrency, formatNumber } from "../lib/formatters";
  * - chartData: prepared timeseries array [{day, orders, revenue}, ...]
  * - onSelectItem(name) -> called when best-seller clicked
  * - selectedItem -> currently selected item name
+ * - asSlides -> when true, render the three cards as immediate siblings (for carousel slides)
  */
 export default function PerformanceTopRow({
   metrics = {},
   chartData = [],
   onSelectItem = () => {},
   selectedItem,
+  asSlides = false, // new prop: render as immediate children when used inside a carousel
 }) {
   const [expandedKey, setExpandedKey] = useState(null); // "sales" | "sellers" | "repeat" | null
 
@@ -85,12 +87,11 @@ export default function PerformanceTopRow({
     }));
   }, [chartData]);
 
-  // Root uses the CSS grid helper .performance-top-row (defined in src/index.css).
-  // Each immediate child keeps minWidth:0 so it can shrink safely in the grid.
-  return (
-    <div className="performance-top-row">
-      {/* Sales (grid cell) */}
-      <div style={{ minWidth: 0 }}>
+  // Helper: render the three card cells as an array of elements (keeps code DRY)
+  const renderCells = () => {
+    return [
+      /* Sales (grid cell / slide) */
+      <div key="sales" style={{ minWidth: 0 }} className="perf-slide">
         <SummaryCard
           title="Sales"
           value={metrics?.orders_count ?? 0}
@@ -194,10 +195,10 @@ export default function PerformanceTopRow({
             )}
           </div>
         </SummaryCard>
-      </div>
+      </div>,
 
-      {/* Best sellers (grid cell) */}
-      <div style={{ minWidth: 0 }}>
+      /* Best sellers (grid cell / slide) */
+      <div key="sellers" style={{ minWidth: 0 }} className="perf-slide">
         <SummaryCard
           title="Best sellers (top 5)"
           value={topSeller ? topSeller.name : "—"}
@@ -217,10 +218,10 @@ export default function PerformanceTopRow({
             />
           </div>
         </SummaryCard>
-      </div>
+      </div>,
 
-      {/* Repeat customers (grid cell) */}
-      <div style={{ minWidth: 0 }}>
+      /* Repeat customers (grid cell / slide) */
+      <div key="repeat" style={{ minWidth: 0 }} className="perf-slide">
         <SummaryCard
           title="Repeat customers"
           value={`${metrics?.repeat_stats?.repeat_pct ?? 0}%`}
@@ -240,7 +241,15 @@ export default function PerformanceTopRow({
             />
           </div>
         </SummaryCard>
-      </div>
-    </div>
-  );
+      </div>,
+    ];
+  };
+
+  // If asSlides is true, render the cards as immediate children (no outer wrapper)
+  if (asSlides) {
+    return <>{renderCells()}</>;
+  }
+
+  // Default behavior: keep the wrapper so desktop/grid CSS remains intact
+  return <div className="performance-top-row">{renderCells()}</div>;
 }
