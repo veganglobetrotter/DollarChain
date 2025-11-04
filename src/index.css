@@ -526,8 +526,9 @@ a:focus-visible {
     gap: 0;
     box-sizing: border-box;
 
-    /* comfortable horizontal gutters so cards don't stick to the viewport edges */
-    padding-inline: 12px;
+    /* IMPORTANT: container should NOT provide horizontal padding that shifts snap math.
+       Slides will carry their own gutters. */
+    padding-inline: 0;
     /* fallback height if JS didn't set inline height */
     height: calc(100vh - 56px);
   }
@@ -548,7 +549,8 @@ a:focus-visible {
     min-width: 100%;
     scroll-snap-align: start;
     box-sizing: border-box;
-    padding-inline: 8px; /* give slides some inner spacing */
+    /* Move gutters to slides (so 100% equals visible area and snaps align). */
+    padding-inline: 12px;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
