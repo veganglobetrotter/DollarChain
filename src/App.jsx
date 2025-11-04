@@ -217,18 +217,18 @@ function App() {
     }
 
     setMobileSidebarOpen(false);
-  }, []);
+  }, [setMobileSidebarOpen]);
 
   return (
     // Add conditional class so CSS can show/hide sidebar on mobile
     <div className={`app-root ${mobileSidebarOpen ? "sidebar-open" : ""}`}>
-      {/* Render overlay BEFORE sidebar so in DOM stacking the sidebar can reliably sit above it.
-          Note: overlay must NOT be focusable or given ARIA roles (avoid aria-hidden on focused things). */}
+      {/* Render overlay BEFORE sidebar so DOM order + z-index make sidebar reliably interactive */}
       {mobileSidebarOpen && (
         <div
           className="mobile-overlay"
           onClick={handleOverlayClick}
-          aria-hidden={false}
+          // NOTE: do NOT make the overlay focusable or give it ARIA roles/labels.
+          // That caused the "aria-hidden on focused element" warning and stole clicks.
           style={{
             position: "fixed",
             inset: 0,
