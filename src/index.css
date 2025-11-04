@@ -634,4 +634,72 @@ a:focus-visible {
   }
 }
 
+/* ---- invoices page styles (add to end of src/index.css) ---- */
+
+.invoices-container { padding: 18px 20px; }
+.invoices-header { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:16px; }
+.invoices-title h2 { margin:0; font-size:1.25rem; font-weight:700; }
+.invoices-sub { color: var(--muted); font-size:0.95rem; margin-top:6px; }
+
+.invoices-controls { display:flex; gap:8px; align-items:center; }
+.search-box { background:transparent; border:1px solid rgba(0,0,0,0.06); padding:6px 10px; border-radius:999px; display:flex; align-items:center; }
+.search-box input { border:0; outline:none; background:transparent; font-size:0.95rem; width:280px; }
+
+.btn-ghost { background:transparent; border:1px solid rgba(0,0,0,0.06); padding:8px 10px; border-radius:12px; cursor:pointer; }
+.btn-primary { background:#4f46e5; color:white; padding:8px 12px; border-radius:12px; border:0; cursor:pointer; }
+.btn-danger { background:transparent; border:1px solid rgba(220,38,38,0.12); color:#dc2626; padding:6px 8px; border-radius:8px; cursor:pointer; }
+
+/* grid */
+.invoices-grid { display:grid; grid-template-columns: 1fr; gap:18px; }
+@media (min-width: 980px) {
+  .invoices-grid { grid-template-columns: 2fr 1fr; align-items:start; }
+}
+
+/* left column */
+.invoices-left { display:flex; flex-direction:column; gap:12px; }
+.invoices-toolbar { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.status-chips { display:flex; gap:8px; flex-wrap:wrap; }
+.chip { background:#fff; border:1px solid rgba(0,0,0,0.06); padding:6px 10px; border-radius:999px; cursor:pointer; font-size:0.9rem; }
+.chip-active { background:#4f46e5; color:white; border-color:transparent; }
+
+/* list card */
+.list-card { background:transparent; border-radius:12px; padding:0; border:1px solid rgba(0,0,0,0.04); overflow:hidden; }
+.list-rows { display:flex; flex-direction:column; }
+.invoice-row { display:flex; gap:12px; align-items:center; padding:12px 14px; border-top:1px solid rgba(0,0,0,0.02); cursor:pointer; }
+.invoice-row:first-child { border-top:0; }
+.invoice-row:hover { background: rgba(99,102,241,0.02); }
+.invoice-row.selected { background: rgba(99,102,241,0.06); border-left:4px solid #6366f1; }
+
+.row-left { width:170px; min-width:120px; display:flex; flex-direction:column; }
+.row-id { font-weight:600; }
+.row-date { color:var(--muted); font-size:0.9rem; margin-top:6px; }
+
+.row-mid { flex:1; display:flex; flex-direction:column; }
+.buyer { font-weight:600; }
+.phone { color:var(--muted); font-size:0.9rem; margin-top:4px; }
+
+.row-right { width:120px; text-align:right; display:flex; flex-direction:column; gap:6px; align-items:flex-end; }
+.total { font-weight:700; }
+.status { font-size:0.85rem; padding:6px 8px; border-radius:999px; }
+.status.paid { background:#dcfce7; color:#166534; }
+.status.pending { background:#fef3c7; color:#92400e; }
+.status.overdue { background:#fee2e2; color:#991b1b; }
+
+.row-actions { display:flex; gap:8px; margin-left:12px; }
+
+/* right column / detail */
+.invoices-right { display:none; }
+@media (min-width: 980px) {
+  .invoices-right { display:block; }
+}
+.detail-card { position:sticky; top:20px; background:transparent; border-radius:12px; border:1px solid rgba(0,0,0,0.04); padding:16px; }
+.detail-header { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+.detail-id { font-weight:800; font-size:1.15rem; margin-top:6px; }
+.detail-items { margin-top:12px; border-top:1px solid rgba(0,0,0,0.04); padding-top:12px; display:flex; flex-direction:column; gap:8px; }
+.detail-item { display:flex; justify-content:space-between; font-size:0.95rem; }
+.detail-total { display:flex; justify-content:space-between; align-items:center; margin-top:12px; border-top:1px solid rgba(0,0,0,0.04); padding-top:12px; }
+.detail-total-val { font-weight:800; font-size:1.15rem; }
+
+.muted { color: var(--muted); }
+
 /* End of file */
