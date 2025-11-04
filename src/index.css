@@ -531,6 +531,10 @@ a:focus-visible {
     padding-inline: 0;
     /* fallback height if JS didn't set inline height */
     height: calc(100vh - 56px);
+
+    /* Defensive: make sure the carousel itself does not exceed viewport */
+    width: 100% !important;
+    max-width: 100% !important;
   }
 
   /* hide scrollbar for a cleaner look */
@@ -596,6 +600,37 @@ a:focus-visible {
   @media (max-width: 360px) {
     .perf-carousel { padding-inline: 8px; }
     .perf-carousel > * { padding-inline: 6px; }
+  }
+
+  /* --------------------
+     Defensive mobile fixes (prevent ancestor width leaking into carousel)
+     These rules prevent a desktop-centered container from imposing an 800px+ width
+     which causes each slide to size to that large width on mobile.
+     -------------------- */
+
+  /* Ensure the main app/content containers do not exceed viewport */
+  .app-root,
+  .main-area,
+  .top-header,
+  .content,
+  .content-inner {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding-inline: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .content-inner > * {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Prevent tiny horizontal overflow that can confuse JS measurement and reflows */
+  html, body, #root, .app-root {
+    overflow-x: hidden;
   }
 }
 
