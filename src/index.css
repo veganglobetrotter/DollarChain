@@ -514,6 +514,9 @@ a:focus-visible {
 
 /* Target smaller phones/tablets where the carousel should be full-screen-ish */
 @media (max-width: 640px) {
+  /* Make the perf-carousel occupy the remaining viewport under the header.
+     We don't hard-code header height here; Performance.jsx also sets a computed height
+     inline. The CSS fallback ensures a reasonable height if the inline style isn't present. */
   .perf-carousel {
     display: flex;
     overflow-x: auto;
@@ -522,8 +525,9 @@ a:focus-visible {
     scroll-behavior: smooth;
     gap: 0;
     box-sizing: border-box;
-    /* remove container padding so JS width calculations align with viewport */
-    padding-inline: 0;
+
+    /* comfortable horizontal gutters so cards don't stick to the viewport edges */
+    padding-inline: 12px;
     /* fallback height if JS didn't set inline height */
     height: calc(100vh - 56px);
   }
@@ -538,20 +542,17 @@ a:focus-visible {
     scrollbar-width: none;
   }
 
-  /* Each immediate child of the carousel becomes a full-width slide.
-     JS will update min-width precisely to match the visible carousel width,
-     but this CSS is a safe fallback. */
+  /* Each immediate child of the carousel becomes a full-width slide */
   .perf-carousel > * {
     flex: 0 0 100%;
     min-width: 100%;
     scroll-snap-align: start;
     box-sizing: border-box;
-    /* move the visual gutter inside the slide itself */
-    padding-inline: 12px;
+    padding-inline: 8px; /* give slides some inner spacing */
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    height: 100%;
+    height: 100%; /* let slide take full carousel height */
   }
 
   /* Ensure the slide wrapper (perf-slide) presents content full width.
@@ -567,7 +568,7 @@ a:focus-visible {
     box-sizing: border-box !important;
   }
 
-  /* Ensure summary-card fills available height in its slide */
+  /* Ensure summary-card fills available height in its slide (nice full-bleed look) */
   .perf-slide .summary-card,
   .perf-slide .surface-card {
     display: flex;
@@ -576,7 +577,7 @@ a:focus-visible {
     height: 100%;
   }
 
-  /* When content inside summary card is taller than the viewport, allow internal vertical scrolling */
+  /* When content inside summary card is taller than the viewport, allow internal scrolling vertically */
   .perf-slide .summary-card .summary-card-body {
     overflow: auto;
     -webkit-overflow-scrolling: touch;
@@ -591,7 +592,7 @@ a:focus-visible {
 
   /* Slightly reduce padding for very narrow devices */
   @media (max-width: 360px) {
-    .perf-carousel { padding-inline: 0; }
+    .perf-carousel { padding-inline: 8px; }
     .perf-carousel > * { padding-inline: 6px; }
   }
 }
