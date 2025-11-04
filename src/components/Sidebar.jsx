@@ -12,7 +12,7 @@ export default function Sidebar({
   const nav = [
     { id: "home", label: "Dashboard" },
     { id: "performance", label: "Performance" },
-    { id: "item2", label: "Item 2" },
+    { id: "invoices", label: "Invoices" }, // <- replaced item2 with invoices (surgical change)
     { id: "item3", label: "Item 3" },
     { id: "settings", label: "Settings" },
   ];
