@@ -19,9 +19,7 @@ export default function Performance() {
 
   // Carousel state for mobile
   const carouselRef = useRef(null);
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== "undefined" ? window.matchMedia("(max-width:640px)").matches : false
-  );
+  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.matchMedia("(max-width:640px)").matches : false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [slidesCount, setSlidesCount] = useState(1);
 
@@ -29,7 +27,7 @@ export default function Performance() {
     setLoading(true);
     setError(null);
     try {
-      // fetchPerformance should accept (days, itemName)
+      // fetchPerformance should accept (days, itemName) — RPC updated to accept item_name
       const res = await fetchPerformance(d, itemName);
       setMetrics(res);
     } catch (err) {
@@ -45,17 +43,18 @@ export default function Performance() {
     load(days, selectedItem);
   }, [days, selectedItem]);
 
-  // Prepare chart data (safe numeric coercion)
+  // Prepare chart data (safely convert strings to numbers)
   const chartData = useMemo(() => {
     if (!metrics?.timeseries || !Array.isArray(metrics.timeseries)) return [];
     return metrics.timeseries.map((p) => ({
       day: p.day,
+      // ensure numeric values
       orders: typeof p.orders === "number" ? p.orders : Number(p.orders || 0),
       revenue: typeof p.revenue === "number" ? p.revenue : Number(p.revenue || 0),
     }));
   }, [metrics]);
 
-  // Build small sparkline arrays for summary cards
+  // Build small sparkline arrays for summary cards (take revenue)
   const sparkRevenue = useMemo(() => {
     if (!chartData || !chartData.length) return [];
     return chartData.map((d) => d.revenue || 0).slice(-12);
@@ -66,12 +65,14 @@ export default function Performance() {
     return chartData.map((d) => d.orders || 0).slice(-12);
   }, [chartData]);
 
+  // Extract best seller top item for summary value
   const topSeller = (metrics?.best_sellers && metrics.best_sellers.length) ? metrics.best_sellers[0] : null;
 
   // Update isMobile on resize / orientation changes
   useEffect(() => {
     const mq = window.matchMedia("(max-width:640px)");
     const handle = (ev) => setIsMobile(ev.matches);
+    // Some browsers fire change on addListener vs addEventListener; use addEventListener if available
     if (mq.addEventListener) mq.addEventListener("change", handle);
     else mq.addListener(handle);
     return () => {
@@ -80,93 +81,79 @@ export default function Performance() {
     };
   }, []);
 
-  // Ensure carousel fills visible area under header on mobile (height)
+  // Ensure carousel fills visible area under header on mobile.
+  // This is defensive: we try to find a header element and subtract its height from 100vh.
   useEffect(() => {
     const el = carouselRef.current;
     if (!el) return;
+
     if (!isMobile) {
+      // clear inline height when leaving mobile
       el.style.height = "";
       return;
     }
 
-    let headerHeight = 56;
+    // Try to detect header height
+    let headerHeight = 56; // sensible default
     const headerEl = document.querySelector("header") || document.querySelector(".header");
-    if (headerEl && typeof headerEl.offsetHeight === "number") headerHeight = headerEl.offsetHeight;
+    if (headerEl && typeof headerEl.offsetHeight === "number") {
+      headerHeight = headerEl.offsetHeight;
+    }
 
+    // Set carousel height to fill remaining viewport under header
     el.style.height = `calc(100vh - ${headerHeight}px)`;
+    // Ensure the element uses box-sizing to include padding if any
     el.style.boxSizing = "border-box";
   }, [isMobile]);
 
-  // Reflow slides to exact pixel widths whenever layout changes (fixes login/sidebar shifts)
+  // When mobile, convert immediate children of carouselRef into full-width slides.
   useEffect(() => {
     const el = carouselRef.current;
     if (!el) return;
-
-    // compute visible width of carousel container and apply to children
-    const resizeAndReflowSlides = () => {
-      if (!el) return;
-      // prefer clientWidth of carousel (excludes scrollbars and paddings)
-      const visibleWidth = el.clientWidth || Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
-
-      Array.from(el.children).forEach((c) => {
-        // apply exact pixel width to avoid percent/padding mismatch
-        c.style.minWidth = `${visibleWidth}px`;
-        c.style.flex = `0 0 ${visibleWidth}px`;
-        c.style.boxSizing = "border-box";
-      });
-
-      setSlidesCount(el.children.length || 1);
-      const idx = Math.round(el.scrollLeft / Math.max(1, visibleWidth));
-      setActiveIndex(Math.min(Math.max(0, idx), Math.max(0, el.children.length - 1)));
-    };
-
-    // If not mobile, clear inline sizing and exit
+    // If not mobile, remove any inline slide styles we previously set
     if (!isMobile) {
+      setSlidesCount(el.children.length || 1);
+      setActiveIndex(0);
       Array.from(el.children).forEach((c) => {
-        c.style.minWidth = "";
         c.style.flex = "";
-        c.style.boxSizing = "";
+        c.style.minWidth = "";
+        c.style.scrollSnapAlign = "";
         c.style.height = "";
+        c.style.boxSizing = "";
       });
       el.style.display = "";
       el.style.overflowX = "";
       el.style.scrollSnapType = "";
       el.style.webkitOverflowScrolling = "";
       el.style.scrollBehavior = "";
-      setSlidesCount(el.children.length || 1);
-      setActiveIndex(0);
       return;
     }
 
-    // Initial reflow
-    resizeAndReflowSlides();
+    // Mobile behavior: horizontal carousel
+    el.style.display = "flex";
+    el.style.overflowX = "auto";
+    el.style.scrollSnapType = "x mandatory";
+    el.style.webkitOverflowScrolling = "touch";
+    // performance: smooth snapping
+    el.style.scrollBehavior = "smooth";
 
-    // Use ResizeObserver to detect layout changes (sidebar toggles, header size change, etc.)
-    let ro;
-    try {
-      ro = new ResizeObserver(() => {
-        // Slight timeout to let layout settle when many changes happen
-        window.requestAnimationFrame(resizeAndReflowSlides);
-      });
-      ro.observe(el);
-      ro.observe(document.documentElement);
-    } catch (err) {
-      // fallback: window resize
-      window.addEventListener("resize", resizeAndReflowSlides);
-    }
+    // Apply slide styles to immediate children
+    Array.from(el.children).forEach((c) => {
+      // ensure each immediate child fills the carousel viewport
+      c.style.flex = "0 0 100%";
+      c.style.minWidth = "100%";
+      c.style.scrollSnapAlign = "start";
+      // ensure child uses full height of carousel (carousel height set by other effect)
+      c.style.height = "100%";
+      c.style.boxSizing = "border-box";
+    });
 
-    // Also respond to orientation changes
-    const onOrientation = () => setTimeout(resizeAndReflowSlides, 60);
-    window.addEventListener("orientationchange", onOrientation);
+    // initial slide count and index
+    setSlidesCount(el.children.length || 1);
+    setActiveIndex(Math.round(el.scrollLeft / Math.max(1, el.clientWidth)) || 0);
+  }, [isMobile, metrics /* re-run when metrics may change number of children */]);
 
-    return () => {
-      if (ro && typeof ro.disconnect === "function") ro.disconnect();
-      window.removeEventListener("orientationchange", onOrientation);
-      window.removeEventListener("resize", resizeAndReflowSlides);
-    };
-  }, [isMobile, metrics]);
-
-  // Scroll handler to update activeIndex (throttled via rAF)
+  // Scroll handler to update activeIndex (throttled via requestAnimationFrame)
   useEffect(() => {
     const el = carouselRef.current;
     if (!el || !isMobile) return;
@@ -174,8 +161,7 @@ export default function Performance() {
     const onScroll = () => {
       if (raf) cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
-        const visibleWidth = el.clientWidth || Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
-        const idx = Math.round(el.scrollLeft / Math.max(1, visibleWidth));
+        const idx = Math.round(el.scrollLeft / Math.max(1, el.clientWidth));
         setActiveIndex(idx);
         raf = null;
       });
@@ -190,11 +176,12 @@ export default function Performance() {
   const scrollToIndex = (index) => {
     const el = carouselRef.current;
     if (!el) return;
-    const width = el.clientWidth || Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+    const width = el.clientWidth || window.innerWidth;
     el.scrollTo({ left: index * width, behavior: "smooth" });
     setActiveIndex(index);
   };
 
+  // Keyboard left/right navigation when the carousel is focused (mobile or keyboard users)
   const handleCarouselKey = (e) => {
     if (!isMobile) return;
     if (e.key === "ArrowLeft") {
@@ -206,7 +193,7 @@ export default function Performance() {
     }
   };
 
-  // Layout styles (unused variable preserved in case other code uses it)
+  // Layout styles (kept inline here so CSS remains the single source of visual truth)
   const summaryCardStyle = { flex: "1 1 0", minWidth: 260 };
 
   return (
@@ -230,7 +217,7 @@ export default function Performance() {
         </div>
       </div>
 
-      {/* Carousel wrapper */}
+      {/* Carousel wrapper — on mobile this becomes a swipeable area where each child takes full width */}
       <div style={{ position: "relative" }}>
         <div
           ref={carouselRef}
@@ -240,6 +227,9 @@ export default function Performance() {
           tabIndex={0}
           onKeyDown={handleCarouselKey}
         >
+          {/* PerformanceTopRow should render the individual summary cards as immediate children.
+              If it renders a single wrapper element containing multiple cards, we may need to
+              patch that component instead — test this first. */}
           <PerformanceTopRow
             metrics={metrics || {}}
             chartData={chartData}
@@ -249,7 +239,7 @@ export default function Performance() {
           />
         </div>
 
-        {/* pager dots */}
+        {/* pager dots (mobile visible only via CSS) */}
         <div className="perf-dots" aria-hidden={!isMobile} style={{ display: isMobile ? "flex" : "none", gap: 6, justifyContent: "center", marginTop: 8 }}>
           {Array.from({ length: slidesCount }).map((_, i) => (
             <button
@@ -270,7 +260,7 @@ export default function Performance() {
         </div>
       </div>
 
-      {/* Filter pill */}
+      {/* Filter pill (kept for item filtering) */}
       {selectedItem && (
         <div style={{ marginTop: 6, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ background: "#e7f7ec", color: "#0e6b2e", padding: "6px 10px", borderRadius: 999, fontWeight: 700 }}>
@@ -281,6 +271,8 @@ export default function Performance() {
           </button>
         </div>
       )}
+
+      {/* (If you plan to keep a detailed row below, we can leave it here later) */}
     </div>
   );
 }
