@@ -18,15 +18,39 @@ export default function InvoiceList({ onViewInvoice = () => {} }) {
   const [query, setQuery] = useState("");
   const [signedUrls, setSignedUrls] = useState({});
 
+  // <-- NEW: track current signed-in user (if any)
+  const [sessionUser, setSessionUser] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        setSessionUser(data?.session?.user ?? null);
+      } catch (err) {
+        console.warn("Failed to read session:", err);
+        setSessionUser(null);
+      }
+    })();
+  }, []);
+
   const fetchInvoices = async () => {
     setLoading(true);
     try {
-      // fetch recent invoices (server rules apply)
-      const { data, error } = await supabase
+      // Build query and scope to session user if available (client-side optimization).
+      // Note: RLS still enforces ownership server-side — this is just UX optimization.
+      let queryBuilder = supabase
         .from("invoices")
-        .select("id, user_id, buyer_name, buyer_phone, items, total, total_amount, payment_number, status, pdf_path, created_at")
+        .select(
+          "id, user_id, buyer_name, buyer_phone, items, total, total_amount, payment_number, status, pdf_path, created_at"
+        )
         .order("created_at", { ascending: false })
         .limit(200);
+
+      if (sessionUser && sessionUser.id) {
+        queryBuilder = queryBuilder.eq("user_id", sessionUser.id);
+      }
+
+      const { data, error } = await queryBuilder;
 
       if (error) throw error;
       setInvoices(data || []);
@@ -38,10 +62,12 @@ export default function InvoiceList({ onViewInvoice = () => {} }) {
     }
   };
 
+  // When component mounts, and whenever sessionUser changes (e.g. user signs in),
+  // re-fetch invoices so the UI updates to show the signed-in user's rows.
   useEffect(() => {
     fetchInvoices();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [sessionUser]);
 
   // memoized filtered list
   const filtered = useMemo(() => {
@@ -111,13 +137,26 @@ export default function InvoiceList({ onViewInvoice = () => {} }) {
             onChange={(e) => setQuery(e.target.value)}
             style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid #e6e9ee" }}
           />
-          <button className="btn-outline" onClick={() => fetchInvoices()}>Refresh</button>
+          <button
+            className="btn-outline"
+            onClick={() => {
+              // explicit refresh: re-run fetchInvoices using current sessionUser
+              fetchInvoices();
+            }}
+          >
+            Refresh
+          </button>
         </div>
       </div>
 
       <div style={{ borderRadius: 10, padding: 12, background: "transparent" }}>
         {loading ? (
           <div style={{ color: "#6b7280" }}>Loading…</div>
+        ) : !sessionUser ? (
+          // Small UX hint when anonymous visitor opens the invoices page
+          <div style={{ color: "#6b7280" }}>
+            Sign in to view your invoices. Only the invoice owner can see their invoices.
+          </div>
         ) : filtered.length === 0 ? (
           <div style={{ color: "#6b7280" }}>No invoices.</div>
         ) : (
@@ -159,10 +198,7 @@ export default function InvoiceList({ onViewInvoice = () => {} }) {
                       )}
                     </td>
                     <td style={{ padding: "10px" }}>
-                      <button
-                        className="btn-outline"
-                        onClick={() => onViewInvoice(inv)}
-                      >
+                      <button className="btn-outline" onClick={() => onViewInvoice(inv)}>
                         View
                       </button>
                     </td>
