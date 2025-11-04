@@ -29,7 +29,6 @@ export default function Performance() {
     setLoading(true);
     setError(null);
     try {
-      // fetchPerformance should accept (days, itemName) — RPC updated to accept item_name
       const res = await fetchPerformance(d, itemName);
       setMetrics(res);
     } catch (err) {
@@ -50,7 +49,6 @@ export default function Performance() {
     if (!metrics?.timeseries || !Array.isArray(metrics.timeseries)) return [];
     return metrics.timeseries.map((p) => ({
       day: p.day,
-      // ensure numeric values
       orders: typeof p.orders === "number" ? p.orders : Number(p.orders || 0),
       revenue: typeof p.revenue === "number" ? p.revenue : Number(p.revenue || 0),
     }));
@@ -67,14 +65,12 @@ export default function Performance() {
     return chartData.map((d) => d.orders || 0).slice(-12);
   }, [chartData]);
 
-  // Extract best seller top item for summary value
   const topSeller = (metrics?.best_sellers && metrics.best_sellers.length) ? metrics.best_sellers[0] : null;
 
   // Update isMobile on resize / orientation changes
   useEffect(() => {
     const mq = window.matchMedia("(max-width:640px)");
     const handle = (ev) => setIsMobile(ev.matches);
-    // Some browsers fire change on addListener vs addEventListener; use addEventListener if available
     if (mq.addEventListener) mq.addEventListener("change", handle);
     else mq.addListener(handle);
     return () => {
@@ -84,69 +80,40 @@ export default function Performance() {
   }, []);
 
   // Ensure carousel fills visible area under header on mobile.
-  // This is defensive: we try to find a header element and subtract its height from 100vh.
   useEffect(() => {
     const el = carouselRef.current;
     if (!el) return;
-
     if (!isMobile) {
-      // clear inline height when leaving mobile
       el.style.height = "";
       return;
     }
-
-    // Try to detect header height
-    let headerHeight = 56; // sensible default
+    let headerHeight = 56;
     const headerEl = document.querySelector("header") || document.querySelector(".header");
-    if (headerEl && typeof headerEl.offsetHeight === "number") {
-      headerHeight = headerEl.offsetHeight;
-    }
-
-    // Set carousel height to fill remaining viewport under header
+    if (headerEl && typeof headerEl.offsetHeight === "number") headerHeight = headerEl.offsetHeight;
     el.style.height = `calc(100vh - ${headerHeight}px)`;
-    // Ensure the element uses box-sizing to include padding if any
     el.style.boxSizing = "border-box";
   }, [isMobile]);
 
-  // Robust reflow logic for mobile slides:
-  // - compute exact pixel width of carousel container
-  // - retry a few times if container isn't measured yet (hidden or layout not settled)
-  // - observe layout changes via ResizeObserver and fallback to window resize
+  // Safer carousel sizing & reflow:
+  // - Primary strategy: use percent sizing (flex:0 0 100%, minWidth:100%) which is resilient.
+  // - Observe layout changes and recalc pager state; avoid writing pixel widths unless stable.
   useEffect(() => {
     const el = carouselRef.current;
     if (!el) return;
 
     let destroyed = false;
 
-    // utility to determine if element is visible in layout
-    const isVisible = (node) => node && node.offsetParent !== null;
-
-    // compute a safe visible width (prefer el.clientWidth)
-    const getVisibleWidth = () => {
-      // prefer carousel clientWidth (accounts for padding/scrollbars)
-      const cw = el.clientWidth || 0;
-      if (cw && cw > 0) return cw;
-      // fallback to document or window
-      const dw = document.documentElement && document.documentElement.clientWidth ? document.documentElement.clientWidth : 0;
-      const ww = typeof window !== "undefined" ? window.innerWidth : 0;
-      return Math.max(cw, dw, ww);
-    };
-
-    // reflow function with defensive checks and limited retries
-    let retryCount = 0;
-    const MAX_RETRIES = 6;
-    const RETRY_DELAY = 80; // ms
-
-    const resizeAndReflowSlides = () => {
-      if (destroyed) return;
+    const applyPercentSlideStyles = () => {
       if (!el) return;
-      // If not mobile, clear any inline styles we may have set earlier and exit
+      // Clean mobile or desktop branches
       if (!isMobile) {
+        // clear inline styles on exit
         Array.from(el.children).forEach((c) => {
-          c.style.minWidth = "";
           c.style.flex = "";
+          c.style.minWidth = "";
           c.style.boxSizing = "";
           c.style.height = "";
+          c.style.scrollSnapAlign = "";
         });
         el.style.display = "";
         el.style.overflowX = "";
@@ -158,89 +125,63 @@ export default function Performance() {
         return;
       }
 
-      // Ensure element is visible — if not, retry later
-      if (!isVisible(el)) {
-        if (retryCount < MAX_RETRIES) {
-          retryCount += 1;
-          setTimeout(resizeAndReflowSlides, RETRY_DELAY);
-        }
-        return;
-      }
-
-      const visibleWidth = Math.floor(getVisibleWidth());
-
-      // If width looks suspiciously small, retry instead of applying (prevents 0px collapse)
-      if (visibleWidth < 96 && retryCount < MAX_RETRIES) {
-        retryCount += 1;
-        // slightly delay to allow layout to settle (sidebar or auth changes)
-        setTimeout(resizeAndReflowSlides, RETRY_DELAY);
-        return;
-      }
-
-      // Apply mobile carousel container styles (kept here to ensure consistent runtime behavior)
+      // Mobile: set percent-based slides — safe even during layout transitions
       el.style.display = "flex";
       el.style.overflowX = "auto";
       el.style.scrollSnapType = "x mandatory";
       el.style.webkitOverflowScrolling = "touch";
       el.style.scrollBehavior = "smooth";
 
-      // Apply exact pixel widths to immediate children so snapping is precise
       Array.from(el.children).forEach((c) => {
-        c.style.minWidth = `${visibleWidth}px`;
-        c.style.flex = `0 0 ${visibleWidth}px`;
+        c.style.flex = "0 0 100%";
+        c.style.minWidth = "100%";
         c.style.boxSizing = "border-box";
-        c.style.height = "100%"; // ensure children stretch vertically
+        c.style.height = "100%";
         c.style.scrollSnapAlign = "start";
       });
 
-      // update pager state
       setSlidesCount(el.children.length || 1);
+      // maintain current index calculation defensively
+      const visibleWidth = el.clientWidth || Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
       const idx = Math.round(el.scrollLeft / Math.max(1, visibleWidth));
       setActiveIndex(Math.min(Math.max(0, idx), Math.max(0, el.children.length - 1)));
     };
 
-    // initial attempt
-    resizeAndReflowSlides();
+    // initial apply
+    applyPercentSlideStyles();
 
-    // Observe layout changes to reflow when sidebar/header toggles happen
+    // Re-apply on layout changes via ResizeObserver (with fallback)
     let ro;
     try {
       ro = new ResizeObserver(() => {
-        // debounce slightly with rAF
+        if (destroyed) return;
+        // Use rAF to let layout settle
         window.requestAnimationFrame(() => {
-          retryCount = 0; // reset retry count on layout change
-          resizeAndReflowSlides();
+          applyPercentSlideStyles();
         });
       });
       ro.observe(el);
       ro.observe(document.documentElement);
     } catch (err) {
-      // fallback to window resize
-      window.addEventListener("resize", resizeAndReflowSlides);
+      // fallback
+      window.addEventListener("resize", applyPercentSlideStyles);
     }
 
-    // respond to orientation changes
-    const onOrientation = () => {
-      retryCount = 0;
-      setTimeout(resizeAndReflowSlides, 80);
-    };
+    // orientation change
+    const onOrientation = () => setTimeout(applyPercentSlideStyles, 60);
     window.addEventListener("orientationchange", onOrientation);
 
-    // cleanup
     return () => {
       destroyed = true;
       try {
         if (ro && typeof ro.disconnect === "function") ro.disconnect();
-      } catch (e) {
-        // ignore
-      }
-      window.removeEventListener("resize", resizeAndReflowSlides);
+      } catch (e) {}
+      window.removeEventListener("resize", applyPercentSlideStyles);
       window.removeEventListener("orientationchange", onOrientation);
     };
-    // re-run when mobile toggles or metrics change (children may be different)
   }, [isMobile, metrics]);
 
-  // Scroll handler to update activeIndex (throttled via requestAnimationFrame)
+  // Scroll handler to update activeIndex (throttled via rAF)
   useEffect(() => {
     const el = carouselRef.current;
     if (!el || !isMobile) return;
@@ -269,7 +210,6 @@ export default function Performance() {
     setActiveIndex(index);
   };
 
-  // Keyboard left/right navigation when the carousel is focused (mobile or keyboard users)
   const handleCarouselKey = (e) => {
     if (!isMobile) return;
     if (e.key === "ArrowLeft") {
@@ -315,9 +255,6 @@ export default function Performance() {
           tabIndex={0}
           onKeyDown={handleCarouselKey}
         >
-          {/* PerformanceTopRow should render the individual summary cards as immediate children.
-              If it renders a single wrapper element containing multiple cards, we may need to
-              patch that component instead — test this first. */}
           <PerformanceTopRow
             metrics={metrics || {}}
             chartData={chartData}
@@ -327,7 +264,6 @@ export default function Performance() {
           />
         </div>
 
-        {/* pager dots (mobile visible only via CSS) */}
         <div className="perf-dots" aria-hidden={!isMobile} style={{ display: isMobile ? "flex" : "none", gap: 6, justifyContent: "center", marginTop: 8 }}>
           {Array.from({ length: slidesCount }).map((_, i) => (
             <button
@@ -359,8 +295,6 @@ export default function Performance() {
           </button>
         </div>
       )}
-
-      {/* (If you plan to keep a detailed row below, we can leave it here later) */}
     </div>
   );
 }
