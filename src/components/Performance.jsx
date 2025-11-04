@@ -25,6 +25,11 @@ export default function Performance() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [slidesCount, setSlidesCount] = useState(1);
 
+  // For debouncing and guarding repeated writes
+  const lastWidthRef = useRef(0);
+  const debounceTimerRef = useRef(null);
+  const pendingReflowRef = useRef(false);
+
   const load = async (d, itemName = null) => {
     setLoading(true);
     setError(null);
@@ -54,18 +59,34 @@ export default function Performance() {
     }));
   }, [metrics]);
 
-  // Build small sparkline arrays for summary cards (take revenue)
-  const sparkRevenue = useMemo(() => {
-    if (!chartData || !chartData.length) return [];
-    return chartData.map((d) => d.revenue || 0).slice(-12);
-  }, [chartData]);
+  // small helpers
+  const getVisibleWidth = (el) => {
+    if (!el) return 0;
+    const cw = el.clientWidth || 0;
+    if (cw > 0) return Math.floor(cw);
+    const dw = document.documentElement && document.documentElement.clientWidth ? document.documentElement.clientWidth : 0;
+    const ww = typeof window !== "undefined" ? window.innerWidth : 0;
+    return Math.max(cw, dw, ww);
+  };
 
-  const sparkOrders = useMemo(() => {
-    if (!chartData || !chartData.length) return [];
-    return chartData.map((d) => d.orders || 0).slice(-12);
-  }, [chartData]);
-
-  const topSeller = (metrics?.best_sellers && metrics.best_sellers.length) ? metrics.best_sellers[0] : null;
+  const safeSnapTo = (index = 0, instant = true) => {
+    const el = carouselRef.current;
+    if (!el) return;
+    const width = getVisibleWidth(el);
+    const clamped = Math.min(Math.max(0, index), Math.max(0, el.children.length - 1));
+    if (width <= 0) {
+      el.scrollLeft = clamped * (el.offsetWidth || 0);
+      setActiveIndex(clamped);
+      return;
+    }
+    try {
+      el.scrollTo({ left: clamped * width, behavior: instant ? "auto" : "smooth" });
+      setActiveIndex(clamped);
+    } catch {
+      el.scrollLeft = clamped * width;
+      setActiveIndex(clamped);
+    }
+  };
 
   // Update isMobile on resize / orientation changes
   useEffect(() => {
@@ -94,49 +115,19 @@ export default function Performance() {
     el.style.boxSizing = "border-box";
   }, [isMobile]);
 
-  // Helper: safe snap to an index (used after applying styles)
-  const safeSnapTo = (index = 0, instant = true) => {
-    const el = carouselRef.current;
-    if (!el) return;
-    const width = el.clientWidth || Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
-    const clamped = Math.min(Math.max(0, index), Math.max(0, el.children.length - 1));
-    try {
-      el.scrollTo({ left: clamped * width, behavior: instant ? "auto" : "smooth" });
-      setActiveIndex(clamped);
-    } catch (e) {
-      // fallback: set scrollLeft directly
-      el.scrollLeft = clamped * width;
-      setActiveIndex(clamped);
-    }
-  };
-
-  // Safer carousel sizing & reflow:
-  // - Primary strategy: apply percent-based slide sizing (resilient)
-  // - Clear any leftover pixel min-widths that might cause overflow
-  // - Re-snap to a sane slide (usually the first) after applying styles
+  // Debounced, idempotent reflow: apply percent-based slide sizing but only when width changes
   useEffect(() => {
     const el = carouselRef.current;
     if (!el) return;
 
     let destroyed = false;
 
-    const clearLegacyPixelWidths = (child) => {
-      // remove explicit pixel minWidth/flex that may have been applied earlier
-      if (!child) return;
-      const mw = child.style.minWidth || "";
-      if (mw && mw.trim().endsWith("px")) {
-        child.style.minWidth = "";
-      }
-      const flex = child.style.flex || "";
-      if (flex && flex.includes("px")) {
-        child.style.flex = "";
-      }
-    };
-
-    const applyPercentSlideStyles = () => {
+    // Only run the actual layout write after debounce interval
+    const doReflow = () => {
       if (destroyed) return;
       if (!el) return;
-      // if leaving mobile, clear inline styles
+
+      // Non-mobile cleanup
       if (!isMobile) {
         Array.from(el.children).forEach((c) => {
           c.style.flex = "";
@@ -153,18 +144,27 @@ export default function Performance() {
         el.style.scrollBehavior = "";
         setSlidesCount(el.children.length || 1);
         setActiveIndex(0);
-        // snap to first just to be safe
         safeSnapTo(0, true);
+        lastWidthRef.current = 0;
         return;
       }
 
-      // Clean legacy pixel widths which cause overflow
-      Array.from(el.children).forEach((c) => {
-        clearLegacyPixelWidths(c);
-        c.style.margin = "0"; // make sure no centering margin interferes
-      });
+      // Mobile: percent-based slides are safe; measure width and avoid redundant writes
+      const visibleWidth = getVisibleWidth(el);
+      // If width didn't change meaningfully, skip writing styles
+      const last = lastWidthRef.current || 0;
+      if (Math.abs(visibleWidth - last) <= 2 && visibleWidth > 0) {
+        // update pager count & activeIndex defensively but avoid DOM writes
+        setSlidesCount(el.children.length || 1);
+        const idx = Math.round(el.scrollLeft / Math.max(1, visibleWidth));
+        setActiveIndex(Math.min(Math.max(0, idx), Math.max(0, el.children.length - 1)));
+        pendingReflowRef.current = false;
+        return;
+      }
 
-      // Apply percent-based styles — robust during layout transitions
+      // Apply simple percent-based styles only when width changed
+      lastWidthRef.current = visibleWidth;
+
       el.style.display = "flex";
       el.style.overflowX = "auto";
       el.style.scrollSnapType = "x mandatory";
@@ -172,60 +172,71 @@ export default function Performance() {
       el.style.scrollBehavior = "smooth";
 
       Array.from(el.children).forEach((c) => {
-        c.style.flex = "0 0 100%";
-        c.style.minWidth = "100%";
-        c.style.boxSizing = "border-box";
-        c.style.height = "100%";
-        c.style.scrollSnapAlign = "start";
-        c.style.margin = "0";
+        // only set these properties — minimal writes
+        if (c.style.flex !== "0 0 100%") c.style.flex = "0 0 100%";
+        if (c.style.minWidth !== "100%") c.style.minWidth = "100%";
+        if (c.style.boxSizing !== "border-box") c.style.boxSizing = "border-box";
+        if (c.style.height !== "100%") c.style.height = "100%";
+        if (c.style.scrollSnapAlign !== "start") c.style.scrollSnapAlign = "start";
+        if (c.style.margin !== "0") c.style.margin = "0";
       });
 
-      // update pager data
       setSlidesCount(el.children.length || 1);
 
-      // If the carousel currently has a non-zero scrollLeft (i.e., user landed mid-slide),
-      // re-snap to the nearest full slide to avoid partially-offscreen content.
-      const visibleWidth = el.clientWidth || Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+      // Snap to nearest slide only if current scrollLeft is misaligned.
+      // This avoids forcing scroll on every reflow.
       const idx = Math.round(el.scrollLeft / Math.max(1, visibleWidth));
-      // ensure we snap to a valid index; prefer 0 for first render
-      const target = Math.min(Math.max(0, idx), Math.max(0, el.children.length - 1));
-      // small delay to let the browser settle and then snap
-      setTimeout(() => {
-        if (!destroyed) safeSnapTo(target, true);
-      }, 40);
+      const misaligned = Math.abs(el.scrollLeft - idx * visibleWidth) > Math.max(6, visibleWidth * 0.06);
+      if (misaligned) {
+        // snap but let it be instant so no long smooth animation blocks rAF
+        safeSnapTo(idx, true);
+      }
+
+      pendingReflowRef.current = false;
     };
 
-    // initial apply
-    applyPercentSlideStyles();
+    const scheduleReflow = () => {
+      if (pendingReflowRef.current) return;
+      pendingReflowRef.current = true;
+      // debounce: if many changes fire, coalesce into one reflow per 120ms
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = setTimeout(() => {
+        // run in rAF but keep work tiny
+        window.requestAnimationFrame(doReflow);
+      }, 120);
+    };
 
-    // Re-apply on layout changes via ResizeObserver (with fallback to window resize)
+    // initial schedule
+    scheduleReflow();
+
+    // Use ResizeObserver to detect layout changes and schedule debounced reflow
     let ro;
     try {
       ro = new ResizeObserver(() => {
-        if (destroyed) return;
-        window.requestAnimationFrame(() => {
-          applyPercentSlideStyles();
-        });
+        scheduleReflow();
       });
       ro.observe(el);
       ro.observe(document.documentElement);
     } catch (err) {
-      window.addEventListener("resize", applyPercentSlideStyles);
+      // fallback
+      window.addEventListener("resize", scheduleReflow);
     }
 
-    // orientation change handling
-    const onOrientation = () => setTimeout(applyPercentSlideStyles, 60);
+    // also respond to orientation changes
+    const onOrientation = () => scheduleReflow();
     window.addEventListener("orientationchange", onOrientation);
 
     return () => {
       destroyed = true;
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      pendingReflowRef.current = false;
       try {
         if (ro && typeof ro.disconnect === "function") ro.disconnect();
-      } catch (e) {}
-      window.removeEventListener("resize", applyPercentSlideStyles);
+      } catch {}
+      window.removeEventListener("resize", scheduleReflow);
       window.removeEventListener("orientationchange", onOrientation);
     };
-  }, [isMobile, metrics]); // re-run when mobile toggles or data/children change
+  }, [isMobile, metrics]);
 
   // Scroll handler to update activeIndex (throttled via rAF)
   useEffect(() => {
@@ -235,7 +246,7 @@ export default function Performance() {
     const onScroll = () => {
       if (raf) cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
-        const visibleWidth = el.clientWidth || Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+        const visibleWidth = getVisibleWidth(el);
         const idx = Math.round(el.scrollLeft / Math.max(1, visibleWidth));
         setActiveIndex(idx);
         raf = null;
@@ -251,7 +262,7 @@ export default function Performance() {
   const scrollToIndex = (index) => {
     const el = carouselRef.current;
     if (!el) return;
-    const width = el.clientWidth || Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+    const width = getVisibleWidth(el);
     el.scrollTo({ left: index * width, behavior: "smooth" });
     setActiveIndex(index);
   };
