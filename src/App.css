@@ -197,6 +197,8 @@ body {
   padding: 8px 12px;
   border-radius: 10px;
   cursor: pointer;
+  /* Make outline text color explicit and robust against inheritance */
+  color: #374151 !important;
 }
 .btn-primary {
   background: linear-gradient(180deg,#36b852,#1a8917);
@@ -209,6 +211,17 @@ body {
   transition: transform 0.12s ease;
 }
 .btn-primary:hover { transform: scale(1.03); }
+
+/* Add explicit hamburger color so the glyph is readable even when parent color is muted */
+.btn-hamburger {
+  color: #374151 !important;
+  background: transparent;
+  border: 0;
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 
 /* Invoice form card minor style (works with existing InvoiceForm.jsx) */
 .formBox {
@@ -321,13 +334,14 @@ body {
   margin-left: 0 !important;
 }
 
-/* ensure the summary row aligns start (not centered) */
+/* ensure the summary row aligns start (not centered)
+   NOTE: removed a conflicting `display:flex !important` override so the
+   grid definition in index.css/PerformanceTopRow.jsx can behave as intended. */
 .performance-top-row,
 .summary-row {
-  display: flex !important;
+  gap: 12px !important;
   justify-content: flex-start !important;
   align-items: stretch !important;
-  gap: 12px !important;
 }
 
 /* allow summary cards to shrink properly (avoid forced min width overflow) */
@@ -404,9 +418,20 @@ body {
   background: transparent;
   cursor: pointer;
   font-weight: 600;
+  /* explicit color so pills don't inherit muted parent color */
+  color: #07131a !important;
 }
 .btn-pill.active {
   background: #16a34a;
   color: white;
   border-color: transparent;
 }
+
+/* Dark-mode tweaks for buttons and small controls */
+@media (prefers-color-scheme: dark) {
+  .btn-outline, .btn-pill, .btn-hamburger {
+    color: #e6eef7 !important;
+  }
+}
+
+/* End of file */
