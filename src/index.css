@@ -3,37 +3,10 @@
 /* --------------------
    Base tokens & typography
    -------------------- */
-:root {
-  --page-bg: #242424;               /* dark default page background */
-  --text: rgba(255,255,255,0.87);   /* dark-mode text */
-  --muted: rgba(255,255,255,0.6);
-
-  --accent-indigo: 79,70,229; /* rgb values for utility where needed */
-  --accent-indigo-rgba: 79,70,229;
-  --btn-ghost-wash: rgba(79,70,229,0.06);
-
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: var(--text);
-  background-color: var(--page-bg);
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Light-mode overrides (browser/OS preference) */
-@media (prefers-color-scheme: light) {
-  :root {
-    --page-bg: #ffffff;
-    --text: #213547;
-    --muted: #6b7280;
-  }
-}
+/* NOTE: Removed global :root variables from this file so App.css remains
+   the single source of truth for --page-bg, --text, --muted, etc.
+   This prevents index.css from accidentally overriding the whole site theme.
+*/
 
 /* Links */
 a {
