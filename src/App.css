@@ -197,6 +197,41 @@ body {
   padding: 8px 12px;
   border-radius: 10px;
   cursor: pointer;
+  /* -------------------
+     Button visibility safety (surgical)
+     -------------------
+     Ensure buttons inside the app root are readable even if placed inside
+     muted/less-contrasty containers. This does NOT remove your invoice
+     overrides in index.css (they still apply where used).
+  */
+  .app-root button {
+    /* Default readable text color for ordinary buttons */
+    color: #07131a;       /* dark text for light theme */
+    background: transparent;
+  }
+
+  /* Make sure pills, small controls and hamburger are explicit */
+  .app-root .btn-pill,
+  .app-root .btn-ghost,
+  .app-root .btn-outline,
+  .app-root .btn-hamburger,
+  .app-root .btn-buy,
+  .app-root .btn-danger {
+    color: #07131a !important;
+  }
+
+  /* Primary buttons keep white text */
+  .app-root .btn-primary { color: #ffffff !important; }
+
+  /* Dark-mode adjustments */
+  @media (prefers-color-scheme: dark) {
+    .app-root button { color: #e6eef7; } /* light text in dark mode */
+    .app-root .btn-primary { color: #ffffff !important; }
+    .app-root .btn-outline,
+    .app-root .btn-pill,
+    .app-root .btn-ghost,
+    .app-root .btn-hamburger { color: #e6eef7 !important; }
+  }
   /* Make outline text color explicit and robust against inheritance */
   color: #374151 !important;
 }
