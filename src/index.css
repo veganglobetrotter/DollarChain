@@ -1061,5 +1061,73 @@ a:focus-visible {
 .invoices-container .btn-outline { background: #ffffff !important; color: #0f172a !important; border: 1px solid rgba(15,23,42,0.06) !important; }
 .invoices-container .btn-primary { background: linear-gradient(180deg,#16a34a,#0ea445) !important; color: #ffffff !important; }
 */
+/* === MOBILE: containment & carousel safety (paste at end of src/index.css) ===
+   Purpose:
+   - Prevent ancestor containers (App.css centering/padding) from leaking a
+     larger width into mobile slides.
+   - Make slides / cards, and chart wrappers behave predictably on phones.
+*/
+
+@media (max-width: 640px) {
+  /* Make root/app containers use viewport width on small screens */
+  html, body, #root, .app-root, .main-area, .content, .content-inner {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding-inline: 0 !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important; /* defensive */
+  }
+
+  /* Ensure slide wrapper and contained summary card don't introduce extra margins */
+  .perf-slide { box-sizing: border-box; padding-inline: 12px; }
+  .perf-slide > .summary-card { width: 100% !important; box-sizing: border-box !important; }
+
+  /* Make the carousel a proper viewport-scoped container */
+  .perf-carousel {
+    padding-inline: 0 !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+  }
+
+  /* Each slide uses box-sizing and keeps its own internal gutters */
+  .perf-carousel > * {
+    padding-inline: 12px !important;  /* gutters inside slide (snap math will use container width) */
+    box-sizing: border-box !important;
+  }
+
+  /* Slide wrapper and summary-card must occupy the full visible width */
+  .perf-slide,
+  .perf-slide > *,
+  .perf-carousel .summary-card,
+  .perf-carousel .surface-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Make sure the inner summary card can shrink (avoid min-width overflow) */
+  .summary-card,
+  .summary-card * {
+    min-width: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Ensure the left side (title + value) can shrink instead of overflowing */
+  .summary-left { min-width: 0 !important; }
+
+  /* Defensive: make chart wrapper always measurable */
+  .chart-wrap { min-height: 36px !important; height: auto !important; }
+
+  /* If a card has expanded charts, provide a safe render height so Recharts can measure */
+  .summary-card.expanded .chart-wrap { min-height: 320px !important; height: auto !important; }
+
+  /* Ensure no ancestor horizontal paddings affect snap math */
+  .app-root, .content-inner { padding-inline: 0 !important; }
+}
 
 /* End of file */

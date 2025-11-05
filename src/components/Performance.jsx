@@ -60,13 +60,17 @@ export default function Performance() {
   }, [metrics]);
 
   // small helpers
+  // Robust visible width detector — prefer bounding rect (includes padding),
+   // fallback to clientWidth/window widths.
   const getVisibleWidth = (el) => {
     if (!el) return 0;
-    const cw = el.clientWidth || 0;
-    if (cw > 0) return Math.floor(cw);
-    const dw = document.documentElement && document.documentElement.clientWidth ? document.documentElement.clientWidth : 0;
-    const ww = typeof window !== "undefined" ? window.innerWidth : 0;
-    return Math.max(cw, dw, ww);
+    try {
+      const rect = el.getBoundingClientRect();
+      const w = Math.floor(rect.width || el.clientWidth || document.documentElement.clientWidth || window.innerWidth || 0);
+      return Math.max(0, w);
+    } catch (err) {
+      return el.clientWidth || document.documentElement.clientWidth || window.innerWidth || 0;
+    }
   };
 
   const safeSnapTo = (index = 0, instant = true) => {
@@ -171,10 +175,14 @@ export default function Performance() {
       el.style.webkitOverflowScrolling = "touch";
       el.style.scrollBehavior = "smooth";
 
+      // Use pixel widths derived from the measured visible width so snap math
+      // is consistent (avoids rounding differences between percent and px).
+      const slideWidth = Math.max(1, visibleWidth);
       Array.from(el.children).forEach((c) => {
-        // only set these properties — minimal writes
-        if (c.style.flex !== "0 0 100%") c.style.flex = "0 0 100%";
-        if (c.style.minWidth !== "100%") c.style.minWidth = "100%";
+        // minimal writes — only when different
+        const desiredFlex = `0 0 ${slideWidth}px`;
+        if (c.style.flex !== desiredFlex) c.style.flex = desiredFlex;
+        if (c.style.minWidth !== `${slideWidth}px`) c.style.minWidth = `${slideWidth}px`;
         if (c.style.boxSizing !== "border-box") c.style.boxSizing = "border-box";
         if (c.style.height !== "100%") c.style.height = "100%";
         if (c.style.scrollSnapAlign !== "start") c.style.scrollSnapAlign = "start";
