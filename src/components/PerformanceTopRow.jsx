@@ -22,22 +22,19 @@ import { formatCurrency, formatNumber } from "../lib/formatters";
 /**
  * PerformanceTopRow
  * Props:
- * - metrics: object returned from RPC (orders_count, revenue, timeseries, best_sellers, repeat_stats, repeat_customers)
- * - chartData: prepared timeseries array [{day, orders, revenue}, ...]
- * - onSelectItem(name) -> called when best-seller clicked
- * - selectedItem -> currently selected item name
- * - asSlides -> when true, render the three cards as immediate siblings (for carousel slides)
+ * - metrics, chartData, onSelectItem, selectedItem, asSlides
+ * - NEW: onRequestFullScreen (fn) — passed down from parent to open modal for a key
  */
 export default function PerformanceTopRow({
   metrics = {},
   chartData = [],
   onSelectItem = () => {},
   selectedItem,
-  asSlides = false, // new prop: render as immediate children when used inside a carousel
+  asSlides = false,
+  onRequestFullScreen = null, // new optional
 }) {
   const [expandedKey, setExpandedKey] = useState(null); // "sales" | "sellers" | "repeat" | null
 
-  // stable toggle handler (keeps logic same as before)
   const toggleKey = useCallback((key) => {
     setExpandedKey((prev) => (prev === key ? null : key));
   }, []);
@@ -50,24 +47,20 @@ export default function PerformanceTopRow({
     [metrics]
   );
 
-  // Currency code (used by formatCurrency)
   const currencyCode = metrics?.currency || "KES";
 
   // Build augmented chart data (add max and 7-day moving average for orders).
   const chartDataAug = useMemo(() => {
     if (!Array.isArray(chartData) || chartData.length === 0) return [];
 
-    // Ensure numeric coercion and stable sort by day order (assumes chartData is already ordered by day).
     const normalized = chartData.map((p) => ({
       day: p.day,
       orders: typeof p.orders === "number" ? p.orders : Number(p.orders || 0),
       revenue: typeof p.revenue === "number" ? p.revenue : Number(p.revenue || 0),
     }));
 
-    // compute max orders for the background track
     const maxOrders = Math.max(...normalized.map((r) => r.orders), 1);
 
-    // compute 7-day simple moving average for orders
     const window = 7;
     const ma = [];
     for (let i = 0; i < normalized.length; i += 1) {
@@ -87,6 +80,71 @@ export default function PerformanceTopRow({
     }));
   }, [chartData]);
 
+  // --- Normalized combined series for small preview (percent-of-max per series) ---
+  const combinedNormalized = useMemo(() => {
+    if (!Array.isArray(chartDataAug) || chartDataAug.length === 0) return [];
+
+    const maxOrders = Math.max(...chartDataAug.map((r) => r.orders), 1);
+    const maxRevenue = Math.max(...chartDataAug.map((r) => r.revenue), 1);
+
+    return chartDataAug.map((r) => ({
+      day: r.day,
+      scaledOrders: (r.orders / maxOrders) * 100,
+      scaledRevenue: (r.revenue / maxRevenue) * 100,
+      orders: r.orders,
+      revenue: r.revenue,
+    }));
+  }, [chartDataAug]);
+
+  // Build compact preview chart node for sales card (0..100 domain).
+  const salesPreviewChart = useMemo(() => {
+    if (!combinedNormalized || combinedNormalized.length === 0) {
+      // tiny placeholder equal to the default summary-sparkline size
+      return <div style={{ width: 36, height: 10 }} />;
+    }
+
+    // Use a small composited line chart (no dots) — 36px tall is the container in CSS
+    return (
+      <div style={{ width: 120, height: 36 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={combinedNormalized} margin={{ top: 2, right: 6, left: 0, bottom: 2 }}>
+            <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#f1f5f9" />
+            <XAxis dataKey="day" hide />
+            <YAxis domain={[0, 100]} hide />
+            <Tooltip
+              formatter={(val, name, payload) => {
+                // Map normalized values back to original absolute values for tooltip
+                if (!payload || !payload.payload) return [val, name];
+                const p = payload.payload;
+                if (name === "Scaled Orders") return [Math.round(p.orders), "Orders"];
+                if (name === "Scaled Revenue") return [formatCurrency(p.revenue, currencyCode), "Revenue"];
+                return [val, name];
+              }}
+            />
+            <Line
+              type="monotone"
+              dataKey="scaledOrders"
+              name="Scaled Orders"
+              stroke="#16a34a"
+              strokeWidth={2}
+              dot={false}
+              strokeOpacity={0.95}
+            />
+            <Line
+              type="monotone"
+              dataKey="scaledRevenue"
+              name="Scaled Revenue"
+              stroke="#0ea5a4"
+              strokeWidth={2}
+              dot={false}
+              strokeOpacity={0.9}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    );
+  }, [combinedNormalized, currencyCode]);
+
   // Helper: render the three card cells as an array of elements (keeps code DRY)
   const renderCells = () => {
     return [
@@ -98,6 +156,10 @@ export default function PerformanceTopRow({
           subtitle={`${formatCurrency(metrics?.revenue ?? 0, currencyCode)}`}
           open={expandedKey === "sales"}
           onToggle={(open) => toggleKey(open ? "sales" : null)}
+          previewChart={salesPreviewChart}
+          onRequestFullScreen={() => {
+            if (typeof onRequestFullScreen === "function") onRequestFullScreen("sales");
+          }}
         >
           {/* Expanded content: stacked & synchronized charts (Orders top, Revenue bottom) */}
           <div className="chart-wrap" style={{ height: 380 }}>
@@ -211,7 +273,6 @@ export default function PerformanceTopRow({
               data={metrics?.best_sellers ?? []}
               onSelect={(name) => {
                 onSelectItem?.(name);
-                // keep the sellers card open when selecting
                 setExpandedKey("sellers");
               }}
               highlightName={selectedItem}
@@ -234,7 +295,6 @@ export default function PerformanceTopRow({
               repeatCustomers={metrics?.repeat_customers ?? []}
               repeatPct={metrics?.repeat_stats?.repeat_pct ?? 0}
               onSelect={(name) => {
-                // forward selection to parent handler and keep card open
                 onSelectItem?.(name);
                 setExpandedKey("repeat");
               }}
@@ -245,11 +305,9 @@ export default function PerformanceTopRow({
     ];
   };
 
-  // If asSlides is true, render the cards as immediate children (no outer wrapper)
   if (asSlides) {
     return <>{renderCells()}</>;
   }
 
-  // Default behavior: keep the wrapper so desktop/grid CSS remains intact
   return <div className="performance-top-row">{renderCells()}</div>;
 }

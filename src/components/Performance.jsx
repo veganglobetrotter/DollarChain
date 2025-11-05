@@ -2,6 +2,19 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { fetchPerformance } from "../lib/metricsClient";
 import PerformanceTopRow from "./PerformanceTopRow";
+import {
+  ResponsiveContainer,
+  ComposedChart,
+  Bar,
+  Line,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  Legend,
+} from "recharts";
+import { formatCurrency, formatNumber } from "../lib/formatters";
 
 const TIMEFRAMES = [
   { label: "7D", days: 7 },
@@ -29,6 +42,9 @@ export default function Performance() {
   const lastWidthRef = useRef(0);
   const debounceTimerRef = useRef(null);
   const pendingReflowRef = useRef(false);
+
+  // Fullscreen modal state
+  const [fullscreenKey, setFullscreenKey] = useState(null); // 'sales' | null
 
   const load = async (d, itemName = null) => {
     setLoading(true);
@@ -59,9 +75,158 @@ export default function Performance() {
     }));
   }, [metrics]);
 
+  // --- Fullscreen modal helpers ---
+  useEffect(() => {
+    // prevent body scroll while modal open
+    if (fullscreenKey) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = prev || "";
+      };
+    }
+    return undefined;
+  }, [fullscreenKey]);
+
+  const openFullscreen = (key) => setFullscreenKey(key);
+  const closeFullscreen = () => setFullscreenKey(null);
+
+  // Render a full-screen modal; small, focused, inline-styled to avoid CSS edits.
+  const FullScreenPerformanceModal = ({ onClose, chartDataLocal, metricsLocal }) => {
+    // compute augmented data similar to PerformanceTopRow
+    const chartDataAug = (() => {
+      if (!Array.isArray(chartDataLocal) || chartDataLocal.length === 0) return [];
+      const normalized = chartDataLocal.map((p) => ({
+        day: p.day,
+        orders: typeof p.orders === "number" ? p.orders : Number(p.orders || 0),
+        revenue: typeof p.revenue === "number" ? p.revenue : Number(p.revenue || 0),
+      }));
+      const maxOrders = Math.max(...normalized.map((r) => r.orders), 1);
+      const window = 7;
+      const ma = [];
+      for (let i = 0; i < normalized.length; i += 1) {
+        let sum = 0;
+        let count = 0;
+        for (let j = Math.max(0, i - (window - 1)); j <= i; j += 1) {
+          sum += normalized[j].orders;
+          count += 1;
+        }
+        ma.push(count > 0 ? sum / count : 0);
+      }
+      return normalized.map((row, idx) => ({
+        ...row,
+        maxOrders,
+        maOrders: Number.isFinite(ma[idx]) ? +ma[idx].toFixed(2) : 0,
+      }));
+    })();
+
+    // keyboard: close on Escape
+    useEffect(() => {
+      const onKey = (e) => {
+        if (e.key === "Escape") onClose();
+      };
+      window.addEventListener("keydown", onKey);
+      return () => window.removeEventListener("keydown", onKey);
+    }, [onClose]);
+
+    const currencyCode = metricsLocal?.currency || "KES";
+
+    return (
+      <div
+        role="dialog"
+        aria-modal="true"
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 12000,
+          display: "flex",
+          alignItems: "stretch",
+          justifyContent: "center",
+          background: "rgba(0,0,0,0.46)",
+          padding: 20,
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 1100,
+            background: "white",
+            borderRadius: 12,
+            boxShadow: "0 16px 48px rgba(2,6,23,0.4)",
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+            maxHeight: "100vh",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: 16, alignItems: "center", borderBottom: "1px solid rgba(15,23,42,0.04)" }}>
+            <div>
+              <h3 style={{ margin: 0 }}>Sales — Detailed view</h3>
+              <div style={{ color: "#6b7280", fontSize: 13 }}>
+                Orders: <strong>{metricsLocal?.orders_count ?? 0}</strong> — Revenue: <strong>{formatCurrency(metricsLocal?.revenue ?? 0, currencyCode)}</strong>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={onClose} className="btn-outline" style={{ alignSelf: "center" }}>Close</button>
+            </div>
+          </div>
+
+          <div style={{ padding: 16, overflow: "auto" }}>
+            {chartDataAug && chartDataAug.length ? (
+              <>
+                <div style={{ height: 340, marginBottom: 16 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart
+                      data={chartDataAug}
+                      syncId="fsalesSync"
+                      margin={{ top: 8, right: 40, left: 0, bottom: 6 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis
+                        dataKey="day"
+                        tick={{ fontSize: 12 }}
+                        tickFormatter={(d) => (d?.slice ? d.slice(5) : d)}
+                      />
+                      <YAxis tick={{ fontSize: 12 }} label={{ value: "Orders", angle: -90, position: "insideLeft", offset: -6 }} />
+                      <Tooltip formatter={(val, name) => (name === "maOrders" ? [Math.round(val), "7d avg"] : [val, name])} />
+                      <Bar dataKey="maxOrders" barSize={20} fill="#eef2f6" radius={[8, 8, 8, 8]} />
+                      <Bar dataKey="orders" name="Orders" fill="#16a34a" barSize={12} radius={[6, 6, 6, 6]} />
+                      <Line type="monotone" dataKey="maOrders" name="7d avg" stroke="#0ea5a4" strokeWidth={2} dot={false} />
+                      <Legend verticalAlign="top" align="right" height={24} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div style={{ height: 300 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart
+                      data={chartDataAug}
+                      syncId="fsalesSync"
+                      margin={{ top: 8, right: 40, left: 0, bottom: 6 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis dataKey="day" tick={{ fontSize: 12 }} tickFormatter={(d) => (d?.slice ? d.slice(5) : d)} />
+                      <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => formatNumber(v)} label={{ value: `Revenue (${currencyCode})`, angle: -90, position: "insideLeft", offset: -6 }} />
+                      <Tooltip formatter={(val, name) => (name === "revenue" ? [formatCurrency(val, currencyCode), "Revenue"] : [val, name])} />
+                      <Legend verticalAlign="top" align="right" height={24} />
+                      <Area type="monotone" dataKey="revenue" name="Revenue" fill="#c7f9d1" stroke="#0f172a" strokeWidth={2} fillOpacity={0.6} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              </>
+            ) : (
+              <div style={{ padding: 12, color: "#9aa3ab" }}>No timeseries data</div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ---- the rest of Performance.jsx is unchanged (carousel logic below) ----
+
   // small helpers
-  // Robust visible width detector — prefer bounding rect (includes padding),
-   // fallback to clientWidth/window widths.
   const getVisibleWidth = (el) => {
     if (!el) return 0;
     try {
@@ -92,7 +257,6 @@ export default function Performance() {
     }
   };
 
-  // Update isMobile on resize / orientation changes
   useEffect(() => {
     const mq = window.matchMedia("(max-width:640px)");
     const handle = (ev) => setIsMobile(ev.matches);
@@ -104,7 +268,6 @@ export default function Performance() {
     };
   }, []);
 
-  // Ensure carousel fills visible area under header on mobile.
   useEffect(() => {
     const el = carouselRef.current;
     if (!el) return;
@@ -119,19 +282,16 @@ export default function Performance() {
     el.style.boxSizing = "border-box";
   }, [isMobile]);
 
-  // Debounced, idempotent reflow: apply percent-based slide sizing but only when width changes
   useEffect(() => {
     const el = carouselRef.current;
     if (!el) return;
 
     let destroyed = false;
 
-    // Only run the actual layout write after debounce interval
     const doReflow = () => {
       if (destroyed) return;
       if (!el) return;
 
-      // Non-mobile cleanup
       if (!isMobile) {
         Array.from(el.children).forEach((c) => {
           c.style.flex = "";
@@ -153,12 +313,9 @@ export default function Performance() {
         return;
       }
 
-      // Mobile: percent-based slides are safe; measure width and avoid redundant writes
       const visibleWidth = getVisibleWidth(el);
-      // If width didn't change meaningfully, skip writing styles
       const last = lastWidthRef.current || 0;
       if (Math.abs(visibleWidth - last) <= 2 && visibleWidth > 0) {
-        // update pager count & activeIndex defensively but avoid DOM writes
         setSlidesCount(el.children.length || 1);
         const idx = Math.round(el.scrollLeft / Math.max(1, visibleWidth));
         setActiveIndex(Math.min(Math.max(0, idx), Math.max(0, el.children.length - 1)));
@@ -166,7 +323,6 @@ export default function Performance() {
         return;
       }
 
-      // Apply simple percent-based styles only when width changed
       lastWidthRef.current = visibleWidth;
 
       el.style.display = "flex";
@@ -175,11 +331,8 @@ export default function Performance() {
       el.style.webkitOverflowScrolling = "touch";
       el.style.scrollBehavior = "smooth";
 
-      // Use pixel widths derived from the measured visible width so snap math
-      // is consistent (avoids rounding differences between percent and px).
       const slideWidth = Math.max(1, visibleWidth);
       Array.from(el.children).forEach((c) => {
-        // minimal writes — only when different
         const desiredFlex = `0 0 ${slideWidth}px`;
         if (c.style.flex !== desiredFlex) c.style.flex = desiredFlex;
         if (c.style.minWidth !== `${slideWidth}px`) c.style.minWidth = `${slideWidth}px`;
@@ -191,12 +344,9 @@ export default function Performance() {
 
       setSlidesCount(el.children.length || 1);
 
-      // Snap to nearest slide only if current scrollLeft is misaligned.
-      // This avoids forcing scroll on every reflow.
       const idx = Math.round(el.scrollLeft / Math.max(1, visibleWidth));
       const misaligned = Math.abs(el.scrollLeft - idx * visibleWidth) > Math.max(6, visibleWidth * 0.06);
       if (misaligned) {
-        // snap but let it be instant so no long smooth animation blocks rAF
         safeSnapTo(idx, true);
       }
 
@@ -206,18 +356,14 @@ export default function Performance() {
     const scheduleReflow = () => {
       if (pendingReflowRef.current) return;
       pendingReflowRef.current = true;
-      // debounce: if many changes fire, coalesce into one reflow per 120ms
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = setTimeout(() => {
-        // run in rAF but keep work tiny
         window.requestAnimationFrame(doReflow);
       }, 120);
     };
 
-    // initial schedule
     scheduleReflow();
 
-    // Use ResizeObserver to detect layout changes and schedule debounced reflow
     let ro;
     try {
       ro = new ResizeObserver(() => {
@@ -226,11 +372,9 @@ export default function Performance() {
       ro.observe(el);
       ro.observe(document.documentElement);
     } catch (err) {
-      // fallback
       window.addEventListener("resize", scheduleReflow);
     }
 
-    // also respond to orientation changes
     const onOrientation = () => scheduleReflow();
     window.addEventListener("orientationchange", onOrientation);
 
@@ -246,7 +390,6 @@ export default function Performance() {
     };
   }, [isMobile, metrics]);
 
-  // Scroll handler to update activeIndex (throttled via rAF)
   useEffect(() => {
     const el = carouselRef.current;
     if (!el || !isMobile) return;
@@ -310,7 +453,6 @@ export default function Performance() {
         </div>
       </div>
 
-      {/* Carousel wrapper — on mobile this becomes a swipeable area where each child takes full width */}
       <div style={{ position: "relative" }}>
         <div
           ref={carouselRef}
@@ -326,6 +468,10 @@ export default function Performance() {
             onSelectItem={(name) => setSelectedItem(name)}
             selectedItem={selectedItem}
             asSlides={isMobile}
+            onRequestFullScreen={(key) => {
+              // only support 'sales' for now — but generic param is passed
+              if (key === "sales") openFullscreen("sales");
+            }}
           />
         </div>
 
@@ -349,7 +495,6 @@ export default function Performance() {
         </div>
       </div>
 
-      {/* Filter pill (kept for item filtering) */}
       {selectedItem && (
         <div style={{ marginTop: 6, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ background: "#e7f7ec", color: "#0e6b2e", padding: "6px 10px", borderRadius: 999, fontWeight: 700 }}>
@@ -359,6 +504,11 @@ export default function Performance() {
             Clear
           </button>
         </div>
+      )}
+
+      {/* Fullscreen modal (rendered at top-level of this component so it can access chartData & metrics) */}
+      {fullscreenKey === "sales" && (
+        <FullScreenPerformanceModal onClose={closeFullscreen} chartDataLocal={chartData} metricsLocal={metrics || {}} />
       )}
     </div>
   );

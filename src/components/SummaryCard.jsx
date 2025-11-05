@@ -5,19 +5,10 @@ import { formatNumber } from "../lib/formatters";
 
 /**
  * SummaryCard
- * Props:
- * - title (string)
- * - value (string|number)
- * - subtitle (string) optional
- * - delta (string) optional e.g. "+12%"
- * - deltaDirection: "up" | "down" | null
- * - sparklineData: optional array of numbers for the tiny sparkline
- * - defaultOpen: boolean (uncontrolled mode)
- * - open: boolean (controlled mode) — optional
- * - isOpen: boolean (alternate controlled prop name — supported for compatibility)
- * - onToggle(open) optional callback (called in both controlled & uncontrolled modes)
- * - children: expanded area (chart/details)
- * - showSparklineInPreview: boolean (optional) - when true, renders the 120x36 sparkline even in preview
+ * ... (same props as before)
+ * New props:
+ * - previewChart: React node (rendered in header preview area when card is collapsed)
+ * - onRequestFullScreen: function() optional — if provided, the "See more" button will call it
  */
 export default function SummaryCard({
   title,
@@ -32,6 +23,8 @@ export default function SummaryCard({
   onToggle,
   children,
   showSparklineInPreview = false, // NEW: control whether sparkline is visible in preview
+  previewChart = null,             // NEW: optional React node for preview
+  onRequestFullScreen = null,      // NEW: optional fullscreen request handler
 }) {
   // prefer explicit `openProp` if provided, otherwise fallback to `isOpen`
   const controlledValue =
@@ -76,7 +69,6 @@ export default function SummaryCard({
 
   // Keyboard handler on header — support Enter + Space robustly across browsers
   const handleHeaderKey = (e) => {
-    // Accept Enter, Space, older "Spacebar" and keyCode fallbacks for older browsers
     if (
       e.key === "Enter" ||
       e.key === " " ||
@@ -93,7 +85,6 @@ export default function SummaryCard({
   useEffect(() => {
     const el = bodyRef.current;
     if (!el) return;
-    // force reflow when children change while open
     if (currentOpen) {
       const scroll = el.scrollHeight;
       el.style.maxHeight = `${scroll}px`;
@@ -102,7 +93,6 @@ export default function SummaryCard({
       el.style.maxHeight = "0px";
       el.style.opacity = "0";
     }
-    // ensure transition style present
     el.style.transition = "max-height 320ms cubic-bezier(.2,.9,.2,1), opacity 220ms ease";
     el.style.overflow = "hidden";
   }, [currentOpen, children]);
@@ -114,14 +104,27 @@ export default function SummaryCard({
   // Present numeric `value` consistently using central formatter (leave strings alone)
   const displayValue = typeof value === "number" ? formatNumber(value) : value;
 
+  const handleSeeMoreClick = (e) => {
+    e.stopPropagation();
+    // If a fullscreen request handler is provided, prefer that and DO NOT toggle
+    if (typeof onRequestFullScreen === "function") {
+      try {
+        onRequestFullScreen();
+      } catch (err) {
+        console.error("onRequestFullScreen error:", err);
+      }
+      return;
+    }
+    // Otherwise fall back to toggling expand/collapse
+    toggle(e);
+  };
+
   return (
-    // Keep the CSS className for compatibility with existing styles.
     <div
       className={`summary-card ${currentOpen ? "expanded" : ""}`}
       role="region"
       aria-expanded={currentOpen}
     >
-      {/* clickable header: clicking anywhere toggles */}
       <div
         className="summary-card-header"
         onClick={toggle}
@@ -177,14 +180,16 @@ export default function SummaryCard({
           className="summary-right"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* tiny sparkline or compact placeholder depending on state */}
+          {/* previewChart takes precedence for collapsed preview; if none, fall back to sparkline */}
           <div
             className="summary-sparkline"
             aria-hidden
             style={showSparklineNow ? undefined : { width: 36, height: 10, minWidth: 36 }}
             title={Array.isArray(sparklineData) ? sparklineData.join(", ") : undefined}
           >
-            {showSparklineNow ? (
+            { !currentOpen && previewChart ? (
+              previewChart
+            ) : showSparklineNow ? (
               chartData.length ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
@@ -208,16 +213,13 @@ export default function SummaryCard({
             )}
           </div>
 
-          {/* toggle button */}
+          {/* toggle / see more button */}
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggle(e);
-            }}
+            onClick={handleSeeMoreClick}
             aria-expanded={currentOpen}
             aria-controls={idRef.current}
-            aria-label={`${currentOpen ? "Collapse" : "Expand"} ${title}`}
+            aria-label={`${currentOpen ? "Collapse" : "See more"} ${title}`}
             className="btn-outline"
           >
             {currentOpen ? "Hide" : "See more"}
@@ -230,7 +232,6 @@ export default function SummaryCard({
         ref={bodyRef}
         className="summary-card-body"
         aria-hidden={!currentOpen}
-        // let useEffect manage maxHeight/opacity for smooth transitions, but ensure body participates in flex
         style={{
           maxHeight: currentOpen ? undefined : "0px",
           opacity: currentOpen ? 1 : 0,
@@ -241,12 +242,10 @@ export default function SummaryCard({
           overflow: "hidden",
         }}
       >
-        {/* small controls placeholder area (can be used for export buttons) */}
         <div className="summary-controls" style={{ justifyContent: "flex-end", display: "flex" }}>
           {/* placeholder for export / actions */}
         </div>
 
-        {/* the expanded children area */}
         <div style={{ flex: "1 1 auto" }}>
           {children ? (
             children
