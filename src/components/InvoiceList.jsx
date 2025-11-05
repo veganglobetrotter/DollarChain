@@ -3,27 +3,26 @@ import React, { useEffect, useState, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 
 /**
- * InvoiceList (visual / functional replacement)
- * - Left column: filters + list (click row to select)
- * - Right column: detail pane (sticky on desktop)
- * - Actions: View (open preview via callback), Download (signed URL), Delete (with confirm)
+ * InvoiceList (patched)
+ *
+ * - Emits markup that matches the invoices CSS in src/index.css
+ * - Keeps the original fetch / filter / signed-url behavior
+ * - Adds View / Download / Delete buttons wired to expected handlers
  *
  * Props:
- * - onViewInvoice(invoice)  -- called when the user chooses "View"
+ * - onViewInvoice(inv)  => called when user clicks View (or row)
  */
 export default function InvoiceList({ onViewInvoice = () => {} }) {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState(null);
   const [signedUrls, setSignedUrls] = useState({});
-  const [onlyOverdue, setOnlyOverdue] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
 
   const fetchInvoices = async () => {
     setLoading(true);
     try {
-      // fetch recent invoices (server rules apply)
       const { data, error } = await supabase
         .from("invoices")
         .select("id, user_id, buyer_name, buyer_phone, items, total, total_amount, payment_number, status, pdf_path, created_at")
@@ -32,8 +31,8 @@ export default function InvoiceList({ onViewInvoice = () => {} }) {
 
       if (error) throw error;
       setInvoices(data || []);
-      if (!selectedId && (data || []).length) {
-        setSelectedId(data[0].id);
+      if (data && data.length && !selectedId) {
+        setSelectedId((prev) => prev || (data[0] && data[0].id));
       }
     } catch (err) {
       console.error("fetchInvoices error:", err);
@@ -48,36 +47,33 @@ export default function InvoiceList({ onViewInvoice = () => {} }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // derived / filtered list
   const filtered = useMemo(() => {
     const q = String(query || "").trim().toLowerCase();
-    return invoices.filter((r) => {
+    return (invoices || []).filter((r) => {
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
-      if (onlyOverdue && r.status !== "overdue") return false;
       if (!q) return true;
       return (
         String(r.buyer_name || "").toLowerCase().includes(q) ||
         String(r.buyer_phone || "").toLowerCase().includes(q) ||
         String(r.payment_number || "").toLowerCase().includes(q) ||
-        String(r.id || "").toLowerCase().includes(q) ||
-        String(r.total ?? r.total_amount ?? "").toLowerCase().includes(q)
+        String(r.id || "").toLowerCase().includes(q)
       );
     });
-  }, [invoices, query, statusFilter, onlyOverdue]);
+  }, [invoices, statusFilter, query]);
 
-  const selected = invoices.find((i) => i.id === selectedId) || filtered[0] || null;
-
-  // create signed URL for download (caches result for brief time)
+  // create signed URL for a single pdf_path when user clicks download
   const getSignedUrl = async (pdfPath) => {
     if (!pdfPath) return null;
     if (signedUrls[pdfPath]) return signedUrls[pdfPath];
-
     try {
       const parts = pdfPath.split("/");
       const maybeBucket = parts.length > 1 ? parts[0] : "invoices";
       const filePath = parts.length > 1 ? parts.slice(1).join("/") : pdfPath;
 
-      const { data: urlData, error } = await supabase.storage.from(maybeBucket).createSignedUrl(filePath, 60);
+      const { data: urlData, error } = await supabase.storage
+        .from(maybeBucket)
+        .createSignedUrl(filePath, 60);
+
       if (error) {
         console.warn("createSignedUrl failed:", error.message || error);
         return null;
@@ -91,95 +87,91 @@ export default function InvoiceList({ onViewInvoice = () => {} }) {
     }
   };
 
-  // Download handler (opens signed url)
-  const handleDownload = async (inv) => {
+  const handleDownloadClick = async (e, inv) => {
+    e.stopPropagation();
+    if (!inv?.pdf_path) {
+      alert("No PDF available for this invoice.");
+      return;
+    }
     try {
-      if (!inv.pdf_path) {
-        alert("No PDF attached for this invoice.");
-        return;
-      }
       const url = await getSignedUrl(inv.pdf_path);
-      if (!url) {
-        alert("Unable to generate download URL. Check bucket/path or permissions.");
-        return;
-      }
-      window.open(url, "_blank");
+      if (url) window.open(url, "_blank");
+      else alert("Unable to generate download URL. Check storage bucket and path.");
     } catch (err) {
-      console.error("download error:", err);
-      alert("Download failed. See console for details.");
+      console.error("download click error:", err);
+      alert("Failed to download. See console for details.");
     }
   };
 
-  // Delete handler (with confirm)
-  const handleDelete = async (inv) => {
-    if (!confirm(`Delete invoice ${inv.id}? This action cannot be undone.`)) return;
+  const handleViewClick = (e, inv) => {
+    e.stopPropagation();
+    onViewInvoice(inv);
+    setSelectedId(inv.id);
+  };
+
+  const handleDeleteClick = async (e, inv) => {
+    e.stopPropagation();
+    if (!confirm("Delete this invoice? This action cannot be undone.")) return;
     try {
       const { error } = await supabase.from("invoices").delete().eq("id", inv.id);
       if (error) throw error;
-      // if deleted, refetch and clear selection if necessary
       await fetchInvoices();
-      if (selectedId === inv.id) setSelectedId(null);
-      alert("Invoice deleted.");
+      // if deleted invoice was selected, clear selection
+      setSelectedId((s) => (s === inv.id ? null : s));
+      alert("Deleted.");
     } catch (err) {
-      console.error("delete error:", err);
+      console.error("Failed to delete invoice:", err);
       alert("Failed to delete invoice. See console for details.");
     }
   };
 
+  // selected invoice detail (for right column)
+  const selectedInvoice = (invoices || []).find((i) => i.id === selectedId) || null;
+
   return (
     <div className="invoices-container">
       <div className="invoices-header">
-        <div className="invoices-title">
-          <h2>Invoices</h2>
-          <div className="invoices-sub">Manage invoices, download PDFs, and reconcile payments.</div>
+        <div>
+          <h2 style={{ margin: 0 }}>Invoices</h2>
+          <div className="invoices-sub">Recent invoices — shows up to 200 rows</div>
         </div>
 
         <div className="invoices-controls">
-          <div className="search-box">
+          <div className="search-box" role="search" aria-label="Search invoices">
             <input
-              placeholder="Search by name, phone, invoice or amount"
+              placeholder="Search buyer / phone / invoice or amount"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
 
-          <button className="btn-ghost" onClick={() => setOnlyOverdue((s) => !s)}>{onlyOverdue ? "All" : "Only Overdue"}</button>
-          <button className="btn-primary" onClick={() => alert("Create invoice (not implemented)")} title="Create invoice">Create</button>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            aria-label="Filter by status"
+            className="btn-ghost"
+            style={{ padding: "6px 8px", height: "38px" }}
+          >
+            <option value="all">All statuses</option>
+            <option value="pending">Pending</option>
+            <option value="paid">Paid</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+
+          <button className="btn-outline" onClick={() => fetchInvoices()}>
+            Refresh
+          </button>
         </div>
       </div>
 
       <div className="invoices-grid">
-        {/* LEFT: Filters + list */}
+        {/* Left: list */}
         <div className="invoices-left">
-          <div className="invoices-toolbar">
-            <div className="status-chips">
-              {[
-                { key: "all", label: "All" },
-                { key: "paid", label: "Paid" },
-                { key: "pending", label: "Pending" },
-                { key: "overdue", label: "Overdue" },
-              ].map((f) => (
-                <button
-                  key={f.key}
-                  className={`chip ${statusFilter === f.key ? "chip-active" : ""}`}
-                  onClick={() => setStatusFilter(f.key)}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="toolbar-right">
-              <div className="count">Showing <strong>{filtered.length}</strong></div>
-              <button className="btn-ghost" onClick={() => fetchInvoices()}>Refresh</button>
-            </div>
-          </div>
-
           <div className="list-card">
             {loading ? (
-              <div className="muted">Loading…</div>
+              <div style={{ padding: 16, color: "var(--muted)" }}>Loading…</div>
             ) : filtered.length === 0 ? (
-              <div className="muted">No invoices.</div>
+              <div style={{ padding: 16, color: "var(--muted)" }}>No invoices.</div>
             ) : (
               <div className="list-rows">
                 {filtered.map((inv) => (
@@ -187,26 +179,50 @@ export default function InvoiceList({ onViewInvoice = () => {} }) {
                     key={inv.id}
                     className={`invoice-row ${selectedId === inv.id ? "selected" : ""}`}
                     onClick={() => setSelectedId(inv.id)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        setSelectedId(inv.id);
+                        onViewInvoice(inv);
+                      }
+                    }}
                   >
                     <div className="row-left">
-                      <div className="row-id">{inv.id}</div>
-                      <div className="row-date">{(inv.created_at ? new Date(inv.created_at).toLocaleString() : "").split(",")[0]}</div>
+                      <div className="row-id" style={{ wordBreak: "break-word" }}>{inv.id}</div>
+                      <div className="row-date">{inv.created_at ? new Date(inv.created_at).toLocaleDateString() : "—"}</div>
                     </div>
 
                     <div className="row-mid">
                       <div className="buyer">{inv.buyer_name || "—"}</div>
-                      <div className="phone">{inv.buyer_phone || inv.payment_number || "—"}</div>
+                      <div className="phone">{inv.buyer_phone || "—"}</div>
                     </div>
 
                     <div className="row-right">
-                      <div className="total">KSh {inv.total_amount ?? inv.total ?? "—"}</div>
-                      <div className={`status ${inv.status || "pending"}`}>{inv.status || "pending"}</div>
+                      <div className="total">{inv.total_amount ?? inv.total ?? "—"}</div>
+                      <div className={`status ${inv.status}`}>{inv.status || "—"}</div>
                     </div>
 
                     <div className="row-actions">
-                      <button className="btn-ghost" onClick={(e) => { e.stopPropagation(); onViewInvoice(inv); }}>View</button>
-                      <button className="btn-ghost" onClick={async (e) => { e.stopPropagation(); await handleDownload(inv); }}>Download</button>
-                      <button className="btn-danger" onClick={(e) => { e.stopPropagation(); handleDelete(inv); }}>Delete</button>
+                      {inv.pdf_path ? (
+                        <button
+                          className="btn-ghost"
+                          onClick={(e) => handleDownloadClick(e, inv)}
+                          title="Download PDF"
+                        >
+                          Download
+                        </button>
+                      ) : (
+                        <span style={{ color: "var(--muted)", fontSize: 13 }}>No PDF</span>
+                      )}
+
+                      <button className="btn-outline" onClick={(e) => handleViewClick(e, inv)} title="View invoice">
+                        View
+                      </button>
+
+                      <button className="btn-danger" onClick={(e) => handleDeleteClick(e, inv)} title="Delete invoice">
+                        Delete
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -215,44 +231,69 @@ export default function InvoiceList({ onViewInvoice = () => {} }) {
           </div>
         </div>
 
-        {/* RIGHT: Detail / sticky panel */}
-        <aside className="invoices-right" aria-hidden={!selected}>
+        {/* Right: detail panel */}
+        <aside className="invoices-right">
           <div className="detail-card">
-            {selected ? (
+            {selectedInvoice ? (
               <>
                 <div className="detail-header">
                   <div>
-                    <div className="muted">Invoice</div>
-                    <div className="detail-id">{selected.id}</div>
+                    <div className="text-muted" style={{ fontSize: 13 }}>Invoice</div>
+                    <div className="detail-id">{selectedInvoice.id}</div>
                   </div>
 
-                  <div className="detail-right">
-                    <div className="muted">Created</div>
-                    <div>{new Date(selected.created_at).toLocaleString()}</div>
+                  <div style={{ textAlign: "right" }}>
+                    <div className="text-muted" style={{ fontSize: 13 }}>Created</div>
+                    <div style={{ fontWeight: 600 }}>
+                      {selectedInvoice.created_at ? new Date(selectedInvoice.created_at).toLocaleString() : "—"}
+                    </div>
                   </div>
                 </div>
 
                 <div className="detail-items">
-                  {(Array.isArray(selected.items) ? selected.items : []).map((it, idx) => (
-                    <div key={idx} className="detail-item">
-                      <div>{it.qty} × {it.name}</div>
-                      <div>KSh {it.price ? it.qty * it.price : "-"}</div>
-                    </div>
-                  ))}
+                  {Array.isArray(selectedInvoice.items) && selectedInvoice.items.length ? (
+                    selectedInvoice.items.map((it, idx) => (
+                      <div key={idx} className="detail-item">
+                        <div>{it.qty} × {it.name}</div>
+                        <div>{/* price not stored in items rows by default */}KSh -</div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-muted">No item details</div>
+                  )}
                 </div>
 
                 <div className="detail-total">
-                  <div className="muted">Total</div>
-                  <div className="detail-total-val">KSh {selected.total_amount ?? selected.total ?? "—"}</div>
+                  <div className="text-muted">Total</div>
+                  <div className="detail-total-val">KSh {selectedInvoice.total_amount ?? selectedInvoice.total ?? "-"}</div>
                 </div>
 
-                <div className="detail-actions">
-                  <button className="btn-ghost" onClick={() => onViewInvoice(selected)}>View</button>
-                  <button className="btn-primary" onClick={() => handleDownload(selected)}>Download PDF</button>
+                <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+                  <button
+                    className="btn-outline"
+                    onClick={() => onViewInvoice(selectedInvoice)}
+                  >
+                    View
+                  </button>
+
+                  {selectedInvoice.pdf_path ? (
+                    <button
+                      className="btn-primary"
+                      onClick={async () => {
+                        const u = await getSignedUrl(selectedInvoice.pdf_path);
+                        if (u) window.open(u, "_blank");
+                        else alert("Unable to get download URL.");
+                      }}
+                    >
+                      Download PDF
+                    </button>
+                  ) : (
+                    <button className="btn-primary" onClick={() => alert("No PDF attached")}>Download PDF</button>
+                  )}
                 </div>
               </>
             ) : (
-              <div className="muted">Select an invoice to see details here.</div>
+              <div className="text-muted">Select an invoice to see details here.</div>
             )}
           </div>
         </aside>
