@@ -1,4 +1,8 @@
-/* src/index.css - theme-aware, layout-safe version (patched buttons) */
+/* src/index.css - theme-aware, layout-safe version (patched buttons)
+
+   This file is the user's full index.css with the requested mobile-card
+   fixes and inserted chart / defensive rules (Edits B & C) applied.
+*/
 
 /* --------------------
    Base tokens & typography
@@ -270,10 +274,42 @@ button:focus-visible {
   font-weight: 700;
 }
 
-/* small responsive tweak */
+/* small responsive tweak (tiny phones) */
 @media (max-width: 520px) {
-  .summary-card-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+  /* stack header content and center on very small screens so the numeric
+     value doesn't hug the left edge. */
+  .summary-card-header {
+    flex-direction: column;
+    align-items: center;        /* <-- changed from flex-start to center */
+    justify-content: center;
+    gap: 8px;
+  }
+
   .summary-right { margin-left: 0; }
+
+  /* allow the main value to wrap and scale on tiny screens */
+  .summary-value {
+    white-space: normal !important;
+    font-size: clamp(1rem, 4.2vw, 1.25rem) !important;
+    overflow: visible !important;
+  }
+
+  /* make the sparkline less greedy on tiny screens */
+  .summary-sparkline {
+    min-width: 80px !important;
+    width: auto !important;
+    height: 36px !important;
+    margin-top: 6px;
+  }
+
+  /* ensure chart area can't collapse to 0 height */
+  .chart-wrap {
+    min-height: 36px !important;
+    height: 36px !important;
+    width: 100% !important;
+  }
+
+  .summary-card-body { overflow: visible !important; }
 }
 
 /* --------------------
@@ -436,6 +472,14 @@ a:focus-visible {
 
   .perf-dots { position: relative; z-index: 2; margin-top: 8px; }
 
+  /* === EDIT B: ensure chart wrapper is renderable on mobile === */
+  .chart-wrap {
+    min-height: 36px !important;
+    height: 36px !important;
+    width: 100% !important;
+    display: block !important;
+  }
+
   @media (max-width: 360px) {
     .perf-carousel { padding-inline: 8px; }
     .perf-carousel > * { padding-inline: 6px; }
@@ -460,6 +504,28 @@ a:focus-visible {
     box-sizing: border-box !important;
   }
 
+  /* === EDIT C: defensive rules to prevent ancestor width leakage on mobile === */
+  /* Prevent a centered desktop container from imposing large widths on slides. */
+  .app-root,
+  .main-area,
+  .top-header,
+  .content,
+  .content-inner {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding-inline: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .content-inner > * {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Prevent tiny horizontal overflow that can confuse JS measurement and reflows */
   html, body, #root, .app-root { overflow-x: hidden; }
 }
 
