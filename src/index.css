@@ -770,4 +770,71 @@ a:focus-visible {
   .btn-danger { background: rgba(220,38,38,0.06); border-color: rgba(220,38,38,0.18); }
 }
 
+/* ---------- stronger, theme-friendly button styles (append to src/index.css) ---------- */
+
+/* Ghost / secondary actions (View, Download in list, Refresh) */
+.btn-ghost,
+.btn-outline.ghost {
+  background: rgba(99,102,241,0.08) !important; /* light indigo wash */
+  color: #0f172a !important;                     /* dark text for readability on light bg */
+  border: 1px solid rgba(99,102,241,0.16) !important;
+  padding: 8px 10px !important;
+  border-radius: 10px !important;
+  min-width: 84px;
+  text-align: center;
+  cursor: pointer;
+}
+.btn-ghost:hover { background: rgba(99,102,241,0.12) !important; transform: translateY(-1px); }
+
+/* Primary actions (Create, Download PDF in right panel) */
+.btn-primary {
+  background: linear-gradient(180deg,#16a34a,#0ea445) !important; /* vivid green gradient */
+  color: #ffffff !important;
+  border: 0 !important;
+  padding: 8px 14px !important;
+  border-radius: 14px !important;
+  box-shadow: 0 8px 20px rgba(16,185,129,0.12);
+  cursor: pointer;
+}
+.btn-primary:hover { filter: brightness(.98); transform: translateY(-1px); }
+
+/* Danger / delete actions */
+.btn-danger,
+.btn-outline.danger {
+  background: rgba(220,38,38,0.06) !important;
+  color: #b91c1c !important; /* stronger red text */
+  border: 1px solid rgba(220,38,38,0.18) !important;
+  padding: 6px 10px !important;
+  border-radius: 10px !important;
+  min-width: 72px;
+}
+.btn-danger:hover { background: rgba(220,38,38,0.12) !important; color: #991b1b !important; }
+
+/* Make the "outlined" legacy class visible in case your code uses it */
+.btn-outline {
+  background: rgba(255,255,255,0.92) !important;
+  color: #0f172a !important;
+  border: 1px solid rgba(0,0,0,0.06) !important;
+  padding: 6px 10px !important;
+  border-radius: 10px !important;
+}
+
+/* Focus-visible rings for accessibility */
+.btn-ghost:focus-visible,
+.btn-primary:focus-visible,
+.btn-danger:focus-visible,
+.btn-outline:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(99,102,241,0.12);
+  border-radius: 12px;
+}
+
+/* Dark-mode tweaks (if users use dark theme) */
+@media (prefers-color-scheme: dark) {
+  .btn-ghost, .btn-outline { background: rgba(99,102,241,0.06) !important; color: #e6eef7 !important; border-color: rgba(99,102,241,0.14) !important; }
+  .btn-outline { background: rgba(0,0,0,0.22) !important; border-color: rgba(255,255,255,0.06) !important; color: #e6eef7 !important; }
+  .btn-danger { color: #fecaca !important; background: rgba(220,38,38,0.06) !important; }
+  .btn-primary { box-shadow: 0 8px 20px rgba(16,185,129,0.08) !important; }
+}
+
 /* End of file */
