@@ -1,4 +1,4 @@
-/* src/index.css - theme-aware, layout-safe version */
+/* src/index.css - theme-aware, layout-safe version (patched buttons) */
 
 /* --------------------
    Base tokens & typography
@@ -7,6 +7,10 @@
   --page-bg: #242424;               /* dark default page background */
   --text: rgba(255,255,255,0.87);   /* dark-mode text */
   --muted: rgba(255,255,255,0.6);
+
+  --accent-indigo: 79,70,229; /* rgb values for utility where needed */
+  --accent-indigo-rgba: 79,70,229;
+  --btn-ghost-wash: rgba(79,70,229,0.06);
 
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -43,12 +47,8 @@ a:hover {
 
 /* --------------------
    Page layout - IMPORTANT: layout-only, no color forcing
-   - Prevent vertical centering
-   - Provide left sidebar + main grid for app-root
-   - Ensure html/body and app-root share the same background so no top band appears
    -------------------- */
 
-/* Make sure the html/body occupy full height so background covers viewport */
 html, body {
   height: 100%;
   margin: 0;
@@ -56,61 +56,47 @@ html, body {
   color: var(--text);
 }
 
-/* Do not vertically center the whole app; allow normal top-aligned flow */
 body {
   display: block;
   min-width: 320px;
   min-height: 100vh;
 }
 
-/* App grid: left column for sidebar, right flexible column for main content */
 .app-root {
   min-height: 100vh;
   display: grid;
   grid-template-columns: var(--sidebar-width, 240px) 1fr;
   gap: 0;
-  background-color: var(--page-bg); /* ensure matching paint at edges */
+  background-color: var(--page-bg);
   box-sizing: border-box;
 }
 
-/* ---------- patched: ensure explicit grid placement & safe sizing for sidebar ---------- */
-
-/* Sidebar stays in-flow (desktop behaviour). explicit placement and sizing prevents collapse */
+/* Sidebar */
 .sidebar {
   position: relative;
   display: block;
-
-  /* Make placement explicit so the grid can't accidentally collapse it */
   min-width: var(--sidebar-width, 240px);
   width: var(--sidebar-width, 240px);
   box-sizing: border-box;
   grid-column: 1 / 2;
   z-index: 1;
-  /* leave background to components/theme (we don't force colors here) */
 }
-
-/* Small helper for the inner card so it's not collapsed by margins */
 .sidebar-card {
   box-sizing: border-box;
   width: 100%;
   min-height: 100%;
   padding: 16px;
-  /* make sure the panel itself is visually solid */
   background-color: transparent;
 }
 
-/* Ensure the main content occupies the second column explicitly */
+/* Main area explicit placement */
 .main-area {
   grid-column: 2 / 3;
 }
-
-/* Desktop fallback: if the grid collapses to single column for any reason,
-   let main-area appear after sidebar in source order */
 .app-root > .main-area {
   order: 2;
 }
 
-/* Map App.jsx mobile overlay class to a default hidden element (will be used in media query) */
 .mobile-overlay {
   display: none;
 }
@@ -124,30 +110,41 @@ h1 {
   line-height: 1.1;
 }
 
-/* Buttons - visual tokens only, colors are not forced beyond normal palette */
+/* ========== SURGICAL CHANGE: Make base button neutral ==========
+   problem: previously the global `button` set a dark background which forced
+   *every* button to be a filled dark pill. That caused components that expect
+   default or outlined buttons to become illegible.
+   Fix: make the base button neutral and have classed buttons (.btn-*) provide
+   visual styling. This is the *least intrusive* approach.
+   =============================================================== */
 button {
+  /* keep sizing/shape, but do not force color or opaque background */
   border-radius: 8px;
   border: 1px solid transparent;
   padding: 0.6em 1.2em;
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+
+  /* NEUTRAL: transparent background and inherit text color so components
+     that do not use .btn-* classes stay readable */
+  background: transparent;
+  color: inherit;
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: border-color 0.18s ease, transform 0.12s ease;
 }
 button:hover {
-  border-color: #646cff;
+  border-color: rgba(100,103,255,0.18);
 }
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
-/* In light mode make default buttons lighter (keeps your previous intent) */
+/* In light mode keep default button slightly lighter, but still neutral */
 @media (prefers-color-scheme: light) {
   button {
-    background-color: #f9f9f9;
+    background-color: transparent; /* intentionally neutral */
   }
   a:hover {
     color: #747bff;
@@ -158,14 +155,10 @@ button:focus-visible {
 .muted { color: var(--muted); }
 
 /* --------------------
-   Card/grid helpers (do not force white backgrounds)
-   - These helpers make cards layout consistently but do NOT change colors
+   Card/grid helpers
    -------------------- */
-
 .surface-card,
 .summary-card {
-  /* do not change color here; components should set visual surfaces.
-     Keep spacing / sizing consistent so layout is predictable */
   border-radius: 12px;
   padding: 20px;
   box-sizing: border-box;
@@ -176,7 +169,7 @@ button:focus-visible {
   box-shadow: 0 8px 24px rgba(16,24,40,0.06);
 }
 
-/* Responsive top row grid: 1 -> 2 -> 3 columns for neat card sizing */
+/* Responsive top row grid */
 .card-row,
 .performance-top-row {
   display: grid;
@@ -197,13 +190,12 @@ button:focus-visible {
   }
 }
 
-/* When a summary-card is expanded, give it more vertical room for charts */
 .summary-card.expanded .summary-card-body {
   min-height: 320px;
   transition: min-height 220ms ease;
 }
 
-/* Small pill helper (visual tokens) */
+/* Small pill helper */
 .btn-pill {
   border-radius: 9999px;
   padding: 6px 10px;
@@ -218,7 +210,6 @@ button:focus-visible {
   border-color: transparent;
 }
 
-/* keep header controls tidy on small screens */
 .header-right {
   display: flex;
   align-items: center;
@@ -226,41 +217,23 @@ button:focus-visible {
   flex-wrap: wrap;
 }
 
-/* utilities */
 .visually-hidden { position: absolute !important; height: 1px; width: 1px; overflow: hidden; clip: rect(1px,1px,1px,1px); white-space: nowrap; }
 
 /* --------------------
-   App-specific helpers added for Step C
-   These focus on layout/spacing only (no color forcing).
-   Use these classes to replace repeated inline styles in components.
+   App-specific helpers (layout)
    -------------------- */
-
-/* Summary card header layout (clickable header region) */
 .summary-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   cursor: pointer;
-  padding: 0; /* card already provides padding */
+  padding: 0;
 }
 
-/* Left side of the header (title + metrics) */
-.summary-left {
-  min-width: 0;
-  flex: 1 1 auto;
-}
+.summary-left { min-width: 0; flex: 1 1 auto; }
+.summary-right { display: flex; align-items: center; gap: 12px; margin-left: 12px; flex: 0 0 auto; }
 
-/* Right side of the header (controls / sparkline / toggle) */
-.summary-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-left: 12px;
-  flex: 0 0 auto;
-}
-
-/* Primary value styling used inside header */
 .summary-value {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -270,35 +243,21 @@ button:focus-visible {
   color: var(--text);
 }
 
-/* small subtitle under the value */
 .summary-sub {
   margin-top: 6px;
   color: var(--muted);
   font-size: 0.875rem;
 }
 
-/* small sparkline container used in card header */
-.summary-sparkline {
-  width: 120px;
-  height: 36px;
-  min-width: 120px;
-}
+.summary-sparkline { width: 120px; height: 36px; min-width: 120px; }
 
-/* Body area of the summary card — will be transitioned by inline JS */
 .summary-card-body {
   overflow: hidden;
   transition: max-height 320ms cubic-bezier(.2,.9,.2,1), opacity 220ms ease;
 }
 
-/* Generic chart wrapper used in PerformanceTopRow for consistent heights/margins */
-.chart-wrap {
-  width: 100%;
-  height: 100%;
-  display: block;
-  box-sizing: border-box;
-}
+.chart-wrap { width: 100%; height: 100%; display: block; box-sizing: border-box; }
 
-/* List row used in sellers / repeat lists */
 .list-row {
   display: flex;
   align-items: center;
@@ -309,18 +268,9 @@ button:focus-visible {
   cursor: pointer;
 }
 
-/* muted helper class for consistent muted color usage */
-.text-muted {
-  color: var(--muted);
-}
+.text-muted { color: var(--muted); }
 
-/* Outline button used in cards/headers (legacy) */
-.btn-outline {
-  background: transparent;
-  border: 1px solid rgba(0,0,0,0.08);
-  padding: 0.45em 0.9em;
-  border-radius: 8px;
-}
+/* ========== REMOVED duplicated .btn-outline here (kept consolidated version below) ========== */
 
 /* Primary buy button (keeps a consistent look) */
 .btn-buy {
@@ -332,25 +282,15 @@ button:focus-visible {
   font-weight: 700;
 }
 
-/* small responsive tweak: when cards are narrow, stack header content */
+/* small responsive tweak */
 @media (max-width: 520px) {
-  .summary-card-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  .summary-right {
-    margin-left: 0;
-  }
+  .summary-card-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .summary-right { margin-left: 0; }
 }
 
 /* --------------------
-   Accessibility focus styles (Step E)
-   - Apply visible focus rings only for keyboard users using :focus-visible
-   - Target interactive primitives used across the performance page
+   Accessibility focus styles
    -------------------- */
-
-/* remove default outlines for these elements, we'll show a focus-visible ring */
 .summary-card-header:focus,
 .list-row:focus,
 .btn-outline:focus,
@@ -360,7 +300,6 @@ a:focus {
   outline: none;
 }
 
-/* visible focus ring for keyboard users */
 .summary-card-header:focus-visible,
 .list-row:focus-visible,
 .btn-outline:focus-visible,
@@ -372,27 +311,15 @@ a:focus-visible {
   outline: none;
 }
 
-/* slight background hint for focused list rows (helps sighted keyboard users) */
-.list-row:focus-visible {
-  background: rgba(99,102,241,0.04);
-}
+.list-row:focus-visible { background: rgba(99,102,241,0.04); }
 
 /* --------------------
-   Mobile / sidebar overlay helpers (added)
-   - Collapse grid to single column and convert sidebar into an overlay
-   - .app-root.sidebar-open or .app-root.sidebar--open will slide the sidebar in
-   - App renders a `.mobile-overlay` element; map it to the backdrop styles
+   Mobile / sidebar overlay helpers
    -------------------- */
 
 @media (max-width: 820px) {
-  /* single-column main layout on small viewports */
-  .app-root {
-    grid-template-columns: 1fr;
-  }
+  .app-root { grid-template-columns: 1fr; }
 
-  /* convert sidebar into an off-canvas overlay by default
-     NOTE: keep sidebar in DOM and use transform so it forms its own stacking context
-     but stays above the overlay (we will set z-index values carefully) */
   .sidebar {
     position: fixed;
     top: 0;
@@ -404,47 +331,28 @@ a:focus-visible {
     box-shadow: 0 12px 40px rgba(2,6,23,0.3);
     background-color: var(--page-bg);
     will-change: transform;
-    /* default pointer behavior - ensure it can receive events when visible */
     pointer-events: auto;
   }
 
-  /* ensure sidebar sits above overlay and pointer-events are correct */
-  /* HIGH z-index so nothing (header or controls) floats above the sidebar */
-  .sidebar {
-    z-index: 10050; /* intentionally high for mobile overlay */
-    -webkit-tap-highlight-color: transparent; /* nicer on mobile */
-    background-color: var(--page-bg);
-  }
+  .sidebar { z-index: 10050; -webkit-tap-highlight-color: transparent; background-color: var(--page-bg); }
 
-  /* default overlay element used by App.jsx when mobileSidebarOpen is true
-     keep it below the sidebar but above main content */
   .mobile-overlay {
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.35);
-    z-index: 10000; /* lower than .sidebar so sidebar gets pointer events */
+    z-index: 10000;
     opacity: 0;
     pointer-events: none;
     transition: opacity 220ms ease;
     display: block;
   }
 
-  /* when root indicates open, mobile-overlay should become interactive */
   .app-root.sidebar-open .mobile-overlay,
-  .app-root.sidebar--open .mobile-overlay {
-    opacity: 1;
-    pointer-events: auto;
-  }
+  .app-root.sidebar--open .mobile-overlay { opacity: 1; pointer-events: auto; }
 
-  /* convenience: ensure backdrop class name used by App.jsx (.mobile-overlay)
-     or older .sidebar-backdrop both behave the same */
   .app-root.sidebar-open .sidebar-backdrop,
-  .app-root.sidebar--open .sidebar-backdrop {
-    opacity: 1;
-    pointer-events: auto;
-  }
+  .app-root.sidebar--open .sidebar-backdrop { opacity: 1; pointer-events: auto; }
 
-  /* make sidebar nav items full-width tappable links on mobile */
   .sidebar .nav-link,
   .sidebar .nav-item {
     display: inline-block;
@@ -456,7 +364,6 @@ a:focus-visible {
     -webkit-tap-highlight-color: rgba(0,0,0,0.04);
   }
 
-  /* visual feedback for touch/keyboard */
   .sidebar .nav-link:active,
   .sidebar .nav-item:active,
   .sidebar .nav-link:focus,
@@ -465,30 +372,17 @@ a:focus-visible {
     background: rgba(0,0,0,0.04);
   }
 
-  /* when the root element has the "sidebar-open" or "sidebar--open" class, show the sidebar */
   .app-root.sidebar-open .sidebar,
-  .app-root.sidebar--open .sidebar {
-    transform: translateX(0);
-  }
+  .app-root.sidebar--open .sidebar { transform: translateX(0); }
 
-  /* ensure header and main area sit below the sidebar when it's open */
-  .top-header {
-    position: relative;
-    z-index: 900; /* below sidebar (10050) but above page content */
-  }
-  .main-area {
-    position: relative;
-    z-index: 1;
-    min-height: 100vh;
-  }
+  .top-header { position: relative; z-index: 900; }
+  .main-area { position: relative; z-index: 1; min-height: 100vh; }
 
-  /* optional backdrop element (App.jsx can render this as .mobile-overlay) */
   .sidebar-backdrop,
   .mobile-overlay {
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.35);
-    /* keep the overlay z-index lower than .sidebar so sidebar receives pointer events */
     z-index: 10000;
     opacity: 0;
     pointer-events: none;
@@ -505,18 +399,9 @@ a:focus-visible {
 }
 
 /* --------------------
-   Mobile carousel & slide polish (Robust Solution B)
-   - Ensure full-width slides on small screens
-   - Remove desktop-centering on summary cards for mobile
-   - Add comfortable gutters and hide scrollbar
-   - Keep everything layout-only and theme agnostic
+   Mobile carousel & slide polish
    -------------------- */
-
-/* Target smaller phones/tablets where the carousel should be full-screen-ish */
 @media (max-width: 640px) {
-  /* Make the perf-carousel occupy the remaining viewport under the header.
-     We don't hard-code header height here; Performance.jsx also sets a computed height
-     inline. The CSS fallback ensures a reasonable height if the inline style isn't present. */
   .perf-carousel {
     display: flex;
     overflow-x: auto;
@@ -525,45 +410,27 @@ a:focus-visible {
     scroll-behavior: smooth;
     gap: 0;
     box-sizing: border-box;
-
-    /* IMPORTANT: container should NOT provide horizontal padding that shifts snap math.
-       Slides will carry their own gutters. */
     padding-inline: 0;
-    /* fallback height if JS didn't set inline height */
     height: calc(100vh - 56px);
-
-    /* Defensive: make sure the carousel itself does not exceed viewport */
     width: 100% !important;
     max-width: 100% !important;
   }
 
-  /* hide scrollbar for a cleaner look */
-  .perf-carousel::-webkit-scrollbar {
-    height: 8px;
-    display: none;
-  }
-  .perf-carousel {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+  .perf-carousel::-webkit-scrollbar { height: 8px; display: none; }
+  .perf-carousel { -ms-overflow-style: none; scrollbar-width: none; }
 
-  /* Each immediate child of the carousel becomes a full-width slide */
   .perf-carousel > * {
     flex: 0 0 100%;
     min-width: 100%;
     scroll-snap-align: start;
     box-sizing: border-box;
-    /* Move gutters to slides (so 100% equals visible area and snaps align). */
     padding-inline: 12px;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    height: 100%; /* let slide take full carousel height */
+    height: 100%;
   }
 
-  /* Ensure the slide wrapper (perf-slide) presents content full width.
-     Many card components use max-width + margin: 0 auto for desktop centering;
-     override that on mobile so cards fill the slide width. */
   .perf-slide,
   .perf-slide > *,
   .perf-carousel .summary-card,
@@ -574,41 +441,18 @@ a:focus-visible {
     box-sizing: border-box !important;
   }
 
-  /* Ensure summary-card fills available height in its slide (nice full-bleed look) */
   .perf-slide .summary-card,
-  .perf-slide .surface-card {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    height: 100%;
-  }
+  .perf-slide .surface-card { display: flex; flex-direction: column; justify-content: space-between; height: 100%; }
 
-  /* When content inside summary card is taller than the viewport, allow internal scrolling vertically */
-  .perf-slide .summary-card .summary-card-body {
-    overflow: auto;
-    -webkit-overflow-scrolling: touch;
-  }
+  .perf-slide .summary-card .summary-card-body { overflow: auto; -webkit-overflow-scrolling: touch; }
 
-  /* Dot pager centered and slightly lifted */
-  .perf-dots {
-    position: relative;
-    z-index: 2;
-    margin-top: 8px;
-  }
+  .perf-dots { position: relative; z-index: 2; margin-top: 8px; }
 
-  /* Slightly reduce padding for very narrow devices */
   @media (max-width: 360px) {
     .perf-carousel { padding-inline: 8px; }
     .perf-carousel > * { padding-inline: 6px; }
   }
 
-  /* --------------------
-     Defensive mobile fixes (prevent ancestor width leaking into carousel)
-     These rules prevent a desktop-centered container from imposing an 800px+ width
-     which causes each slide to size to that large width on mobile.
-     -------------------- */
-
-  /* Ensure the main app/content containers do not exceed viewport */
   .app-root,
   .main-area,
   .top-header,
@@ -628,10 +472,7 @@ a:focus-visible {
     box-sizing: border-box !important;
   }
 
-  /* Prevent tiny horizontal overflow that can confuse JS measurement and reflows */
-  html, body, #root, .app-root {
-    overflow-x: hidden;
-  }
+  html, body, #root, .app-root { overflow-x: hidden; }
 }
 
 /* ---- invoices page styles (add to end of src/index.css) ---- */
@@ -644,103 +485,92 @@ a:focus-visible {
 .invoices-controls { display:flex; gap:8px; align-items:center; }
 .search-box { background:transparent; border:1px solid rgba(0,0,0,0.06); padding:6px 10px; border-radius:999px; display:flex; align-items:center; }
 .search-box input { border:0; outline:none; background:transparent; font-size:0.95rem; width:280px; }
-.search-box input::placeholder { color: rgba(99,102,241,0.35); } /* subtle placeholder */
+.search-box input::placeholder { color: rgba(99,102,241,0.35); }
 
-/* ---------- Consolidated button styles (surgical replacement) ----------
-   These rules replace the prior scattered/transparent button rules and
-   provide readable, theme-aware contrast for the invoices UI.
-   They are intentionally conservative so other components keep behavior.
-   --------------------------------------------------------------------- */
+/* ---------- Consolidated button styles (surgical replacement) ---------- */
 
 /* Ghost / secondary actions (search / filters / row actions) */
 .btn-ghost {
-  /* subtle indigo wash that reads against white/light card background */
-  background: rgba(79,70,229,0.06) !important;
-  color: #0f172a !important;                          /* dark text for light mode */
-  border: 1px solid rgba(79,70,229,0.12) !important;
-  padding: 8px 10px !important;
-  border-radius: 12px !important;
-  cursor: pointer !important;
+  background: rgba(79,70,229,0.06);
+  color: inherit; /* prefer inherited text color so it works in both themes */
+  border: 1px solid rgba(79,70,229,0.12);
+  padding: 8px 10px;
+  border-radius: 12px;
+  cursor: pointer;
   min-width: 84px;
   text-align: center;
   transition: background-color 140ms ease, transform 120ms ease;
 }
-.btn-ghost:hover { background: rgba(79,70,229,0.10) !important; transform: translateY(-1px); }
+.btn-ghost:hover { background: rgba(79,70,229,0.10); transform: translateY(-1px); }
 .btn-ghost:active { transform: translateY(0); }
 
-/* Outlined buttons (legacy) - make them clearly visible on light surfaces */
+/* Outlined / legacy */
 .btn-outline {
-  background: #ffffff !important;
-  color: #0f172a !important;
-  border: 1px solid rgba(15,23,42,0.06) !important;
-  padding: 0.45em 0.9em !important;
-  border-radius: 8px !important;
-  cursor: pointer !important;
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid rgba(15,23,42,0.06);
+  padding: 0.45em 0.9em;
+  border-radius: 8px;
+  cursor: pointer;
   transition: background-color 120ms ease, border-color 120ms ease;
 }
-.btn-outline:hover { background: #f3f4f6 !important; }
+.btn-outline:hover { background: #f3f4f6; }
 
-/* Primary actions (Create, Download PDF) - use green to match "action" affordance */
+/* Primary actions (Create, Download PDF) */
 .btn-primary {
-  background: linear-gradient(180deg,#16a34a,#0ea445) !important; /* vivid green */
-  color: #ffffff !important;
-  padding: 8px 12px !important;
-  border-radius: 12px !important;
-  border: 0 !important;
-  cursor: pointer !important;
-  box-shadow: 0 8px 20px rgba(16,185,129,0.12) !important;
+  background: linear-gradient(180deg,#16a34a,#0ea445);
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 0;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(16,185,129,0.12);
   transition: filter 120ms ease, transform 120ms ease;
 }
 .btn-primary:hover { filter: brightness(.98); transform: translateY(-1px); }
 .btn-primary:active { transform: translateY(0); }
 
-/* Danger / destructive (Delete) — visible but not aggressive */
+/* Danger / destructive (Delete) */
 .btn-danger {
-  background: rgba(220,38,38,0.06) !important;
-  color: #b91c1c !important; /* stronger red text */
-  border: 1px solid rgba(220,38,38,0.14) !important;
-  padding: 6px 8px !important;
-  border-radius: 8px !important;
-  cursor: pointer !important;
+  background: rgba(220,38,38,0.06);
+  color: #b91c1c;
+  border: 1px solid rgba(220,38,38,0.14);
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
 }
-.btn-danger:hover { background: rgba(220,38,38,0.12) !important; color: #991b1b !important; }
+.btn-danger:hover { background: rgba(220,38,38,0.12); color: #991b1b; }
 
 /* Focus-visible styles for keyboard users */
 .btn-ghost:focus-visible,
 .btn-primary:focus-visible,
 .btn-danger:focus-visible,
 .btn-outline:focus-visible {
-  outline: none !important;
-  box-shadow: 0 0 0 4px rgba(79,70,229,0.12) !important;
-  border-radius: 10px !important;
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(79,70,229,0.12);
+  border-radius: 10px;
 }
 
 /* Dark-mode tweaks */
 @media (prefers-color-scheme: dark) {
-  .btn-ghost { background: rgba(79,70,229,0.08) !important; border-color: rgba(79,70,229,0.18) !important; color: #e6eef7 !important; }
-  .btn-outline { background: rgba(255,255,255,0.03) !important; color: #e6eef7 !important; border-color: rgba(255,255,255,0.06) !important; }
-  .btn-danger { background: rgba(220,38,38,0.06) !important; border-color: rgba(220,38,38,0.18) !important; color: #fecaca !important; }
-  .btn-primary { box-shadow: 0 8px 20px rgba(16,185,129,0.08) !important; }
+  .btn-ghost { background: rgba(79,70,229,0.08); border-color: rgba(79,70,229,0.18); color: #e6eef7; }
+  .btn-outline { background: rgba(255,255,255,0.03); color: #e6eef7; border-color: rgba(255,255,255,0.06); }
+  .btn-danger { background: rgba(220,38,38,0.06); border-color: rgba(220,38,38,0.18); color: #fecaca; }
+  .btn-primary { box-shadow: 0 8px 20px rgba(16,185,129,0.08); }
 }
 
-/* ----------------------------------------
-   End consolidated button rules
-   ---------------------------------------- */
-
-/* grid */
+/* Grid / list / invoices styling (unchanged) */
 .invoices-grid { display:grid; grid-template-columns: 1fr; gap:18px; }
 @media (min-width: 980px) {
   .invoices-grid { grid-template-columns: 2fr 1fr; align-items:start; }
 }
 
-/* left column */
 .invoices-left { display:flex; flex-direction:column; gap:12px; }
 .invoices-toolbar { display:flex; justify-content:space-between; align-items:center; gap:12px; }
 .status-chips { display:flex; gap:8px; flex-wrap:wrap; }
 .chip { background:#fff; border:1px solid rgba(0,0,0,0.06); padding:6px 10px; border-radius:999px; cursor:pointer; font-size:0.9rem; }
 .chip-active { background:#4f46e5; color:white; border-color:transparent; }
 
-/* list card */
 .list-card { background:transparent; border-radius:12px; padding:0; border:1px solid rgba(0,0,0,0.04); overflow:hidden; }
 .list-rows { display:flex; flex-direction:column; }
 .invoice-row { display:flex; gap:12px; align-items:center; padding:12px 14px; border-top:1px solid rgba(0,0,0,0.02); cursor:pointer; }
@@ -765,7 +595,6 @@ a:focus-visible {
 
 .row-actions { display:flex; gap:8px; margin-left:12px; }
 
-/* right column / detail */
 .invoices-right { display:none; }
 @media (min-width: 980px) {
   .invoices-right { display:block; }
