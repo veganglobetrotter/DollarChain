@@ -34,6 +34,7 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
     ? (Array.isArray(items) ? items.map(it => `${it.qty}x ${it.name}`) : items.split(",").map((it) => it.trim()).filter(Boolean))
     : [];
 
+  // keep the existing save logic but we won't render the old "Save" button (redundant)
   const handleSave = async () => {
     try {
       const invoiceObj = {
@@ -46,7 +47,7 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
       };
 
       if (typeof onSave === "function") {
-        onSave(invoiceObj);
+        await onSave(invoiceObj);
         setSavedAt(new Date().toLocaleString());
         console.log("InvoicePreview: onSave called with", invoiceObj);
       } else {
@@ -245,30 +246,54 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
         </div>
 
         <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn-outline" onClick={() => onBackEdit?.()}>
+          {/* Back button - explicit type and safe call */}
+          <button
+            type="button"
+            className="btn-outline"
+            onClick={() => {
+              try {
+                onBackEdit?.();
+              } catch (err) {
+                console.warn("onBackEdit threw:", err);
+              }
+            }}
+            aria-label="Back to edit"
+            style={{ minWidth: 120 }}
+          >
             ⬅ Back to edit
           </button>
 
-          <button className="btn-outline" onClick={handleSave}>
-            Save
-          </button>
+          {/* Removed the old 'Save' button (redundant and caused errors for your app) */}
 
-          <button className="btn-primary" onClick={handleDownload}>
+          <button type="button" className="btn-primary" onClick={handleDownload} aria-label="Download PDF">
             Download PDF
           </button>
 
-          {/* NEW Save to Cloud button */}
+          {/* Save to Cloud button (server-side upload) */}
           <button
+            type="button"
             className="btn-primary"
             onClick={handleSaveToCloud}
             disabled={savingCloud}
+            aria-busy={savingCloud ? "true" : "false"}
             title="Save a copy of this PDF to your account (cloud)"
-            style={{ background: savingCloud ? "linear-gradient(180deg,#9bd39b,#6bbf6b)" : undefined }}
+            style={savingCloud ? { opacity: 0.85 } : undefined}
           >
             {savingCloud ? "Saving…" : "Save to Cloud"}
           </button>
 
-          <button className="btn-outline" onClick={() => onClose?.()}>
+          <button
+            type="button"
+            className="btn-outline"
+            onClick={() => {
+              try {
+                onClose?.();
+              } catch (err) {
+                console.warn("onClose threw:", err);
+              }
+            }}
+            aria-label="Close preview"
+          >
             Close
           </button>
         </div>
