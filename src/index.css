@@ -609,4 +609,139 @@ a:focus-visible {
 
 .muted { color: var(--muted); }
 
+/* -----------------------------
+   SURGICAL: Invoices-scoped button contrast fixes
+   Place this at the end of src/index.css (invoice UI only)
+   ----------------------------- */
+
+/* Target buttons used in the Invoices list / details panel.
+   These selectors are intentionally specific so they override global
+   generic button rules without touching other pages. */
+.invoices-container .invoice-row button,
+.invoices-container .invoice-row .btn-ghost,
+.invoices-container .invoice-row .btn-outline,
+.invoices-container .row-actions button,
+.invoices-container .row-actions .btn-ghost,
+.invoices-container .row-actions .btn-outline,
+.invoices-left .btn-ghost,
+.invoices-left .btn-outline,
+.invoices-left .btn-primary,
+.invoices-right .btn-primary,
+.invoices-container .btn-ghost,
+.invoices-container .btn-outline,
+.invoices-container .btn-primary,
+.invoices-container .btn-danger {
+  /* Reset any inherited transparency so we start from a known base */
+  background: transparent;
+  color: inherit;
+  border: none;
+  box-shadow: none;
+}
+
+/* Ghost / secondary (visible wash + readable text)
+   Light: dark text on subtle indigo wash
+   Dark: light text on slightly stronger indigo wash */
+.invoices-container .btn-ghost,
+.invoices-container button.btn-ghost {
+  background: rgba(79,70,229,0.08);
+  color: #0f172a;                      /* dark text for readability on light wash */
+  border: 1px solid rgba(79,70,229,0.14);
+  padding: 8px 10px;
+  border-radius: 12px;
+  min-width: 84px;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 140ms ease, transform 120ms ease;
+}
+.invoices-container .btn-ghost:hover { background: rgba(79,70,229,0.12); transform: translateY(-1px); }
+.invoices-container .btn-ghost:active { transform: translateY(0); }
+.invoices-container .btn-ghost:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 5px rgba(79,70,229,0.12);
+}
+
+/* Outlined button (white / card-background look) */
+.invoices-container .btn-outline,
+.invoices-container button.btn-outline {
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid rgba(15,23,42,0.06);
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+.invoices-container .btn-outline:hover { background: #f3f4f6; }
+
+/* Primary (Create or Download) — vivid green affordance */
+.invoices-container .btn-primary,
+.invoices-container button.btn-primary {
+  background: linear-gradient(180deg,#16a34a,#0ea445);
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 0;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(16,185,129,0.12);
+  transition: filter 120ms ease, transform 120ms ease;
+}
+.invoices-container .btn-primary:hover { filter: brightness(.98); transform: translateY(-1px); }
+.invoices-container .btn-primary:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 5px rgba(16,185,129,0.12);
+}
+
+/* Danger / Delete — visible but softer */
+.invoices-container .btn-danger,
+.invoices-container button.btn-danger {
+  background: rgba(220,38,38,0.06);
+  color: #b91c1c;
+  border: 1px solid rgba(220,38,38,0.14);
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.invoices-container .btn-danger:hover { background: rgba(220,38,38,0.12); color: #991b1b; }
+.invoices-container .btn-danger:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 5px rgba(220,38,38,0.12);
+}
+
+/* Dark-mode tweaks: keep same visual contrast but flip text colors */
+@media (prefers-color-scheme: dark) {
+  .invoices-container .btn-ghost,
+  .invoices-container button.btn-ghost {
+    background: rgba(79,70,229,0.12);
+    color: var(--text); /* white-ish in dark mode */
+    border: 1px solid rgba(79,70,229,0.22);
+  }
+  .invoices-container .btn-outline,
+  .invoices-container button.btn-outline {
+    background: rgba(255,255,255,0.03);
+    color: var(--text);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .invoices-container .btn-primary,
+  .invoices-container button.btn-primary {
+    box-shadow: 0 8px 20px rgba(16,185,129,0.08);
+  }
+  .invoices-container .btn-danger,
+  .invoices-container button.btn-danger {
+    color: #fecaca;
+    border-color: rgba(220,38,38,0.18);
+  }
+}
+
+/* Safety: ensure anchor-like actions inside rows also get readable color */
+.invoices-container .invoice-row a.btn-ghost,
+.invoices-container .invoice-row a.btn-outline,
+.invoices-container .invoice-row a.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+/* End of invoice-scoped button overrides */
+
 /* End of file */
