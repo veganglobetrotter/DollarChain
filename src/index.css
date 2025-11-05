@@ -759,4 +759,123 @@ a:focus-visible {
 
 /* End of invoice-scoped button overrides */
 
+/* --------------- MOBILE: responsive fixes (wrap controls, compact buttons) --------------- */
+@media (max-width: 640px) {
+  /* Let toolbars & control rows wrap so filters/search/actions don't get squashed */
+  .invoices-controls,
+  .header-right,
+  .performance-top-row,
+  .card-row,
+  .invoices-toolbar,
+  .top-header,
+  .header-controls {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    align-items: center !important;
+  }
+
+  /* Compact search & let it shrink */
+  .search-box { flex: 0 1 auto !important; min-width: 0 !important; }
+  .search-box input { width: 100% !important; max-width: 180px !important; min-width: 0 !important; }
+
+  /* Make pill/ghost/outline buttons more compact on phones */
+  .btn-ghost,
+  .btn-outline,
+  .btn-pill,
+  .btn-hamburger {
+    min-width: unset !important;
+    padding: 6px 8px !important;
+    font-size: 0.92rem !important;
+  }
+
+  /* Allow long filter rows to scroll horizontally as a fallback */
+  .status-chips,
+  .filters,
+  .perf-dots,
+  .header-controls {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 6px;
+  }
+}
+
+/* --------------- MOBILE: invoice rows fluid columns + visible action buttons --------------- */
+@media (max-width: 640px) {
+  /* Make invoice row columns flexible instead of fixed widths */
+  .invoice-row { gap: 8px !important; align-items: center !important; }
+  .row-left { flex: 0 0 34% !important; min-width: 70px !important; width: auto !important; }
+  .row-mid { flex: 1 1 auto !important; min-width: 0 !important; }
+  .row-right { flex: 0 0 30% !important; min-width: 60px !important; width: auto !important; text-align: right !important; }
+  .row-actions { display: flex !important; gap: 6px !important; margin-left: 6px !important; }
+
+  /* Fallback: if an invoice-row contains plain buttons (no .btn-* classes),
+     make them visibly styled so they are not invisible due to earlier resets. */
+  .invoices-container .invoice-row button:not(.btn-ghost):not(.btn-outline):not(.btn-primary) {
+    background: rgba(255,255,255,0.04) !important;
+    color: var(--text) !important;
+    border: 1px solid rgba(0,0,0,0.04) !important;
+    padding: 6px 8px !important;
+    border-radius: 8px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* If any button is icon-only, ensure it remains visible (slightly stronger background) */
+  .invoices-container .invoice-row button.icon-only {
+    background: rgba(0,0,0,0.06) !important;
+    color: var(--text) !important;
+  }
+
+  /* Make sure the invoice actions container can shrink before overflowing page */
+  .list-card,
+  .list-rows,
+  .invoice-row { min-width: 0 !important; overflow: visible !important; }
+}
+
+/* --------------- MOBILE: center summary cards and allow value wrapping --------------- */
+@media (max-width: 520px) {
+  .summary-card,
+  .perf-slide .summary-card,
+  .perf-slide .surface-card {
+    align-items: center !important;
+    text-align: center !important;
+    padding: 14px !important;
+  }
+
+  .summary-card .summary-card-header {
+    width: 100% !important;
+    justify-content: center !important;
+    gap: 8px !important;
+  }
+
+  /* Allow big numeric values to wrap on small screens */
+  .summary-value { white-space: normal !important; font-size: clamp(1rem, 4.2vw, 1.25rem) !important; }
+
+  /* Make sparklines less greedy */
+  .summary-sparkline { min-width: 80px !important; width: auto !important; }
+}
+
+/* --------------- Safety: reassert visible styles for invoice-scoped .btn-* (override broad reset) --------------- */
+/* Place this after the problematic broad reset in the file so it wins. */
+.invoices-container .btn-ghost,
+.invoices-container .btn-outline,
+.invoices-container .btn-primary,
+.invoices-container .btn-danger {
+  /* ensure these are visible even if an earlier rule attempted to null them */
+  background: initial !important;
+  color: initial !important;
+  border: initial !important;
+  box-shadow: initial !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* If you prefer stricter restoration rather than `initial`, uncomment and use explicit styles:
+.invoices-container .btn-ghost { background: rgba(79,70,229,0.10) !important; color: #0f172a !important; border: 1px solid rgba(79,70,229,0.16) !important; }
+.invoices-container .btn-outline { background: #ffffff !important; color: #0f172a !important; border: 1px solid rgba(15,23,42,0.06) !important; }
+.invoices-container .btn-primary { background: linear-gradient(180deg,#16a34a,#0ea445) !important; color: #ffffff !important; }
+*/
+
 /* End of file */
