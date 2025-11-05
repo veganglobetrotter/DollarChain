@@ -857,30 +857,29 @@ a:focus-visible {
   .summary-sparkline { min-width: 80px !important; width: auto !important; }
 }
 
-/* === MOBILE CARD FIXES START (paste this block just before the "Safety: reassert" comment) === */
+/* === MOBILE CARD FIXES START (REPLACEMENT) === */
 
-/* Make performance summary cards wrap and let numbers + sparkline share space on phones */
-@media (max-width: 640px) {
-  /* allow header elements to wrap instead of forcing extreme spacing */
+/* 1) For mid-range small screens (521px — 640px): loosen spacing but keep
+      header elements left-aligned to preserve desktop-like layout on slightly
+      larger phones / small tablets. This avoids overriding the strict tiny-
+      screen stacking rules (<=520px). */
+@media (min-width: 521px) and (max-width: 640px) {
   .summary-card-header {
     justify-content: flex-start !important;
     gap: 12px !important;
     flex-wrap: wrap !important;
   }
 
-  /* left side can grow/shrink; prevents overflow pushing other elements */
   .summary-left {
     flex: 1 1 0% !important;
     min-width: 0 !important;
   }
 
-  /* right side (sparkline) keeps its size but won't force layout */
   .summary-right {
     flex: 0 0 auto !important;
     margin-left: 0 !important;
   }
 
-  /* allow large numeric values to wrap and scale down slightly */
   .summary-value {
     white-space: normal !important;
     overflow: visible !important;
@@ -888,15 +887,14 @@ a:focus-visible {
     font-size: clamp(0.95rem, 4.0vw, 1.15rem) !important;
   }
 
-  /* make sparkline less greedy on narrow screens */
   .summary-sparkline {
-    min-width: 80px !important;   /* reduced from 120 */
+    min-width: 80px !important;
     width: auto !important;
     height: 36px !important;
     flex: 0 0 auto !important;
   }
 
-  /* ensure chart wrapper has rendering space (prevents canvas from being zero-sized) */
+  /* Make sure chart wrapper has a minimal renderable height */
   .chart-wrap {
     min-height: 36px !important;
     height: 36px !important;
@@ -904,7 +902,6 @@ a:focus-visible {
     display: block !important;
   }
 
-  /* don't allow parent to clip chart on mobile */
   .summary-card,
   .summary-card-body {
     align-items: center !important;
@@ -912,25 +909,71 @@ a:focus-visible {
   }
 }
 
-/* On very small narrow screens stack the header so chart and values don't fight for space */
-@media (max-width: 420px) {
+/* 2) For very narrow phones (<= 520px) force the stacked, centered layout
+      so the numeric value and the sparkline do not lay out in one long row.
+      This restores the original tiny-screen behavior. */
+@media (max-width: 520px) {
+  .summary-card,
+  .perf-slide .summary-card,
+  .perf-slide .surface-card {
+    align-items: center !important;
+    text-align: center !important;
+    padding: 14px !important;
+  }
+
+  .summary-card .summary-card-header,
   .summary-card-header {
-    flex-direction: column !important;
+    width: 100% !important;
+    justify-content: center !important;   /* center on smallest screens */
+    flex-direction: column !important;    /* stack vertically */
     align-items: center !important;
     gap: 8px !important;
   }
+
+  /* Allow big numeric values to wrap and scale on very small screens */
+  .summary-value {
+    white-space: normal !important;
+    font-size: clamp(1rem, 4.2vw, 1.25rem) !important;
+    overflow: visible !important;
+  }
+
+  /* Sparkline smaller and placed below numeric value */
   .summary-sparkline {
+    min-width: 80px !important;
+    width: auto !important;
+    height: 36px !important;
     order: 2 !important;
     margin-top: 6px !important;
   }
+
   .summary-left,
   .summary-right {
     width: 100% !important;
     text-align: center !important;
   }
+
+  /* Ensure chart area remains visible */
+  .chart-wrap {
+    min-height: 36px !important;
+    height: 36px !important;
+    width: 100% !important;
+  }
+
+  .summary-card-body {
+    overflow: visible !important;
+  }
 }
 
-/* === MOBILE CARD FIXES END === */
+/* 3) On very narrow but slightly different aspect ratios, ensure header
+      elements don't cause the card to overflow horizontally. */
+@media (max-width: 420px) {
+  .summary-card-header {
+    gap: 6px !important;
+  }
+  .summary-sparkline { margin-top: 6px !important; }
+}
+
+/* === MOBILE CARD FIXES END (REPLACEMENT) === */
 
 /* --------------- Safety: reassert visible styles for invoice-scoped .btn-* (override broad reset) --------------- */
 /* Place this after the problematic broad reset in the file so it wins. */
