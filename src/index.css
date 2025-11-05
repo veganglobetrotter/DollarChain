@@ -857,6 +857,81 @@ a:focus-visible {
   .summary-sparkline { min-width: 80px !important; width: auto !important; }
 }
 
+/* === MOBILE CARD FIXES START (paste this block just before the "Safety: reassert" comment) === */
+
+/* Make performance summary cards wrap and let numbers + sparkline share space on phones */
+@media (max-width: 640px) {
+  /* allow header elements to wrap instead of forcing extreme spacing */
+  .summary-card-header {
+    justify-content: flex-start !important;
+    gap: 12px !important;
+    flex-wrap: wrap !important;
+  }
+
+  /* left side can grow/shrink; prevents overflow pushing other elements */
+  .summary-left {
+    flex: 1 1 0% !important;
+    min-width: 0 !important;
+  }
+
+  /* right side (sparkline) keeps its size but won't force layout */
+  .summary-right {
+    flex: 0 0 auto !important;
+    margin-left: 0 !important;
+  }
+
+  /* allow large numeric values to wrap and scale down slightly */
+  .summary-value {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    font-size: clamp(0.95rem, 4.0vw, 1.15rem) !important;
+  }
+
+  /* make sparkline less greedy on narrow screens */
+  .summary-sparkline {
+    min-width: 80px !important;   /* reduced from 120 */
+    width: auto !important;
+    height: 36px !important;
+    flex: 0 0 auto !important;
+  }
+
+  /* ensure chart wrapper has rendering space (prevents canvas from being zero-sized) */
+  .chart-wrap {
+    min-height: 36px !important;
+    height: 36px !important;
+    width: 100% !important;
+    display: block !important;
+  }
+
+  /* don't allow parent to clip chart on mobile */
+  .summary-card,
+  .summary-card-body {
+    align-items: center !important;
+    overflow: visible !important;
+  }
+}
+
+/* On very small narrow screens stack the header so chart and values don't fight for space */
+@media (max-width: 420px) {
+  .summary-card-header {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+  .summary-sparkline {
+    order: 2 !important;
+    margin-top: 6px !important;
+  }
+  .summary-left,
+  .summary-right {
+    width: 100% !important;
+    text-align: center !important;
+  }
+}
+
+/* === MOBILE CARD FIXES END === */
+
 /* --------------- Safety: reassert visible styles for invoice-scoped .btn-* (override broad reset) --------------- */
 /* Place this after the problematic broad reset in the file so it wins. */
 .invoices-container .btn-ghost,
