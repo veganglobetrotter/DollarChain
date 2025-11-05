@@ -1,13 +1,14 @@
+// src/components/InvoiceForm.jsx
 import { useState, useEffect } from "react";
 
 /**
  * InvoiceForm
  * Props:
  * - parsedData: object from parser (buyerName, phone, items, total, confidence, notes)
- * - onBack: function to go back to the paste screen
+ * - onBack: function to go back to the paste screen (optional)
  * - onGenerate: optional function(formData) to handle generating/previewing the invoice
  */
-export default function InvoiceForm({ parsedData = {}, onBack, onGenerate }) {
+export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGenerate }) {
   const [formData, setFormData] = useState({
     buyerName: "",
     phone: "",
@@ -65,14 +66,34 @@ export default function InvoiceForm({ parsedData = {}, onBack, onGenerate }) {
 
   const confidence = parsedData?.confidence || {};
 
+  // safe clipboard helper (tries clipboard API, falls back to prompt)
+  const safeCopyToClipboard = async (text) => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        alert("Form copied to clipboard for easy testing.");
+      } else {
+        // fallback: show prompt so user can copy manually
+        // eslint-disable-next-line no-alert
+        window.prompt("Copy the form data (Ctrl+C / Cmd+C, Enter):", text);
+      }
+    } catch (err) {
+      // fallback: prompt
+      // eslint-disable-next-line no-console
+      console.warn("Clipboard write failed, falling back to prompt:", err);
+      // eslint-disable-next-line no-alert
+      window.prompt("Copy the form data:", text);
+    }
+  };
+
   return (
-    <div className="formBox fade-in" role="region" aria-labelledby="invoice-heading">
+    <div className="formBox fade-in invoice-form" role="region" aria-labelledby="invoice-heading">
       <h2 id="invoice-heading" style={{ marginTop: 0, marginBottom: 12 }}>
         🧾 Review & Edit Invoice
       </h2>
 
       <form onSubmit={handleSubmit}>
-        <label style={labelStyle} htmlFor="buyerName">
+        <label style={{ ...labelStyle, color: "var(--text)" }} htmlFor="buyerName">
           Buyer Name
           <ConfidenceBadge score={confidence.name} />
         </label>
@@ -86,7 +107,7 @@ export default function InvoiceForm({ parsedData = {}, onBack, onGenerate }) {
           required
         />
 
-        <label style={labelStyle} htmlFor="phone">
+        <label style={{ ...labelStyle, color: "var(--text)" }} htmlFor="phone">
           Phone Number
           <ConfidenceBadge score={confidence.phone} />
         </label>
@@ -99,7 +120,7 @@ export default function InvoiceForm({ parsedData = {}, onBack, onGenerate }) {
           placeholder="+254712345678"
         />
 
-        <label style={labelStyle} htmlFor="items">
+        <label style={{ ...labelStyle, color: "var(--text)" }} htmlFor="items">
           Items (comma separated)
           <ConfidenceBadge score={confidence.items} />
         </label>
@@ -113,7 +134,7 @@ export default function InvoiceForm({ parsedData = {}, onBack, onGenerate }) {
           placeholder="e.g. 2x T-Shirt, 1x Cap"
         />
 
-        <label style={labelStyle} htmlFor="total">
+        <label style={{ ...labelStyle, color: "var(--text)" }} htmlFor="total">
           Total Amount
           <ConfidenceBadge score={confidence.total} />
         </label>
@@ -126,7 +147,7 @@ export default function InvoiceForm({ parsedData = {}, onBack, onGenerate }) {
           placeholder="KES 2,300"
         />
 
-        <label style={labelStyle} htmlFor="paymentNumber">
+        <label style={{ ...labelStyle, color: "var(--text)" }} htmlFor="paymentNumber">
           Payment Number (Account / Paybill / Phone)
         </label>
         <input
@@ -147,19 +168,30 @@ export default function InvoiceForm({ parsedData = {}, onBack, onGenerate }) {
           </div>
         )}
 
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14 }}>
-          <button type="button" className="btn-outline" onClick={onBack} aria-label="Back to paste">
+        <div className="form-controls" style={{ display: "flex", justifyContent: "space-between", marginTop: 14 }}>
+          <button
+            type="button"
+            className="btn-outline"
+            onClick={() => {
+              try {
+                onBack && onBack();
+              } catch (err) {
+                // prevent unexpected throws from bubbling
+                // eslint-disable-next-line no-console
+                console.warn("onBack threw:", err);
+              }
+            }}
+            aria-label="Back to paste"
+          >
             ⬅ Back
           </button>
 
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="form-actions" style={{ display: "flex", gap: 8 }}>
             <button
               type="button"
               className="btn-outline"
-              onClick={() => {
-                navigator.clipboard?.writeText(JSON.stringify(formData));
-                alert("Form copied to clipboard for easy testing.");
-              }}
+              onClick={() => safeCopyToClipboard(JSON.stringify(formData))}
+              aria-label="Copy form to clipboard"
             >
               Copy
             </button>
@@ -175,7 +207,7 @@ export default function InvoiceForm({ parsedData = {}, onBack, onGenerate }) {
 }
 
 /* Inline styles kept minimal — primary visual styling is in App.css (.formBox, .btn-primary, etc.) */
-const labelStyle = { display: "block", marginBottom: 6, fontWeight: 600, color: "#114028" };
+const labelStyle = { display: "block", marginBottom: 6, fontWeight: 600 };
 const inputStyle = {
   width: "100%",
   padding: "0.7rem",
