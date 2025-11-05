@@ -35,11 +35,10 @@ body {
   min-height: 100vh;
 }
 
+/* SURGICAL: avoid forcing a grid here — App.css is the source of truth for layout */
 .app-root {
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: var(--sidebar-width, 240px) 1fr;
-  gap: 0;
+  /* do not set display/grid here to avoid fighting App.css */
   background-color: var(--page-bg);
   box-sizing: border-box;
 }
@@ -83,12 +82,9 @@ h1 {
   line-height: 1.1;
 }
 
-/* ========== SURGICAL CHANGE: Make base button neutral ==========
-   problem: previously the global `button` set a dark background which forced
-   *every* button to be a filled dark pill. That caused components that expect
-   default or outlined buttons to become illegible.
-   Fix: make the base button neutral and have classed buttons (.btn-*) provide
-   visual styling. This is the *least intrusive* approach.
+/* ========== SURGICAL CHANGE: Make base button neutral but readable ==========
+   Keep transparent background but provide an explicit readable text color so
+   buttons do not inherit muted or low-contrast ancestor colors.
    =============================================================== */
 button {
   /* keep sizing/shape, but do not force color or opaque background */
@@ -99,10 +95,9 @@ button {
   font-weight: 500;
   font-family: inherit;
 
-  /* NEUTRAL: transparent background and inherit text color so components
-     that do not use .btn-* classes stay readable */
+  /* NEUTRAL: transparent background and explicit readable text color */
   background: transparent;
-  color: inherit;
+  color: var(--text);
   cursor: pointer;
   transition: border-color 0.18s ease, transform 0.12s ease;
 }
@@ -123,6 +118,27 @@ button:focus-visible {
     color: #747bff;
   }
 }
+
+/* --------------------
+   Small-controls explicit color fixes (PATCH)
+   Ensure small controls like hamburger, pills, ghost and outline buttons
+   have an explicit readable color and slightly stronger pill border.
+   This prevents low-contrast text when buttons live inside muted containers.
+   -------------------- */
+.btn-hamburger,
+.btn-ghost,
+.btn-pill,
+.btn-outline {
+  color: var(--text) !important;
+}
+
+/* Slightly stronger pill border for consistent visibility */
+.btn-pill {
+  border: 1px solid rgba(15,23,42,0.06);
+}
+
+/* keep primary buttons white text (unchanged visual affordance) */
+.btn-primary { color: #ffffff; }
 
 /* small muted text helper */
 .muted { color: var(--muted); }
@@ -172,7 +188,6 @@ button:focus-visible {
 .btn-pill {
   border-radius: 9999px;
   padding: 6px 10px;
-  border: 1px solid rgba(0,0,0,0.06);
   background: transparent;
   cursor: pointer;
   font-weight: 600;
