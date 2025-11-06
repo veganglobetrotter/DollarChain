@@ -1,10 +1,12 @@
+// src/pages/challenges.jsx
 import React, { useEffect, useState } from "react";
 import "../components/goals.css";
 import XPBar from "../components/XPBar";
 import ChallengeCard from "../components/ChallengeCard";
 // BadgePanel removed from Goals page (moved to profile)
 import CustomChallengeForm from "../components/CustomChallengeForm";
-import { getBalance, addCredits, getXp, setXp, addXp } from "../lib/creditsClient";
+import { getBalance, addCredits, getXp, addXp } from "../lib/creditsClient";
+import { useToasts } from "../components/ToastProvider";
 
 /**
  * Challenges (Goals & Rewards) page shell
@@ -33,6 +35,12 @@ export default function ChallengesPage() {
   const [customChallenges, setCustomChallenges] = useState([]);
   const [balance, setBalance] = useState(0);
   const [storedXp, setStoredXp] = useState(null);
+
+  // small modal state for detailed tips
+  const [openTips, setOpenTips] = useState(null);
+
+  // Toasts
+  const { addToast } = useToasts();
 
   useEffect(() => {
     let mounted = true;
@@ -98,13 +106,26 @@ export default function ChallengesPage() {
   const handleCreateCustom = (c) => {
     const next = [c, ...customChallenges].slice(0, 3);
     setCustomChallenges(next);
+
+    // gentle success toast
+    addToast({
+      type: "success",
+      title: "Custom goal created",
+      message: `${c.title} — small rewards available`,
+      durationMs: 4200,
+    });
   };
 
   const handleClaim = (ch) => {
     // Only allow claim when challenge is completed
     const completed = (ch.progress || 0) >= (ch.target || 1);
     if (!completed) {
-      alert("This challenge is not yet complete.");
+      addToast({
+        type: "warning",
+        title: "Not ready yet",
+        message: "This challenge is not yet complete — keep going!",
+        durationMs: 4000,
+      });
       return;
     }
 
@@ -125,15 +146,42 @@ export default function ChallengesPage() {
       setChallenges((prev) => prev.map((p) => (p.id === ch.id ? { ...p, status: "claimed" } : p)));
       setCustomChallenges((prev) => prev.map((p) => (p.id === ch.id ? { ...p, status: "claimed" } : p)));
 
-      alert(`Claimed ${ch.title}: +${added} credits added to your balance.`);
+      // Replace modal alert with toast that contains an action
+      addToast({
+        type: "success",
+        title: `Claimed — ${ch.title}`,
+        message: `${added} credits added to your balance.`,
+        actionLabel: "View balance",
+        onAction: () => {
+          // small behaviour: scroll to the rewards card on the right
+          const el = document.querySelector(".card");
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+        },
+        durationMs: 6000,
+      });
     } catch (e) {
       console.error("Claim failed", e);
-      alert("Failed to claim reward. See console for details.");
+      addToast({
+        type: "error",
+        title: "Claim failed",
+        message: "Failed to claim reward. See console for details.",
+        durationMs: 6000,
+      });
     }
   };
 
   const handleViewTips = (ch) => {
-    alert("Tips:\n\n1) Ensure your pasted message has item and price.\n2) Edit parsed fields to improve accuracy.\n3) Use share to send invoice to your customer.");
+    // Show an info toast with action to open a small modal containing detailed tips
+    addToast({
+      type: "info",
+      title: `Tips — ${ch.title}`,
+      message: "Edit parsed fields to improve accuracy.",
+      actionLabel: "View tips",
+      onAction: () => {
+        setOpenTips(ch);
+      },
+      durationMs: 8000,
+    });
   };
 
   return (
@@ -210,6 +258,65 @@ export default function ChallengesPage() {
           )}
         </div>
       </div>
+
+      {/* Lightweight Tips Modal (in-page) */}
+      {openTips && (
+        <div
+          className="modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Tips for ${openTips.title}`}
+          onClick={() => setOpenTips(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(2,6,23,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 16000,
+          }}
+        >
+          <div
+            className="formBox"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "min(720px, 94%)",
+              maxHeight: "84vh",
+              overflow: "auto",
+              padding: 18,
+              borderRadius: 12,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 8 }}>
+              <div>
+                <h3 style={{ margin: 0 }}>{openTips.title} — Tips</h3>
+                <div style={{ fontSize: 13, color: "#6b7280" }}>Helpful steps to complete this challenge</div>
+              </div>
+              <button
+                onClick={() => setOpenTips(null)}
+                className="btn btn-ghost"
+                aria-label="Close tips"
+              >
+                Close
+              </button>
+            </div>
+
+            <div style={{ marginTop: 8 }}>
+              <ol style={{ paddingLeft: 18, color: "#374151" }}>
+                <li>Ensure each item line contains a name and a price (e.g., "2 x Bread @ 40").</li>
+                <li>Edit parsed fields after pasting to correct quantities or names.</li>
+                <li>Use consistent payment numbers (M-PESA paybill / phone) so buyers can confirm quickly.</li>
+                <li>After you send invoice, mark it as paid in the app to help confirmers and unlock reputation rewards.</li>
+              </ol>
+
+              <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                <button onClick={() => setOpenTips(null)} className="btn btn-primary">Got it</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

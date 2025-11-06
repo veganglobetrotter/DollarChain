@@ -1,0 +1,83 @@
+/* src/components/Toast.css - small, polished toast styles */
+
+.toast-viewport {
+  position: fixed;
+  z-index: 20000;
+  right: 20px;
+  bottom: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
+  max-width: calc(100% - 48px);
+  pointer-events: none; /* container doesn't block clicks */
+}
+
+/* mobile: center bottom */
+@media (max-width: 640px) {
+  .toast-viewport {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    align-items: center;
+    width: calc(100% - 24px);
+  }
+}
+
+.toast {
+  pointer-events: auto; /* allow interaction with the toast itself */
+  min-width: 280px;
+  max-width: 420px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(2,6,23,0.12);
+  border: 1px solid rgba(15,23,42,0.04);
+  overflow: hidden;
+  transform-origin: bottom right;
+  animation: toastIn 220ms cubic-bezier(.2,.9,.2,1);
+}
+
+@keyframes toastIn {
+  from { transform: translateY(8px) scale(.98); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.toast-body {
+  display:flex;
+  gap:12px;
+  align-items: flex-start;
+  padding: 12px 12px;
+}
+
+.toast-left { flex:1; min-width:0; }
+.toast-title { font-weight:700; font-size:14px; margin-bottom:4px; color:#07131a; }
+.toast-message { font-size:13px; color:#475569; line-height:1.25; }
+
+.toast-actions { display:flex; gap:8px; align-items:center; }
+
+.toast-action {
+  background: transparent;
+  border: none;
+  color: #0ea445;
+  font-weight:700;
+  cursor: pointer;
+  padding:6px 8px;
+  border-radius:8px;
+}
+.toast-action:focus { outline: 3px solid rgba(16,185,129,0.12); }
+
+.toast-close {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 6px;
+  font-size:13px;
+}
+
+/* color variants */
+.toast-info { border-left: 4px solid #06b6d4; }
+.toast-success { border-left: 4px solid #10b981; }
+.toast-warning { border-left: 4px solid #f59e0b; }
+.toast-error { border-left: 4px solid #ef4444; }
+y

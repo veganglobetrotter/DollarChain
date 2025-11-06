@@ -16,6 +16,9 @@ import { uploadInvoicePdf } from "./lib/storage";
 import Performance from "./components/Performance"; // <-- added import
 import ChallengesPage from "./pages/challenges"; // <-- ADDED: Goals & Rewards page
 
+// === ToastProvider (for in-app non-blocking notifications) ===
+import { ToastProvider } from "./components/ToastProvider";
+
 function App() {
   const [parsedData, setParsedData] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -230,128 +233,130 @@ function App() {
   }, [setMobileSidebarOpen]);
 
   return (
-    // Add conditional class so CSS can show/hide sidebar on mobile
-    <div className={`app-root ${mobileSidebarOpen ? "sidebar-open" : ""}`}>
-      <Sidebar
-        id="sidebar"
-        sellerName={localStorage.getItem("sellerName") || "Seller Name"}
-        onNavigate={(view) => {
-          // navigate immediately
-          setCurrentView(view);
+    <ToastProvider>
+      {/* Add conditional class so CSS can show/hide sidebar on mobile */}
+      <div className={`app-root ${mobileSidebarOpen ? "sidebar-open" : ""}`}>
+        <Sidebar
+          id="sidebar"
+          sellerName={localStorage.getItem("sellerName") || "Seller Name"}
+          onNavigate={(view) => {
+            // navigate immediately
+            setCurrentView(view);
 
-          // On mobile we want to close the sidebar, but delay slightly so the
-          // button press / focus state registers on the device before the UI flips.
-          // This avoids race conditions where the press is swallowed or the nav
-          // visual feedback is not seen.
-          if (mobileSidebarOpen) {
-            setTimeout(() => setMobileSidebarOpen(false), 120);
-          }
-        }}
-        active={currentView === "goals" ? "item3" : currentView} // <-- ADDED: keep item3 highlighted when currentView is 'goals'
-        open={mobileSidebarOpen}
-        onClose={() => {
-          // allow child to ask for close immediately if it wants
-          if (mobileSidebarOpen) {
-            // small delay to ensure the click animation completes
-            setTimeout(() => setMobileSidebarOpen(false), 80);
-          }
-        }}
-      />
-
-      <main className="main-area">
-        <Header
-          onBuyCredits={handleBuyCredits}
-          // header can toggle sidebar on mobile (hamburger)
-          onToggleSidebar={() => setMobileSidebarOpen((s) => !s)}
-        />
-
-        <section className="content">
-          <div className="content-inner">
-            {/* Preview takes highest precedence */}
-            {previewData && (
-              <InvoicePreview
-                invoice={previewData}
-                onBackEdit={handleEditFromPreview}
-                onClose={handleClosePreview}
-                onSave={handleSaveInvoice}
-              />
-            )}
-
-            {/* Performance view */}
-            {!previewData && currentView === "performance" && <Performance />}
-
-            {/* Invoices view */}
-            {!previewData && currentView === "invoices" && (
-              <InvoiceList onViewInvoice={(inv) => handleViewFromInvoices(inv)} />
-            )}
-
-            {/* Orders view */}
-            {!previewData && currentView === "orders" && (
-              <OrdersList onView={handleViewFromOrders} />
-            )}
-
-            {/* Goals & Rewards view */}
-            {!previewData && currentView === "goals" && <ChallengesPage />}
-
-            {/* Home / paste / form */}
-            {!previewData && currentView === "home" && (
-              <>
-                {!showForm && (
-                  <>
-                    <h1 className="content-title">Paste your Order Chat Message</h1>
-                    <p className="content-sub">
-                      Copy and paste your WhatsApp order chat here to automatically generate
-                      an invoice. You can edit details before creating the PDF.
-                    </p>
-
-                    <PasteBox onParse={handleParse} />
-                  </>
-                )}
-
-                {showForm && !previewData && (
-                  <InvoiceForm parsedData={parsedData} onBack={handleBack} onGenerate={handleGenerate} />
-                )}
-              </>
-            )}
-
-            {/* Fallback small message for other views */}
-            {!previewData && !["home", "orders", "performance", "invoices", "goals"].includes(currentView) && (
-              <div className="formBox">
-                <h3 style={{ marginTop: 0 }}>Coming soon</h3>
-                <p style={{ color: "#6b7280" }}>This section ({currentView}) is a placeholder for future features.</p>
-              </div>
-            )}
-          </div>
-        </section>
-      </main>
-
-      {/* Mobile overlay/backdrop — clicking it closes the sidebar.
-          Use a robust handler so accidental clicks that fall inside the visible
-          sidebar do not close it (defensive for stacking/transform issues). */}
-      {mobileSidebarOpen && (
-        <div
-          className="mobile-overlay"
-          onClick={handleOverlayClick}
-          role="button"
-          aria-label="Close navigation"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              // close overlay on keyboard activation
-              setMobileSidebarOpen(false);
+            // On mobile we want to close the sidebar, but delay slightly so the
+            // button press / focus state registers on the device before the UI flips.
+            // This avoids race conditions where the press is swallowed or the nav
+            // visual feedback is not seen.
+            if (mobileSidebarOpen) {
+              setTimeout(() => setMobileSidebarOpen(false), 120);
             }
           }}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.35)",
-            zIndex: 9000, // reduce so sidebar can sit above it
+          active={currentView === "goals" ? "item3" : currentView} // <-- ADDED: keep item3 highlighted when currentView is 'goals'
+          open={mobileSidebarOpen}
+          onClose={() => {
+            // allow child to ask for close immediately if it wants
+            if (mobileSidebarOpen) {
+              // small delay to ensure the click animation completes
+              setTimeout(() => setMobileSidebarOpen(false), 80);
+            }
           }}
         />
-      )}
 
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} onAuthSuccess={() => setAuthOpen(false)} />
-    </div>
+        <main className="main-area">
+          <Header
+            onBuyCredits={handleBuyCredits}
+            // header can toggle sidebar on mobile (hamburger)
+            onToggleSidebar={() => setMobileSidebarOpen((s) => !s)}
+          />
+
+          <section className="content">
+            <div className="content-inner">
+              {/* Preview takes highest precedence */}
+              {previewData && (
+                <InvoicePreview
+                  invoice={previewData}
+                  onBackEdit={handleEditFromPreview}
+                  onClose={handleClosePreview}
+                  onSave={handleSaveInvoice}
+                />
+              )}
+
+              {/* Performance view */}
+              {!previewData && currentView === "performance" && <Performance />}
+
+              {/* Invoices view */}
+              {!previewData && currentView === "invoices" && (
+                <InvoiceList onViewInvoice={(inv) => handleViewFromInvoices(inv)} />
+              )}
+
+              {/* Orders view */}
+              {!previewData && currentView === "orders" && (
+                <OrdersList onView={handleViewFromOrders} />
+              )}
+
+              {/* Goals & Rewards view */}
+              {!previewData && currentView === "goals" && <ChallengesPage />}
+
+              {/* Home / paste / form */}
+              {!previewData && currentView === "home" && (
+                <>
+                  {!showForm && (
+                    <>
+                      <h1 className="content-title">Paste your Order Chat Message</h1>
+                      <p className="content-sub">
+                        Copy and paste your WhatsApp order chat here to automatically generate
+                        an invoice. You can edit details before creating the PDF.
+                      </p>
+
+                      <PasteBox onParse={handleParse} />
+                    </>
+                  )}
+
+                  {showForm && !previewData && (
+                    <InvoiceForm parsedData={parsedData} onBack={handleBack} onGenerate={handleGenerate} />
+                  )}
+                </>
+              )}
+
+              {/* Fallback small message for other views */}
+              {!previewData && !["home", "orders", "performance", "invoices", "goals"].includes(currentView) && (
+                <div className="formBox">
+                  <h3 style={{ marginTop: 0 }}>Coming soon</h3>
+                  <p style={{ color: "#6b7280" }}>This section ({currentView}) is a placeholder for future features.</p>
+                </div>
+              )}
+            </div>
+          </section>
+        </main>
+
+        {/* Mobile overlay/backdrop — clicking it closes the sidebar.
+            Use a robust handler so accidental clicks that fall inside the visible
+            sidebar do not close it (defensive for stacking/transform issues). */}
+        {mobileSidebarOpen && (
+          <div
+            className="mobile-overlay"
+            onClick={handleOverlayClick}
+            role="button"
+            aria-label="Close navigation"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                // close overlay on keyboard activation
+                setMobileSidebarOpen(false);
+              }
+            }}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.35)",
+              zIndex: 9000, // reduce so sidebar can sit above it
+            }}
+          />
+        )}
+
+        <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} onAuthSuccess={() => setAuthOpen(false)} />
+      </div>
+    </ToastProvider>
   );
 }
 
