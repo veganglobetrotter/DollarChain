@@ -434,4 +434,8 @@ body {
   }
 }
 
+/* Sidebar full-height tweak (safe, minimal) */
+.sidebar { min-height: 100vh !important; }
+.sidebar-card { display: flex; flex-direction: column; flex: 1 1 auto !important; }
+
 /* End of file */

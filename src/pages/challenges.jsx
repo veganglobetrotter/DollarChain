@@ -139,73 +139,75 @@ export default function ChallengesPage() {
   return (
     <div className="goals-root container p-4 md:p-6 lg:p-8">
       <div className="max-w-6xl mx-auto">
-        <header className="mb-6">
-          <h1 className="text-2xl font-bold">Goals & Rewards</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Complete goals, earn credits and level up. Credits will be added to your balance (mock view).
-          </p>
-        </header>
+        <div className="frame">
+          <header className="mb-6">
+            <h1 className="text-2xl font-bold">Goals & Rewards</h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Complete goals, earn credits and level up. Credits will be added to your balance (mock view).
+            </p>
+          </header>
 
-        {loading ? (
-          <div className="text-center py-12 text-gray-500">Loading Goals & Rewards…</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <main className="md:col-span-2">
-              <div className="mb-4">
-                <XPBar xp={user.xp} level={user.level} xpForNextLevel={user.xpForNextLevel} />
-              </div>
-
-              <section className="mb-6">
-                <h2 className="text-lg font-semibold mb-3">Active Challenges</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {challenges.map((c) => (
-                    <ChallengeCard key={c.id} challenge={c} onClaim={handleClaim} onViewTips={handleViewTips} />
-                  ))}
+          {loading ? (
+            <div className="text-center py-12 text-gray-500">Loading Goals & Rewards…</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <main className="md:col-span-2">
+                <div className="mb-4">
+                  <XPBar xp={user.xp} level={user.level} xpForNextLevel={user.xpForNextLevel} />
                 </div>
-              </section>
 
-              <section className="mb-6">
-                <h2 className="text-lg font-semibold mb-3">My Weekly Goals</h2>
-                <div className="space-y-3">
-                  {customChallenges.length === 0 ? (
-                    <div className="text-sm text-gray-500">No custom goals yet — create one to get started.</div>
-                  ) : (
-                    <div className="grid gap-3">
-                      {customChallenges.map((cc) => (
-                        <ChallengeCard key={cc.id} challenge={cc} onClaim={handleClaim} onViewTips={handleViewTips} />
-                      ))}
-                    </div>
-                  )}
+                <section className="mb-6">
+                  <h2 className="text-lg font-semibold mb-3">Active Challenges</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {challenges.map((c) => (
+                      <ChallengeCard key={c.id} challenge={c} onClaim={handleClaim} onViewTips={handleViewTips} />
+                    ))}
+                  </div>
+                </section>
+
+                <section className="mb-6">
+                  <h2 className="text-lg font-semibold mb-3">My Weekly Goals</h2>
+                  <div className="space-y-3">
+                    {customChallenges.length === 0 ? (
+                      <div className="text-sm text-gray-500">No custom goals yet — create one to get started.</div>
+                    ) : (
+                      <div className="grid gap-3">
+                        {customChallenges.map((cc) => (
+                          <ChallengeCard key={cc.id} challenge={cc} onClaim={handleClaim} onViewTips={handleViewTips} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                <section>
+                  <h2 className="text-lg font-semibold mb-3">Completed History (mock)</h2>
+                  <div className="bg-white rounded-lg p-3 shadow-sm">
+                    <ul className="text-sm text-gray-700 space-y-2">
+                      <li>First Invoice — completed Nov 1, 2025</li>
+                      <li>Confirm & Clean — in progress</li>
+                    </ul>
+                  </div>
+                </section>
+              </main>
+
+              <aside className="md:col-span-1 space-y-4">
+                <BadgePanel badges={user.badges} />
+
+                <div className="bg-white rounded-lg p-3 shadow-sm card">
+                  <h4 className="text-sm font-semibold mb-2">Available Rewards</h4>
+                  <div className="text-sm text-gray-600">Credits granted by completing challenges will appear in your balance and can be used for parsing and premium features.</div>
+                  <div className="mt-3 text-sm">
+                    <div className="flex items-center justify-between"><div>Balance</div><div className="font-semibold">{balance} credits</div></div>
+                    <div className="text-xs text-gray-500 mt-1">Some awarded credits may expire — this is a mock view.</div>
+                  </div>
                 </div>
-              </section>
 
-              <section>
-                <h2 className="text-lg font-semibold mb-3">Completed History (mock)</h2>
-                <div className="bg-white rounded-lg p-3 shadow-sm">
-                  <ul className="text-sm text-gray-700 space-y-2">
-                    <li>First Invoice — completed Nov 1, 2025</li>
-                    <li>Confirm & Clean — in progress</li>
-                  </ul>
-                </div>
-              </section>
-            </main>
-
-            <aside className="md:col-span-1 space-y-4">
-              <BadgePanel badges={user.badges} />
-
-              <div className="bg-white rounded-lg p-3 shadow-sm card">
-                <h4 className="text-sm font-semibold mb-2">Available Rewards</h4>
-                <div className="text-sm text-gray-600">Credits granted by completing challenges will appear in your balance and can be used for parsing and premium features.</div>
-                <div className="mt-3 text-sm">
-                  <div className="flex items-center justify-between"><div>Balance</div><div className="font-semibold">{balance} credits</div></div>
-                  <div className="text-xs text-gray-500 mt-1">Some awarded credits may expire — this is a mock view.</div>
-                </div>
-              </div>
-
-              <CustomChallengeForm onCreate={handleCreateCustom} />
-            </aside>
-          </div>
-        )}
+                <CustomChallengeForm onCreate={handleCreateCustom} />
+              </aside>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
