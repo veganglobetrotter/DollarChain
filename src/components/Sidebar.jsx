@@ -1,36 +1,24 @@
 // src/components/Sidebar.jsx
 import React, { useEffect } from "react";
 
-/**
- * Sidebar component — safer/mobile-friendly version
- *
- * Same props as before:
- * - id, sellerName, onNavigate, active, open, onClose, activeChallengesCount
- *
- * Key changes vs previous version:
- * - When open === false, sidebar is removed from layout via `display: none`
- *   (prevents invisible overlay from intercepting header/hamburger taps).
- * - No aggressive zIndex or pointerEvents changes are applied.
- * - Inline styles are minimal and should blend with existing CSS.
- */
 export default function Sidebar({
-  id,
+  id, // accept id so parent can pass id="sidebar"
   sellerName = "Seller Name",
   onNavigate = () => {},
   active = "home",
-  open = true,
-  onClose = () => {},
-  activeChallengesCount = 0,
+  open = true, // controls mobile visibility; defaults to true for backward compatibility
+  onClose = () => {}, // optional close handler used by mobile toggle / Escape key
 }) {
   const nav = [
-    { id: "home", label: "Dashboard", icon: "home" },
-    { id: "performance", label: "Performance", icon: "chart" },
-    { id: "invoices", label: "Invoices", icon: "invoice" },
-    { id: "goals", label: "Goals & Rewards", icon: "gift" }, // replaced placeholder
-    { id: "settings", label: "Settings", icon: "settings" },
+    { id: "home", label: "Dashboard", icon: "🏠" },
+    { id: "performance", label: "Performance", icon: "📈" },
+    { id: "invoices", label: "Invoices", icon: "🧾" }, // <- replaced item2 with invoices (surgical change)
+    { id: "item3", label: "Goals & Rewards", icon: "🎯" },
+    { id: "settings", label: "Settings", icon: "⚙️" },
   ];
 
   const handleKeyNav = (e, id) => {
+    // Accept Enter and Space to activate; prevent default for Space (avoid page scroll)
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       onNavigate(id);
@@ -38,6 +26,7 @@ export default function Sidebar({
     }
   };
 
+  // Close on Escape when sidebar is open and onClose provided
   useEffect(() => {
     if (!open || typeof onClose !== "function") return undefined;
     const handler = (e) => {
@@ -49,176 +38,90 @@ export default function Sidebar({
     return () => window.removeEventListener("keydown", handler);
   }, [open, onClose]);
 
-  // Minimal inline styles only — avoids covering header when closed
-  const styles = {
-    container: {
-      display: open ? "block" : "none", // remove from layout when closed (fixes mobile tap interception)
-      width: 280,
-      boxSizing: "border-box",
-    },
-    navButton: {
-      all: "unset",
-      cursor: "pointer",
-      display: "flex",
-      alignItems: "center",
-      gap: 10,
-      width: "100%",
-      textAlign: "left",
-      padding: "8px 10px",
-      borderRadius: 6,
-    },
-    navIcon: {
-      width: 18,
-      height: 18,
-      display: "inline-block",
-      flex: "0 0 18px",
-    },
-    badge: {
-      minWidth: 20,
-      height: 20,
-      lineHeight: "20px",
-      fontSize: 12,
-      borderRadius: 999,
-      textAlign: "center",
-      padding: "0 6px",
-      backgroundColor: "#ef4444",
-      color: "#fff",
-      marginLeft: "auto",
-      boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
-    },
-    sellerAvatar: {
-      width: 44,
-      height: 44,
-      borderRadius: 8,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontWeight: 700,
-      backgroundColor: "#111827",
-      color: "#fff",
-      marginRight: 10,
-      flex: "0 0 44px",
-    },
-  };
-
-  const Icon = ({ name }) => {
-    switch (name) {
-      case "home":
-        return (
-          <svg viewBox="0 0 24 24" style={styles.navIcon} aria-hidden>
-            <path fill="currentColor" d="M3 10.5L12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V10.5z" />
-          </svg>
-        );
-      case "chart":
-        return (
-          <svg viewBox="0 0 24 24" style={styles.navIcon} aria-hidden>
-            <path fill="currentColor" d="M5 3h2v18H5zM11 8h2v13h-2zM17 13h2v8h-2z" />
-          </svg>
-        );
-      case "invoice":
-        return (
-          <svg viewBox="0 0 24 24" style={styles.navIcon} aria-hidden>
-            <path fill="currentColor" d="M7 3h10v2H7zM5 7h14v14H5zM9 11h6v2H9zM9 15h6v2H9z" />
-          </svg>
-        );
-      case "gift":
-        return (
-          <svg viewBox="0 0 24 24" style={styles.navIcon} aria-hidden>
-            <path fill="currentColor" d="M20 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-7h16zM12 3l2 2h5v3H5V5h5l2-2zM7 12V9h10v3" />
-          </svg>
-        );
-      case "settings":
-        return (
-          <svg viewBox="0 0 24 24" style={styles.navIcon} aria-hidden>
-            <path fill="currentColor" d="M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm8.9 3l-1.1-.2-.7-.8.2-1.1-1-1-1.1.2-.7-.8-.3-1.1h-1.3l-.3 1.1-.7.8-1.1-.2-1 1 .2 1.1-.7.8v1.3l.7.8-.2 1.1 1 1 1.1-.2.7.8.3 1.1h1.3l.3-1.1.7-.8 1.1.2 1-1-.2-1.1.7-.8V11z" />
-          </svg>
-        );
-      default:
-        return null;
-    }
-  };
+  // Inline style to ensure the sidebar sits above the mobile overlay/backdrop
+  // when it is open. This avoids overlay intercepting touch/click events.
+  // We keep the style minimal so it doesn't alter the internal layout.
+  const asideStyle = open
+    ? {
+        position: "fixed",
+        top: 0,
+        left: 0,
+        height: "100%",
+        zIndex: 10001,
+        pointerEvents: "auto",
+      }
+    : undefined;
 
   return (
+    /* id so Header aria-controls points here; visibility handled by CSS (not inline style)
+       Note: stopPropagation on the aside prevents clicks inside the sidebar from
+       bubbling to the page overlay/backdrop which would close the sidebar prematurely. */
     <aside
       id={id}
       className="sidebar"
       aria-label="Sidebar"
       aria-hidden={!open}
-      // only basic container style here; visibility handled by `display` so mobile header isn't blocked
-      style={styles.container}
+      style={asideStyle}
       onClick={(e) => {
-        // keep click handling minimal — don't stopPropagation globally
-        // this prevents accidental swallowing of header clicks on some mobile browsers
+        // prevent clicks inside sidebar from bubbling out to overlay/backdrop
+        e.stopPropagation();
       }}
-      onTouchStart={() => {}}
+      onTouchStart={(e) => {
+        // prevent touch events inside sidebar from bubbling out to overlay/backdrop
+        e.stopPropagation();
+      }}
       onKeyDown={(e) => {
+        // ensure keyboard events don't bubble and accidentally trigger other handlers
+        // allow typical navigation keys through however (so don't swallow Tab/Arrow etc.)
         if (e.key === "Enter" || e.key === " " || e.key === "Escape") {
           e.stopPropagation();
         }
       }}
     >
-      <div
-        className="sidebar-card"
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          height: "100%",
-          padding: 16,
-          width: "100%",
-          maxWidth: 280,
-        }}
-      >
-        <div
-          className="sidebar-top"
-          style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}
-        >
-          <div style={styles.sellerAvatar} aria-hidden>
+      <div className="sidebar-card" onClick={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
+        <div className="sidebar-top">
+          <div className="avatar">
             {(sellerName || "S").charAt(0).toUpperCase()}
           </div>
 
-          <div className="seller-info" style={{ display: "flex", flexDirection: "column" }}>
-            <div className="seller-name" style={{ fontWeight: 700, fontSize: 14 }}>
-              {sellerName}
-            </div>
-            <div className="seller-sub" style={{ fontSize: 12, color: "#6b7280" }}>
-              Your account
-            </div>
+          <div className="seller-info">
+            <div className="seller-name">{sellerName}</div>
+            <div className="seller-sub">Your account</div>
           </div>
         </div>
 
-        <nav className="sidebar-nav" aria-label="Main navigation" style={{ overflowY: "auto" }}>
-          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+        <nav className="sidebar-nav" aria-label="Main navigation">
+          <ul>
             {nav.map((n) => (
-              <li
-                key={n.id}
-                className={`nav-item ${active === n.id ? "nav-active" : ""}`}
-                style={{ marginBottom: 4 }}
-              >
+              <li key={n.id} className={`nav-item ${active === n.id ? "nav-active" : ""}`}>
                 <button
                   type="button"
                   className="nav-link"
                   onClick={(e) => {
+                    // make click handling robust: prevent bubbling, navigate, close
                     e.stopPropagation();
                     onNavigate(n.id);
                     if (typeof onClose === "function") onClose();
                   }}
                   onKeyDown={(e) => handleKeyNav(e, n.id)}
+                  onTouchStart={(e) => {
+                    // prevent touch events on the button from bubbling (prevents overlay from closing)
+                    e.stopPropagation();
+                  }}
                   aria-current={active === n.id ? "page" : undefined}
                   aria-pressed={active === n.id}
                   style={{
-                    ...styles.navButton,
-                    backgroundColor: active === n.id ? "rgba(17,24,39,0.06)" : "transparent",
-                    fontWeight: active === n.id ? 700 : 500,
+                    all: "unset",
+                    cursor: "pointer",
+                    display: "block",
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "8px 10px",
+                    borderRadius: 6,
                   }}
                 >
-                  <Icon name={n.icon} />
-                  <span style={{ fontSize: 14 }}>{n.label}</span>
-
-                  {n.id === "goals" && activeChallengesCount > 0 ? (
-                    <span style={styles.badge} aria-hidden>
-                      {activeChallengesCount}
-                    </span>
-                  ) : null}
+                  <span aria-hidden style={{ marginRight: 8 }}>{n.icon}</span>
+                  {n.label}
                 </button>
               </li>
             ))}
@@ -227,9 +130,7 @@ export default function Sidebar({
 
         <div style={{ flex: 1 }} />
 
-        <div className="sidebar-footer" style={{ fontSize: 12, color: "#6b7280", marginTop: 12 }}>
-          © {new Date().getFullYear()} DollarChain
-        </div>
+        <div className="sidebar-footer">© {new Date().getFullYear()} DollarChain</div>
       </div>
     </aside>
   );
