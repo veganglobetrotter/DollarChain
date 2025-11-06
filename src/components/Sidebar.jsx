@@ -17,11 +17,20 @@ export default function Sidebar({
     { id: "settings", label: "Settings", icon: "⚙️" },
   ];
 
+  // translate nav ids to the canonical route id we want the app to receive.
+  // keeps the visible label/id the same (avoids breaking other code) but
+  // signals a clearer id to the router (eg. 'goals' -> your onNavigate handler can map to /challenges).
+  const resolveNavId = (id) => {
+    if (id === "item3") return "goals";
+    return id;
+  };
+
   const handleKeyNav = (e, id) => {
     // Accept Enter and Space to activate; prevent default for Space (avoid page scroll)
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      onNavigate(id);
+      const target = resolveNavId(id);
+      onNavigate(target);
       if (typeof onClose === "function") onClose();
     }
   };
@@ -100,7 +109,8 @@ export default function Sidebar({
                   onClick={(e) => {
                     // make click handling robust: prevent bubbling, navigate, close
                     e.stopPropagation();
-                    onNavigate(n.id);
+                    const target = resolveNavId(n.id);
+                    onNavigate(target);
                     if (typeof onClose === "function") onClose();
                   }}
                   onKeyDown={(e) => handleKeyNav(e, n.id)}
