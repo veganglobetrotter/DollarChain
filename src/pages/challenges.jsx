@@ -4,6 +4,7 @@ import XPBar from "../components/XPBar";
 import ChallengeCard from "../components/ChallengeCard";
 import BadgePanel from "../components/BadgePanel";
 import CustomChallengeForm from "../components/CustomChallengeForm";
+import { getBalance, addCredits, getXp, setXp, addXp } from "../lib/creditsClient";
 
 /**
  * Challenges (Goals & Rewards) page shell
@@ -30,10 +31,28 @@ export default function ChallengesPage() {
   const [user, setUser] = useState(FALLBACK_USER);
   const [challenges, setChallenges] = useState([]);
   const [customChallenges, setCustomChallenges] = useState([]);
+  const [balance, setBalance] = useState(0);
+  const [storedXp, setStoredXp] = useState(null);
 
   useEffect(() => {
     let mounted = true;
     setLoading(true);
+
+    // Initialize persisted balance & xp (from localStorage via creditsClient)
+    try {
+      const b = getBalance();
+      const xpVal = getXp();
+      if (mounted) {
+        setBalance(b);
+        if (xpVal !== null) {
+          setStoredXp(xpVal);
+          setUser((u) => ({ ...u, xp: xpVal }));
+        }
+      }
+    } catch (e) {
+      // ignore localStorage failures
+      console.warn("Failed to read persisted balance/xp", e);
+    }
 
     // Try fetching from API if present (safe fallback to mock)
     fetch("/api/challenges")
@@ -45,13 +64,26 @@ export default function ChallengesPage() {
         if (!mounted) return;
         setChallenges(Array.isArray(json.challenges) ? json.challenges : FALLBACK_CHALLENGES);
         setCustomChallenges(Array.isArray(json.custom) ? json.custom : []);
-        if (json.user) setUser((u) => ({ ...u, ...json.user }));
+        if (json.user) {
+          // merge xp from API with persisted xp (persisted wins)
+          setUser((u) => {
+            const apiUser = { ...u, ...json.user };
+            if (storedXp !== null) {
+              apiUser.xp = storedXp;
+            }
+            return apiUser;
+          });
+        }
       })
       .catch(() => {
         // API missing or error - use local fallback
         setChallenges(FALLBACK_CHALLENGES);
         setCustomChallenges([]);
-        setUser(FALLBACK_USER);
+        setUser((u) => {
+          const merged = { ...FALLBACK_USER };
+          if (storedXp !== null) merged.xp = storedXp;
+          return merged;
+        });
       })
       .finally(() => {
         if (mounted) setLoading(false);
@@ -60,16 +92,44 @@ export default function ChallengesPage() {
     return () => {
       mounted = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleCreateCustom = (c) => {
-    setCustomChallenges((s) => [c, ...s].slice(0, 3));
+    const next = [c, ...customChallenges].slice(0, 3);
+    setCustomChallenges(next);
   };
 
   const handleClaim = (ch) => {
-    // Mock claim: show an alert and update local XP
-    alert(`Mock claim: ${ch.title} — ${ch.credits} credits will be added to your account.`);
-    setUser((u) => ({ ...u, xp: (u.xp || 0) + (ch.xp || 0) }));
+    // Only allow claim when challenge is completed
+    const completed = (ch.progress || 0) >= (ch.target || 1);
+    if (!completed) {
+      alert("This challenge is not yet complete.");
+      return;
+    }
+
+    // Mock claim flow: persist credits and xp locally
+    const added = Number(ch.credits || 0);
+    const xpAdded = Number(ch.xp || 0);
+
+    // Update balance and xp via creditsClient
+    try {
+      const newBal = addCredits(added);
+      setBalance(newBal);
+
+      const newXp = addXp(xpAdded);
+      setStoredXp(newXp);
+      setUser((u) => ({ ...u, xp: newXp }));
+
+      // Optionally mark challenge as claimed in UI — here we set status to 'claimed'
+      setChallenges((prev) => prev.map((p) => (p.id === ch.id ? { ...p, status: "claimed" } : p)));
+      setCustomChallenges((prev) => prev.map((p) => (p.id === ch.id ? { ...p, status: "claimed" } : p)));
+
+      alert(`Claimed ${ch.title}: +${added} credits added to your balance.`);
+    } catch (e) {
+      console.error("Claim failed", e);
+      alert("Failed to claim reward. See console for details.");
+    }
   };
 
   const handleViewTips = (ch) => {
@@ -133,11 +193,11 @@ export default function ChallengesPage() {
             <aside className="md:col-span-1 space-y-4">
               <BadgePanel badges={user.badges} />
 
-              <div className="bg-white rounded-lg p-3 shadow-sm">
-                <h4 className="text-sm font-semibold mb-2">Available Rewards (mock)</h4>
+              <div className="bg-white rounded-lg p-3 shadow-sm card">
+                <h4 className="text-sm font-semibold mb-2">Available Rewards</h4>
                 <div className="text-sm text-gray-600">Credits granted by completing challenges will appear in your balance and can be used for parsing and premium features.</div>
                 <div className="mt-3 text-sm">
-                  <div className="flex items-center justify-between"><div>Balance (mock)</div><div className="font-semibold">42 credits</div></div>
+                  <div className="flex items-center justify-between"><div>Balance</div><div className="font-semibold">{balance} credits</div></div>
                   <div className="text-xs text-gray-500 mt-1">Some awarded credits may expire — this is a mock view.</div>
                 </div>
               </div>
