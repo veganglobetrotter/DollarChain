@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import "../components/goals.css";
 import XPBar from "../components/XPBar";
 import ChallengeCard from "../components/ChallengeCard";
 import BadgePanel from "../components/BadgePanel";
@@ -76,7 +77,7 @@ export default function ChallengesPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 lg:p-8">
+    <div className="goals-root container p-4 md:p-6 lg:p-8">
       <div className="max-w-6xl mx-auto">
         <header className="mb-6">
           <h1 className="text-2xl font-bold">Goals & Rewards</h1>
