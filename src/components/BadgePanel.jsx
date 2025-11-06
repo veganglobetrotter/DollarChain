@@ -1,40 +1,68 @@
+// src/components/BadgePanel.jsx
 import React from "react";
 
 /**
- * BadgePanel.jsx
+ * BadgePanel — renders user badges as compact, polished tiles.
  * Props:
- *  - badges: string[] (badge slugs)
+ *  - badges: array of badge ids (strings)
  */
 
 const BADGE_META = {
-  first_invoice: { title: "First Invoice", hint: "Completed your first invoice" },
-  speed_demon: { title: "Speed Demon", hint: "Fast invoice creation" },
-  confirmed_seller: { title: "Confirmed Seller", hint: "Invoices marked paid" },
-  repeat_seller: { title: "Repeat Seller", hint: "Multiple repeat buyers" },
+  first_invoice: { title: "First Invoice", hint: "Completed your first invoice", color: "#06b6d4" },
+  speed_demon: { title: "Speed Demon", hint: "Fast invoice creation", color: "#f59e0b" },
+  confirmed_seller: { title: "Confirmed Seller", hint: "Invoices marked paid", color: "#10b981" },
+  repeat_seller: { title: "Repeat Seller", hint: "Multiple repeat customers", color: "#7c3aed" },
 };
 
 export default function BadgePanel({ badges = [] }) {
   return (
-    <div className="bg-white rounded-lg p-3 shadow-sm">
-      <h4 className="text-sm font-semibold mb-2">My Badges</h4>
+    <aside className="badge-panel card" aria-labelledby="badges-heading">
+      <h4 id="badges-heading" className="badge-panel-title">My Badges</h4>
 
       {badges.length === 0 ? (
-        <div className="text-xs text-gray-500">No badges yet — complete a challenge to earn one.</div>
+        <div className="badge-panel-empty muted">No badges yet — complete a challenge to earn one.</div>
       ) : (
-        <div className="flex flex-wrap gap-2">
-          {badges.map((b) => (
-            <div key={b} className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded px-3 py-2 text-xs">
-              <div className="w-6 h-6 rounded flex items-center justify-center bg-gray-200 text-gray-700 font-semibold">
-                {BADGE_META[b]?.title?.charAt(0) || "B"}
+        <div className="badges-grid" role="list">
+          {badges.map((b) => {
+            const meta = BADGE_META[b] || { title: b, hint: "" };
+            const initial = (meta.title || b).charAt(0).toUpperCase();
+            const color = meta.color || "#9ca3af";
+            return (
+              <div className="badge-tile" key={b} role="listitem" aria-label={`${meta.title}: ${meta.hint}`}>
+                <div
+                  className="badge-icon"
+                  aria-hidden
+                  style={{ background: `linear-gradient(135deg, ${lighten(color, 0.35)}, ${color})` }}
+                >
+                  <span className="badge-initial">{initial}</span>
+                </div>
+
+                <div className="badge-meta">
+                  <div className="badge-title">{meta.title}</div>
+                  {meta.hint && <div className="badge-hint">{meta.hint}</div>}
+                </div>
               </div>
-              <div>
-                <div className="font-medium text-xs">{BADGE_META[b]?.title || b}</div>
-                <div className="text-[11px] text-gray-500">{BADGE_META[b]?.hint}</div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
-    </div>
+    </aside>
   );
+}
+
+// Small inline color utility (no dependency)
+function lighten(hex, amount = 0.2) {
+  try {
+    const c = hex.replace("#", "");
+    const num = parseInt(c, 16);
+    let r = (num >> 16) + Math.round(255 * amount);
+    let g = ((num >> 8) & 0x00ff) + Math.round(255 * amount);
+    let b = (num & 0x0000ff) + Math.round(255 * amount);
+    r = Math.min(255, r);
+    g = Math.min(255, g);
+    b = Math.min(255, b);
+    return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+  } catch (e) {
+    return hex;
+  }
 }

@@ -1,191 +1,156 @@
-/* Lightweight, local styles for the Goals & Rewards page.
-   Keeps styles scoped under .goals-root so nothing sitewide changes. */
+/* src/components/goals.css
+   Polished, less-noisy visual system for Goals & Rewards.
+   Scoped under .goals-root to avoid sitewide impact.
+*/
 
 .goals-root {
-  --card-bg: #ffffff;
   --muted: #6b7280;
-  --accent: #16a34a; /* green */
+  --muted-2: #94a3b8;
+  --accent: #16a34a;
+  --card-bg: #ffffff;
   --soft-shadow: 0 8px 24px rgba(16,24,40,0.06);
   font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   color: #07131a;
+  line-height: 1.35;
 }
 
-/* Container sizing matches existing page tokens */
-.goals-root .container {
-  max-width: 1100px;
-  margin: 0 auto;
-}
+/* container comfort */
+.goals-root .container { padding-left: 8px; padding-right: 8px; }
 
-/* XP bar */
-.goals-root .xpbar {
-  margin-bottom: 1rem;
-}
-.goals-root .xpbar .meta {
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-.goals-root .xpbar .meta .left { font-weight:700; font-size:14px; }
-.goals-root .xpbar .meta .right { font-size:13px; color: #475569; }
-.goals-root .xpbar .bar {
-  width:100%;
-  background:#f3f4f6;
-  height:10px;
-  border-radius:8px;
-  margin-top:8px;
-  overflow:hidden;
-}
-.goals-root .xpbar .bar > i {
-  display:block;
-  height:100%;
-  background: linear-gradient(90deg,#06b6d4,#06b6d4);
-  border-radius:8px;
-}
-
-/* Card base */
-.goals-root .card {
-  background: var(--card-bg);
-  border-radius: 12px;
-  padding: 14px;
-  box-shadow: var(--soft-shadow);
-  border: 1px solid rgba(15,23,42,0.03);
-  box-sizing: border-box;
-}
-
-/* Challenge grid */
-.goals-root .challenges-grid {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: 1fr;
-}
-@media (min-width: 640px) {
-  .goals-root .challenges-grid { grid-template-columns: repeat(2, 1fr); }
-}
-
-/* Challenge card (matches our components structure) */
-.goals-root article {
-  display:flex;
-  flex-direction:column;
-  height:100%;
-}
-.goals-root article header { display:flex; justify-content:space-between; gap: 12px; }
-.goals-root article h3 { margin:0; font-size:15px; font-weight:700; }
-.goals-root article p { margin:6px 0 0; font-size:13px; color:var(--muted); }
-.goals-root article .progress-wrap { margin-top:12px; }
-.goals-root article .progress {
-  height:8px;
-  background:#f3f4f6;
-  border-radius: 8px;
-  overflow:hidden;
-}
-.goals-root article .progress > i {
-  display:block;
-  height:100%;
-  background:#60a5fa;
-  border-radius:8px;
-}
-
-/* Footer actions on card */
-.goals-root article footer {
-  margin-top:12px;
-  display:flex;
-  gap:8px;
-  align-items:center;
-}
-.goals-root .btn {
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-weight:600;
-  cursor:pointer;
-  border: none;
-}
-.goals-root .btn-secondary {
-  background: #f3f4f6;
-  color: #111827;
-  border: 1px solid rgba(0,0,0,0.04);
-}
-.goals-root .btn-primary {
-  background: var(--accent);
-  color: white;
-  box-shadow: 0 8px 20px rgba(16,185,129,0.08);
-}
-
-/* Right column (aside) */
-.goals-root .aside-col { display:flex; flex-direction:column; gap:12px; }
-
-/* Badge panel small tiles */
-.goals-root .badges { display:flex; flex-wrap:wrap; gap:8px; }
-.goals-root .badge {
-  display:flex;
-  gap:8px;
-  align-items:center;
-  padding:8px 10px;
-  border-radius:10px;
-  background: #f8fafc;
-  border:1px solid rgba(15,23,42,0.03);
-  font-size:13px;
-}
-
-/* Custom challenge form adjustments */
-.goals-root .custom-form input[type="text"],
-.goals-root .custom-form input[type="number"] {
-  width:100%;
-  padding:8px 10px;
-  border-radius:8px;
-  border:1px solid #e6e9ef;
-  box-sizing:border-box;
-  font-size:14px;
-}
-.goals-root .custom-form .row { display:flex; gap:8px; }
-.goals-root .custom-form .row > * { flex:1; }
-
-/* Small helper text */
-.goals-root .muted { color: var(--muted); font-size:13px; }
-
-/* Utility spacing classes used inside components (keeps them small) */
-.goals-root .mb-6 { margin-bottom: 1.5rem; }
-.goals-root .mt-4 { margin-top: 1rem; }
-.goals-root .text-xs { font-size:12px; color:var(--muted); }
-
-/* Buttons in card small size */
-.goals-root .small { font-size:13px; padding:6px 10px; border-radius:8px; }
-
-/* Keep page responsive: main + aside */
-.goals-root .grid-main {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
-}
-@media (min-width: 980px) {
-  .goals-root .grid-main { grid-template-columns: 2fr 1fr; align-items:start; }
-}
-/* === Frame: polished SaaS container for Goals & Rewards === */
+/* framed SaaS container */
 .goals-root .frame {
   background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,250,250,0.98));
   border: 1px solid rgba(15,23,42,0.04);
   border-radius: 14px;
   padding: 20px;
   box-shadow: 0 10px 30px rgba(16,24,40,0.06);
-  transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
-/* Slight lift on hover on large screens (subtle) */
-@media (hover: hover) {
-  .goals-root .frame:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 14px 40px rgba(16,24,40,0.08);
-  }
-}
+/* header */
+.goals-root h1 { font-size:1.6rem; margin:0; letter-spacing: -0.2px; }
+.goals-root header p { margin-top:8px; color:var(--muted); font-size:0.95rem; }
 
-/* Make the frame slightly narrower on very wide screens for comfortable reading */
-@media (min-width: 1200px) {
-  .goals-root .frame { padding: 26px; }
-}
-
-/* Small inner tweak to avoid double shadows on nested cards */
-.goals-root .frame .card {
-  box-shadow: none;
-  border: none;
-  padding: 0;
+/* reduce visual noise on inner cards: favour whitespace over borders/shadows */
+.goals-root .card {
   background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+/* make challenge cards airy and consistent */
+.goals-root article {
+  background: var(--card-bg);
+  border-radius: 10px;
+  padding: 14px;
+  box-shadow: var(--soft-shadow);
+  border: 1px solid rgba(15,23,42,0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+.goals-root article:hover { transform: translateY(-4px); box-shadow: 0 14px 40px rgba(16,24,40,0.08); }
+
+/* header inside challenge card */
+.goals-root article header { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+.goals-root article h3 { margin:0; font-size:15px; font-weight:700; }
+.goals-root article p { margin:6px 0 0; color:var(--muted); font-size:13px; }
+
+/* progress bar */
+.goals-root .progress-wrap { margin-top:10px; }
+.goals-root .progress { height:8px; background:#f3f4f6; border-radius:8px; overflow:hidden; }
+.goals-root .progress > i { display:block; height:100%; background:linear-gradient(90deg,#60a5fa,#3b82f6); }
+
+/* footer actions */
+.goals-root article footer { display:flex; gap:8px; align-items:center; margin-top:6px; }
+.goals-root .btn { padding:8px 12px; border-radius:8px; font-weight:600; cursor:pointer; border: none; }
+.goals-root .btn-secondary { background:#f8fafc; color:#0f172a; border:1px solid rgba(15,23,42,0.04); }
+.goals-root .btn-primary { background:var(--accent); color:white; box-shadow: 0 8px 20px rgba(16,185,129,0.08); }
+
+/* small metadata line */
+.goals-root .text-xs { font-size:12px; color:var(--muted); }
+
+/* layout: main + aside */
+.goals-root .grid-main { display:grid; gap:16px; grid-template-columns: 1fr; }
+@media (min-width: 980px) { .goals-root .grid-main { grid-template-columns: 2fr 360px; } }
+
+/* aside column */
+.goals-root .aside-col { display:flex; flex-direction:column; gap:14px; }
+
+/* ===== Badge Panel ===== */
+.badge-panel {
+  padding: 0;
+}
+.badge-panel-title {
+  margin: 0 0 8px 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.badge-panel-empty { color: var(--muted); font-size:13px; }
+
+/* grid of badges */
+.badges-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+@media (min-width: 640px) {
+  .badges-grid { grid-template-columns: 1fr; }
+}
+
+/* single badge tile */
+.badge-tile {
+  display:flex;
+  gap:10px;
+  align-items:center;
+  padding:8px 10px;
+  border-radius:10px;
+  background: #ffffff;
+  border: 1px solid rgba(15,23,42,0.03);
+  box-shadow: 0 6px 18px rgba(16,24,40,0.04);
+}
+.badge-icon {
+  width:44px;
+  height:44px;
+  border-radius:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 44px;
+  box-shadow: inset 0 -6px 12px rgba(255,255,255,0.06);
+}
+.badge-initial { font-weight:700; color:#fff; font-size:16px; }
+
+/* text beside icon */
+.badge-meta { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.badge-title { font-size:14px; font-weight:700; color: #07131a; }
+.badge-hint { font-size:12px; color: var(--muted); }
+
+/* tweak the right column "Available Rewards" card */
+.goals-root .card .card-inner {
+  background: var(--card-bg);
+  border-radius: 10px;
+  padding: 12px;
+  border: 1px solid rgba(15,23,42,0.03);
+  box-shadow: var(--soft-shadow);
+}
+
+/* balance row */
+.goals-root .balance-row { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+
+/* make tiny helper text calmer */
+.goals-root .muted { color:var(--muted); font-size:13px; }
+
+/* ===== Accessibility & tiny polish ===== */
+.goals-root .btn:focus { outline: 3px solid rgba(99,102,241,0.12); border-radius:8px; }
+.goals-root article:focus-within { box-shadow: 0 14px 40px rgba(16,24,40,0.08); transform: translateY(-3px); }
+
+/* small responsive tweaks */
+@media (max-width: 640px) {
+  .goals-root .badges-grid { grid-template-columns: repeat(2, 1fr); }
+  .goals-root .frame { padding: 14px; }
+  .goals-root .badge-icon { width:40px; height:40px; border-radius:8px; }
+  .goals-root .badge-initial { font-size:14px; }
 }
