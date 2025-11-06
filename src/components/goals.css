@@ -167,3 +167,75 @@
   .challenge-right { align-items:flex-end; }
   .small-meta { text-align:left; }
 }
+
+/* ===========================================================================
+   Template selector (new) - prevents bleeding, enforces color contrast & wrap
+   =========================================================================== */
+
+.tpl-row { display:flex; gap:8px; flex-wrap:wrap; align-items:flex-start; margin-top:6px; }
+
+.tpl-card {
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  min-width: 120px;
+  max-width: 220px;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid rgba(15,23,42,0.04);
+  box-shadow: 0 6px 18px rgba(16,24,40,0.03);
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease, background 160ms ease, color 160ms ease;
+  text-align: left;
+  gap: 6px;
+  line-height: 1.25;
+  overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  align-items: flex-start;
+}
+
+.tpl-title { font-weight:700; font-size:14px; color: #07131a; margin-bottom:3px; }
+.tpl-desc { font-size:12px; color: var(--muted); }
+
+/* reward chips inside template card */
+.tpl-chips { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+.tpl-chip {
+  font-size:12px;
+  padding:4px 8px;
+  border-radius:999px;
+  background: rgba(15,23,42,0.04);
+  color: #07131a;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:44px;
+  text-align:center;
+}
+
+/* active state uses accent color and white text for contrast */
+.tpl-card.active {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: rgba(0,0,0,0.02);
+  box-shadow: 0 10px 30px rgba(16,185,129,0.12);
+  transform: translateY(-4px);
+}
+.tpl-card.active .tpl-title,
+.tpl-card.active .tpl-desc { color: #ffffff; }
+.tpl-card.active .tpl-chip {
+  background: rgba(255,255,255,0.12);
+  color: #ffffff;
+}
+
+/* focus-visible for keyboard users */
+.tpl-card:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(99,102,241,0.12); border-radius: 10px; }
+
+/* responsive sizing tweaks */
+@media (max-width: 520px) {
+  .tpl-card { min-width: calc(50% - 8px); max-width: calc(50% - 8px); }
+  .tpl-title { font-size: 13px; }
+  .tpl-chips { gap:6px; }
+}

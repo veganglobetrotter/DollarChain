@@ -49,7 +49,7 @@ export default function CustomChallengeForm({ onCreate = () => {} }) {
   const handleTemplateChange = (id) => {
     setTemplateId(id);
     const suggested = TEMPLATES[id]?.suggestedTarget ?? 3;
-    setTarget((prev) => (prev < 1 ? suggested : suggested));
+    setTarget(suggested);
   };
 
   const reset = () => {
@@ -101,10 +101,10 @@ export default function CustomChallengeForm({ onCreate = () => {} }) {
           aria-label="Challenge title"
         />
 
-        {/* Template selector */}
+        {/* Template selector (uses CSS classes in goals.css) */}
         <div>
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Choose a reward template</div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div className="tpl-row" role="list">
             {Object.values(TEMPLATES).map((tpl) => {
               const active = tpl.id === templateId;
               return (
@@ -113,21 +113,15 @@ export default function CustomChallengeForm({ onCreate = () => {} }) {
                   type="button"
                   onClick={() => handleTemplateChange(tpl.id)}
                   aria-pressed={active}
-                  className={active ? "btn-pill active" : "btn-pill"}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "flex-start",
-                    gap: 6,
-                    minWidth: 120,
-                    padding: 10,
-                  }}
+                  role="listitem"
+                  className={`tpl-card${active ? " active" : ""}`}
                 >
-                  <div style={{ fontWeight: 700 }}>{tpl.name}</div>
-                  <div style={{ fontSize: 12, color: "#6b7280" }}>{tpl.desc}</div>
-                  <div style={{ marginTop: 6, display: "flex", gap: 6 }}>
-                    <div style={{ fontSize: 12, padding: "4px 8px", borderRadius: 999 }}>{tpl.xp} XP</div>
-                    <div style={{ fontSize: 12, padding: "4px 8px", borderRadius: 999 }}>{tpl.credits} credits</div>
+                  <div className="tpl-title">{tpl.name}</div>
+                  <div className="tpl-desc">{tpl.desc}</div>
+
+                  <div className="tpl-chips" aria-hidden>
+                    <div className="tpl-chip">{tpl.xp} XP</div>
+                    <div className="tpl-chip">{tpl.credits} credits</div>
                   </div>
                 </button>
               );
