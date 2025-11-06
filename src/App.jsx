@@ -14,6 +14,7 @@ import { supabase } from "./lib/supabase";
 import generateInvoicePdfBlob from "./lib/pdf";
 import { uploadInvoicePdf } from "./lib/storage";
 import Performance from "./components/Performance"; // <-- added import
+import ChallengesPage from "./pages/challenges"; // <-- ADDED: Goals & Rewards page
 
 function App() {
   const [parsedData, setParsedData] = useState(null);
@@ -246,7 +247,7 @@ function App() {
             setTimeout(() => setMobileSidebarOpen(false), 120);
           }
         }}
-        active={currentView}
+        active={currentView === "goals" ? "item3" : currentView} // <-- ADDED: keep item3 highlighted when currentView is 'goals'
         open={mobileSidebarOpen}
         onClose={() => {
           // allow child to ask for close immediately if it wants
@@ -289,6 +290,9 @@ function App() {
               <OrdersList onView={handleViewFromOrders} />
             )}
 
+            {/* Goals & Rewards view */}
+            {!previewData && currentView === "goals" && <ChallengesPage />}
+
             {/* Home / paste / form */}
             {!previewData && currentView === "home" && (
               <>
@@ -311,7 +315,7 @@ function App() {
             )}
 
             {/* Fallback small message for other views */}
-            {!previewData && !["home", "orders", "performance", "invoices"].includes(currentView) && (
+            {!previewData && !["home", "orders", "performance", "invoices", "goals"].includes(currentView) && (
               <div className="formBox">
                 <h3 style={{ marginTop: 0 }}>Coming soon</h3>
                 <p style={{ color: "#6b7280" }}>This section ({currentView}) is a placeholder for future features.</p>
