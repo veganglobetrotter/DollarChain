@@ -7,6 +7,11 @@ import ChallengeCard from "../components/ChallengeCard";
 import CustomChallengeForm from "../components/CustomChallengeForm";
 import { getBalance, addCredits, getXp, addXp } from "../lib/creditsClient";
 import { useToasts } from "../components/ToastProvider";
+import {
+  fetchChallenges as apiFetchChallenges,
+  createCustomChallenge as apiCreateCustomChallenge,
+  claimChallenge as apiClaimChallenge,
+} from "../lib/challengesClient";
 
 /**
  * Challenges (Goals & Rewards) page shell
@@ -62,29 +67,24 @@ export default function ChallengesPage() {
       console.warn("Failed to read persisted balance/xp", e);
     }
 
-    // Try fetching from API if present (safe fallback to mock)
-    fetch("/api/challenges")
-      .then((res) => {
-        if (!res.ok) throw new Error("no api");
-        return res.json();
-      })
-      .then((json) => {
+    // Use the client helper (falls back to local mock on error)
+    (async () => {
+      try {
+        const payload = await apiFetchChallenges();
         if (!mounted) return;
-        setChallenges(Array.isArray(json.challenges) ? json.challenges : FALLBACK_CHALLENGES);
-        setCustomChallenges(Array.isArray(json.custom) ? json.custom : []);
-        if (json.user) {
-          // merge xp from API with persisted xp (persisted wins)
+
+        setChallenges(Array.isArray(payload?.challenges) ? payload.challenges : FALLBACK_CHALLENGES);
+        setCustomChallenges(Array.isArray(payload?.custom) ? payload.custom : []);
+        if (payload?.user) {
           setUser((u) => {
-            const apiUser = { ...u, ...json.user };
-            if (storedXp !== null) {
-              apiUser.xp = storedXp;
-            }
+            const apiUser = { ...u, ...payload.user };
+            if (storedXp !== null) apiUser.xp = storedXp;
             return apiUser;
           });
         }
-      })
-      .catch(() => {
+      } catch (err) {
         // API missing or error - use local fallback
+        console.warn("fetchChallenges failed, using fallback:", err?.message || err);
         setChallenges(FALLBACK_CHALLENGES);
         setCustomChallenges([]);
         setUser((u) => {
@@ -92,10 +92,10 @@ export default function ChallengesPage() {
           if (storedXp !== null) merged.xp = storedXp;
           return merged;
         });
-      })
-      .finally(() => {
+      } finally {
         if (mounted) setLoading(false);
-      });
+      }
+    })();
 
     return () => {
       mounted = false;
@@ -103,20 +103,44 @@ export default function ChallengesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleCreateCustom = (c) => {
-    const next = [c, ...customChallenges].slice(0, 3);
-    setCustomChallenges(next);
+  // Create custom challenge: try API then fallback locally
+  const handleCreateCustom = async (c) => {
+    // local optimistic update (keeps UI snappy)
+    const nextLocal = [c, ...customChallenges].slice(0, 3);
+    setCustomChallenges(nextLocal);
 
-    // gentle success toast
-    addToast({
-      type: "success",
-      title: "Custom goal created",
-      message: `${c.title} — small rewards available`,
-      durationMs: 4200,
-    });
+    try {
+      const res = await apiCreateCustomChallenge({
+        title: c.title,
+        templateId: c.templateId,
+        target: c.target,
+      });
+      // if API returned newly created item, replace the optimistic one
+      const created = res?.custom || res?.challenge || null;
+      if (created) {
+        setCustomChallenges((prev) => [created, ...prev.filter((p) => p.id !== c.id)].slice(0, 3));
+      }
+
+      addToast({
+        type: "success",
+        title: "Custom goal created",
+        message: `${c.title} — small rewards available`,
+        durationMs: 4200,
+      });
+    } catch (err) {
+      // keep optimistic local item; show a gentle warning toast
+      console.warn("createCustomChallenge failed:", err);
+      addToast({
+        type: "warning",
+        title: "Saved locally",
+        message: "Custom goal saved locally. Server sync failed.",
+        durationMs: 4500,
+      });
+    }
   };
 
-  const handleClaim = (ch) => {
+  // Claim challenge: try API claim, otherwise fallback to local behaviour
+  const handleClaim = async (ch) => {
     // Only allow claim when challenge is completed
     const completed = (ch.progress || 0) >= (ch.target || 1);
     if (!completed) {
@@ -129,44 +153,70 @@ export default function ChallengesPage() {
       return;
     }
 
-    // Mock claim flow: persist credits and xp locally
-    const added = Number(ch.credits || 0);
-    const xpAdded = Number(ch.xp || 0);
+    // values to apply locally if API not available
+    const localCredits = Number(ch.credits || 0);
+    const localXp = Number(ch.xp || 0);
 
-    // Update balance and xp via creditsClient
     try {
-      const newBal = addCredits(added);
+      // Attempt server claim (requires signed-in user)
+      const res = await apiClaimChallenge(ch.id);
+      // API may return actual values — prefer server values when present
+      const credited = Number(res?.credits ?? localCredits);
+      const xpCredited = Number(res?.xp ?? localXp);
+
+      // Update client-side persisted balances using creditsClient
+      const newBal = addCredits(credited);
       setBalance(newBal);
 
-      const newXp = addXp(xpAdded);
+      const newXp = addXp(xpCredited);
       setStoredXp(newXp);
       setUser((u) => ({ ...u, xp: newXp }));
 
-      // Optionally mark challenge as claimed in UI — here we set status to 'claimed'
+      // mark claimed in UI
       setChallenges((prev) => prev.map((p) => (p.id === ch.id ? { ...p, status: "claimed" } : p)));
       setCustomChallenges((prev) => prev.map((p) => (p.id === ch.id ? { ...p, status: "claimed" } : p)));
 
-      // Replace modal alert with toast that contains an action
       addToast({
         type: "success",
         title: `Claimed — ${ch.title}`,
-        message: `${added} credits added to your balance.`,
+        message: `${credited} credits added to your balance.`,
         actionLabel: "View balance",
         onAction: () => {
-          // small behaviour: scroll to the rewards card on the right
           const el = document.querySelector(".card");
           if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
         },
         durationMs: 6000,
       });
-    } catch (e) {
-      console.error("Claim failed", e);
-      addToast({
-        type: "error",
-        title: "Claim failed",
-        message: "Failed to claim reward. See console for details.",
-        durationMs: 6000,
-      });
+    } catch (err) {
+      // If API claim fails (unauthenticated or network), fall back to local claim flow
+      console.warn("apiClaimChallenge failed, falling back to local update:", err);
+
+      try {
+        const newBal = addCredits(localCredits);
+        setBalance(newBal);
+
+        const newXp = addXp(localXp);
+        setStoredXp(newXp);
+        setUser((u) => ({ ...u, xp: newXp }));
+
+        setChallenges((prev) => prev.map((p) => (p.id === ch.id ? { ...p, status: "claimed" } : p)));
+        setCustomChallenges((prev) => prev.map((p) => (p.id === ch.id ? { ...p, status: "claimed" } : p)));
+
+        addToast({
+          type: "success",
+          title: `Claimed — ${ch.title}`,
+          message: `${localCredits} credits added to your balance (local).`,
+          durationMs: 6000,
+        });
+      } catch (e) {
+        console.error("Local claim fallback failed:", e);
+        addToast({
+          type: "error",
+          title: "Claim failed",
+          message: "Failed to claim reward. See console for details.",
+          durationMs: 6000,
+        });
+      }
     }
   };
 
