@@ -1,62 +1,91 @@
+// src/components/ChallengeCard.jsx
 import React from "react";
 
 /**
- * ChallengeCard.jsx
+ * ChallengeCard
  * Props:
- *  - challenge { id, title, description, progress, target, xp, credits, status }
- *  - onViewTips(challenge)
- *  - onClaim(challenge)
+ * - challenge: { id, title, description, progress, target, xp, credits, status }
+ * - onClaim(challenge)
+ * - onViewTips(challenge)
  */
-export default function ChallengeCard({ challenge, onViewTips = () => {}, onClaim = () => {} }) {
-  const { title, description, progress = 0, target = 1, xp = 0, credits = 0, status } = challenge;
-  const pct = Math.min(100, Math.round((progress / Math.max(1, target)) * 100));
-  const completed = progress >= target;
+export default function ChallengeCard({ challenge = {}, onClaim = () => {}, onViewTips = () => {} }) {
+  const {
+    title = "Untitled",
+    description = "",
+    progress = 0,
+    target = 1,
+    xp = 0,
+    credits = 0,
+    status = "locked",
+  } = challenge;
 
-  const rawStatus = typeof status === "string" ? status : "in_progress";
-  const statusText = rawStatus.replace(/_/g, " ");
+  const pct = Math.min(100, Math.round((progress / Math.max(1, target)) * 100));
+  const completed = progress >= target || status === "completed";
+  const claimed = status === "claimed";
+  const locked = status === "locked";
 
   return (
-    <article className="bg-white shadow-sm rounded-lg p-4 flex flex-col h-full">
-      <header className="flex items-start justify-between">
-        <div>
-          <h3 className="text-sm font-semibold">{title}</h3>
-          <p className="text-xs text-gray-500 mt-1">{description}</p>
-        </div>
-        <div className="text-right">
-          <div className="text-xs text-gray-600">{xp} XP</div>
-          <div className="text-xs text-gray-600">{credits} credits</div>
-        </div>
-      </header>
+    <article className="challenge-card" tabIndex={0} aria-labelledby={`ch-${challenge.id}-title`}>
+      <div className="challenge-left">
+        <div className="title-row">
+          <h3 id={`ch-${challenge.id}-title`} className="challenge-title">{title}</h3>
 
-      <div className="mt-4 flex-1">
-        <div className="w-full bg-gray-100 rounded h-2 overflow-hidden">
-          <div className="h-2 rounded" style={{ width: `${pct}%`, background: "#60a5fa" }} />
+          <div className="reward-chips" aria-hidden>
+            <div className="reward-chip xp" title={`${xp} XP`}>{xp} XP</div>
+            <div className="reward-chip credit" title={`${credits} credits`}>{credits} cr</div>
+          </div>
         </div>
-        <div className="flex items-center justify-between text-xs text-gray-500 mt-2">
-          <div>{progress} / {target}</div>
-          <div className="capitalize">{statusText}</div>
+
+        {description ? <p className="challenge-desc">{description}</p> : null}
+
+        <div className="meta-row">
+          <div className="progress-wrap" aria-hidden>
+            <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+              <i style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+
+          <div className="progress-meta">
+            <div className="progress-count">{progress} / {target}</div>
+            <div className={`status-pill status-${status.replaceAll("_", "-")}`}>{claimed ? "Claimed" : status.replaceAll("_", " ")}</div>
+          </div>
         </div>
       </div>
 
-      <footer className="mt-4 flex items-center gap-2">
-        <button
-          className={`px-3 py-1 rounded text-sm font-medium ${completed ? "bg-green-600 text-white" : "bg-gray-100 text-gray-800"}`}
-          onClick={() => onClaim(challenge)}
-          disabled={!completed}
-          aria-disabled={!completed}
-        >
-          {completed ? "Claim" : "In progress"}
-        </button>
+      <div className="challenge-right" aria-hidden>
+        <div className="actions">
+          {claimed ? (
+            <button className="btn btn-disabled" disabled aria-disabled>
+              Claimed
+            </button>
+          ) : completed ? (
+            <button
+              className="btn btn-claim"
+              onClick={() => onClaim(challenge)}
+              aria-label={`Claim reward for ${title}`}
+            >
+              Claim
+            </button>
+          ) : locked ? (
+            <button className="btn btn-disabled" disabled aria-disabled>
+              Locked
+            </button>
+          ) : (
+            <button className="btn btn-disabled" disabled aria-disabled>
+              In progress
+            </button>
+          )}
 
-        <button
-          className="text-sm px-2 py-1 rounded bg-white border border-gray-200 text-gray-700"
-          onClick={() => onViewTips(challenge)}
-        >
-          View tips
-        </button>
+          <button className="btn btn-ghost" onClick={() => onViewTips(challenge)} aria-label={`View tips for ${title}`}>
+            View tips
+          </button>
+        </div>
 
-        <div className="ml-auto text-xs text-gray-500">{completed ? "Ready" : "Keep going"}</div>
-      </footer>
+        <div className="small-meta">
+          <div className="small-line muted">Rewards</div>
+          <div className="small-line muted">{xp} XP • {credits} credits</div>
+        </div>
+      </div>
     </article>
   );
 }

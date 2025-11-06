@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import "../components/goals.css";
 import XPBar from "../components/XPBar";
 import ChallengeCard from "../components/ChallengeCard";
-import BadgePanel from "../components/BadgePanel";
+// BadgePanel removed from Goals page (moved to profile)
 import CustomChallengeForm from "../components/CustomChallengeForm";
 import { getBalance, addCredits, getXp, setXp, addXp } from "../lib/creditsClient";
 
@@ -192,14 +192,15 @@ export default function ChallengesPage() {
               </main>
 
               <aside className="md:col-span-1 space-y-4">
-                <BadgePanel badges={user.badges} />
-
-                <div className="bg-white rounded-lg p-3 shadow-sm card">
-                  <h4 className="text-sm font-semibold mb-2">Available Rewards</h4>
-                  <div className="text-sm text-gray-600">Credits granted by completing challenges will appear in your balance and can be used for parsing and premium features.</div>
-                  <div className="mt-3 text-sm">
-                    <div className="flex items-center justify-between"><div>Balance</div><div className="font-semibold">{balance} credits</div></div>
-                    <div className="text-xs text-gray-500 mt-1">Some awarded credits may expire — this is a mock view.</div>
+                {/* BadgePanel removed from Goals & Rewards (moved to profile). */}
+                <div className="card">
+                  <div className="card-inner">
+                    <h4 className="text-sm font-semibold mb-2">Available Rewards</h4>
+                    <div className="text-sm text-gray-600">Credits granted by completing challenges will appear in your balance and can be used for parsing and premium features.</div>
+                    <div className="mt-3 text-sm">
+                      <div className="flex items-center justify-between"><div>Balance</div><div className="font-semibold">{balance} credits</div></div>
+                      <div className="text-xs text-gray-500 mt-1">Some awarded credits may expire — this is a mock view.</div>
+                    </div>
                   </div>
                 </div>
 

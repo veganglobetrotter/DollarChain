@@ -1,6 +1,6 @@
 /* src/components/goals.css
-   Polished, less-noisy visual system for Goals & Rewards.
-   Scoped under .goals-root to avoid sitewide impact.
+   Polished Goals & Rewards styles with desktop-friendly layout adjustments.
+   Scoped under .goals-root to avoid side-effects.
 */
 
 .goals-root {
@@ -38,97 +38,99 @@
   padding: 0;
 }
 
-/* make challenge cards airy and consistent */
-.goals-root article {
+/* challenge card base */
+.challenge-card {
   background: var(--card-bg);
   border-radius: 10px;
   padding: 14px;
   box-shadow: var(--soft-shadow);
   border: 1px solid rgba(15,23,42,0.03);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  height: 100%;
+  display: grid;
+  gap: 12px;
+  align-items: start;
   transition: transform 140ms ease, box-shadow 140ms ease;
 }
-.goals-root article:hover { transform: translateY(-4px); box-shadow: 0 14px 40px rgba(16,24,40,0.08); }
 
-/* header inside challenge card */
-.goals-root article header { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
-.goals-root article h3 { margin:0; font-size:15px; font-weight:700; }
-.goals-root article p { margin:6px 0 0; color:var(--muted); font-size:13px; }
-
-/* progress bar */
-.goals-root .progress-wrap { margin-top:10px; }
-.goals-root .progress { height:8px; background:#f3f4f6; border-radius:8px; overflow:hidden; }
-.goals-root .progress > i { display:block; height:100%; background:linear-gradient(90deg,#60a5fa,#3b82f6); }
-
-/* footer actions */
-.goals-root article footer { display:flex; gap:8px; align-items:center; margin-top:6px; }
-.goals-root .btn { padding:8px 12px; border-radius:8px; font-weight:600; cursor:pointer; border: none; }
-.goals-root .btn-secondary { background:#f8fafc; color:#0f172a; border:1px solid rgba(15,23,42,0.04); }
-.goals-root .btn-primary { background:var(--accent); color:white; box-shadow: 0 8px 20px rgba(16,185,129,0.08); }
-
-/* small metadata line */
-.goals-root .text-xs { font-size:12px; color:var(--muted); }
-
-/* layout: main + aside */
-.goals-root .grid-main { display:grid; gap:16px; grid-template-columns: 1fr; }
-@media (min-width: 980px) { .goals-root .grid-main { grid-template-columns: 2fr 360px; } }
-
-/* aside column */
-.goals-root .aside-col { display:flex; flex-direction:column; gap:14px; }
-
-/* ===== Badge Panel ===== */
-.badge-panel {
-  padding: 0;
+/* responsive grid: mobile stacked, desktop two columns */
+@media (min-width: 980px) {
+  .challenge-card {
+    grid-template-columns: 1fr 210px; /* left flexible, right fixed */
+    gap: 18px;
+  }
 }
-.badge-panel-title {
-  margin: 0 0 8px 0;
-  font-size: 0.95rem;
-  font-weight: 700;
-}
-.badge-panel-empty { color: var(--muted); font-size:13px; }
-
-/* grid of badges */
-.badges-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-@media (min-width: 640px) {
-  .badges-grid { grid-template-columns: 1fr; }
+@media (max-width: 979px) {
+  .challenge-card { grid-template-columns: 1fr; }
 }
 
-/* single badge tile */
-.badge-tile {
-  display:flex;
-  gap:10px;
-  align-items:center;
-  padding:8px 10px;
-  border-radius:10px;
-  background: #ffffff;
-  border: 1px solid rgba(15,23,42,0.03);
-  box-shadow: 0 6px 18px rgba(16,24,40,0.04);
-}
-.badge-icon {
-  width:44px;
-  height:44px;
-  border-radius:10px;
-  display:flex;
+.challenge-card:hover { transform: translateY(-4px); box-shadow: 0 14px 40px rgba(16,24,40,0.08); }
+
+/* left column */
+.challenge-left { display:flex; flex-direction:column; gap:10px; min-width:0; }
+
+/* title row: title + chips inline */
+.title-row { display:flex; align-items:center; gap:12px; justify-content:space-between; min-width:0; }
+.challenge-title { margin:0; font-size:15px; font-weight:700; color: #07131a; flex:1 1 auto; min-width:0; }
+
+/* reward chips next to title (collapsed on tiny screens) */
+.reward-chips { display:flex; gap:8px; align-items:center; flex:0 0 auto; margin-left:8px; }
+.reward-chip {
+  padding:6px 8px;
+  border-radius:999px;
+  font-weight:700;
+  font-size:12px;
+  display:inline-flex;
   align-items:center;
   justify-content:center;
-  flex:0 0 44px;
-  box-shadow: inset 0 -6px 12px rgba(255,255,255,0.06);
+  min-width:44px;
+  text-align:center;
 }
-.badge-initial { font-weight:700; color:#fff; font-size:16px; }
+.reward-chip.xp { background: linear-gradient(90deg,#06b6d4,#06b6d4); color: white; }
+.reward-chip.credit { background: linear-gradient(90deg,#f59e0b,#f59e0b); color: white; }
 
-/* text beside icon */
-.badge-meta { display:flex; flex-direction:column; gap:3px; min-width:0; }
-.badge-title { font-size:14px; font-weight:700; color: #07131a; }
-.badge-hint { font-size:12px; color: var(--muted); }
+/* description */
+.challenge-desc { margin:6px 0 0; color:var(--muted); font-size:13px; }
 
-/* tweak the right column "Available Rewards" card */
+/* progress row */
+.meta-row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:6px; }
+.progress-wrap { flex:1 1 auto; min-width:0; }
+.progress { height:8px; background:#f3f4f6; border-radius:8px; overflow:hidden; }
+.progress > i { display:block; height:100%; background:linear-gradient(90deg,#60a5fa,#3b82f6); }
+
+/* progress meta on left (small) */
+.progress-meta { display:flex; gap:10px; align-items:center; margin-left:8px; flex:0 0 auto; }
+.progress-count { font-size:12px; color:var(--muted); font-weight:600; }
+.status-pill {
+  font-size:12px;
+  padding:6px 8px;
+  border-radius:999px;
+  font-weight:700;
+  text-transform:none;
+}
+.status-in_progress { background: #f8fafc; color: #0f172a; border: 1px solid rgba(15,23,42,0.04); }
+.status-completed { background: #dcfce7; color: #166534; border: 1px solid rgba(16,185,129,0.08); }
+.status-claimed { background: #eef2ff; color: #3730a3; border: 1px solid rgba(99,102,241,0.08); }
+.status-locked { background: #fff7ed; color: #92400e; border: 1px solid rgba(245,158,11,0.08); }
+
+/* right column */
+.challenge-right { display:flex; flex-direction:column; gap:12px; align-items:stretch; justify-content:space-between; }
+
+/* actions */
+.actions { display:flex; gap:8px; align-items:center; justify-content:flex-end; }
+
+/* Buttons */
+.btn { padding:8px 12px; border-radius:8px; font-weight:700; cursor:pointer; border: none; font-size:14px; }
+.btn-ghost { background: transparent; color: #0f172a; border: 1px solid rgba(15,23,42,0.06); }
+.btn-claim { background: var(--accent); color: white; box-shadow: 0 8px 20px rgba(16,185,129,0.08); }
+.btn-disabled { background: #f3f4f6; color: var(--muted); cursor: not-allowed; }
+
+/* small meta block below actions */
+.small-meta { display:flex; flex-direction:column; gap:4px; text-align:right; }
+.small-line { font-size:13px; color:var(--muted); }
+
+/* muted helper */
+.muted { color: var(--muted); font-size:13px; }
+
+/* Aside column (right) general card */
 .goals-root .card .card-inner {
   background: var(--card-bg);
   border-radius: 10px;
@@ -138,19 +140,30 @@
 }
 
 /* balance row */
-.goals-root .balance-row { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.balance-row { display:flex; justify-content:space-between; align-items:center; gap:8px; }
 
-/* make tiny helper text calmer */
-.goals-root .muted { color:var(--muted); font-size:13px; }
+/* Badges moved out — keep badge styles for profile usage */
+.badge-panel { padding: 0; }
+.badge-panel-title { margin: 0 0 8px 0; font-size: 0.95rem; font-weight:700; }
+.badge-panel-empty { color: var(--muted); font-size:13px; }
 
-/* ===== Accessibility & tiny polish ===== */
-.goals-root .btn:focus { outline: 3px solid rgba(99,102,241,0.12); border-radius:8px; }
-.goals-root article:focus-within { box-shadow: 0 14px 40px rgba(16,24,40,0.08); transform: translateY(-3px); }
+/* grid of badges (kept for future placement on profile) */
+.badges-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.badge-tile { display:flex; gap:10px; align-items:center; padding:8px 10px; border-radius:10px; background: #ffffff; border: 1px solid rgba(15,23,42,0.03); box-shadow: 0 6px 18px rgba(16,24,40,0.04); }
+.badge-icon { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex:0 0 44px; box-shadow: inset 0 -6px 12px rgba(255,255,255,0.06); }
+.badge-initial { font-weight:700; color:#fff; font-size:16px; }
+.badge-meta { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.badge-title { font-size:14px; font-weight:700; color: #07131a; }
+.badge-hint { font-size:12px; color: var(--muted); }
+
+/* accessibility focus */
+.challenge-card:focus-within { outline: none; box-shadow: 0 18px 48px rgba(16,24,40,0.09); transform: translateY(-3px); }
 
 /* small responsive tweaks */
 @media (max-width: 640px) {
-  .goals-root .badges-grid { grid-template-columns: repeat(2, 1fr); }
-  .goals-root .frame { padding: 14px; }
-  .goals-root .badge-icon { width:40px; height:40px; border-radius:8px; }
-  .goals-root .badge-initial { font-size:14px; }
+  .challenge-card { padding:12px; }
+  .reward-chips { display:flex; gap:6px; }
+  .reward-chip { padding:6px 8px; min-width:40px; font-size:13px; }
+  .challenge-right { align-items:flex-end; }
+  .small-meta { text-align:left; }
 }
