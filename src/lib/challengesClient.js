@@ -2,15 +2,12 @@
 import { supabase } from "./supabase";
 
 /**
- * Wrapper for Goals & Rewards server endpoints.
+ * Simple wrapper for server endpoints:
+ * - GET  /api/getChallenges
+ * - POST /api/createCustomChallenge
+ * - POST /api/claimReward
  *
- * Exports:
- *  - fetchChallenges() -> { ok, challenges, custom, user }
- *  - createCustomChallenge({ title, templateId, target }) -> { ok, challenge }
- *  - claimChallenge(challengeId) -> { ok, credits, xp, raw }
- *
- * Each function will attempt to read the current Supabase access token (if any)
- * and send it as Bearer token to the serverless endpoint.
+ * Each function sends the current Supabase access token if available.
  */
 
 async function getAccessToken() {
@@ -40,7 +37,7 @@ async function request(path, { method = "GET", body = null, accessToken = null }
   try {
     payload = text ? JSON.parse(text) : null;
   } catch (e) {
-    payload = null;
+    // ignore non-json
   }
 
   if (!res.ok) {
@@ -56,7 +53,6 @@ async function request(path, { method = "GET", body = null, accessToken = null }
 
 /* Public API */
 
-// GET canonical public + (optionally) user-specific data
 export async function fetchChallenges({ accessToken } = {}) {
   return request("/api/getChallenges", { method: "GET", accessToken });
 }
@@ -66,24 +62,17 @@ export async function fetchChallenges({ accessToken } = {}) {
  * title: string (required)
  * templateId: string (required, e.g. 'standard')
  * target: number (optional)
- *
- * Returns server-created challenge in { challenge } or error.
  */
 export async function createCustomChallenge({ title, templateId = "standard", target = undefined, accessToken } = {}) {
   if (!title) throw new Error("title is required");
-  if (!templateId) throw new Error("templateId is required");
-
   const body = { title, templateId };
   if (target !== undefined) body.target = Number(target);
-
   return request("/api/createCustomChallenge", { method: "POST", body: JSON.stringify(body), accessToken });
 }
 
 /**
- * Claim a completed challenge (server-authoritative).
+ * Claim a completed custom challenge (must be owned by signed-in user).
  * challengeId: string (required)
- *
- * Returns { ok: true, credits, xp, raw } on success.
  */
 export async function claimChallenge(challengeId, { accessToken } = {}) {
   if (!challengeId) throw new Error("challengeId is required");

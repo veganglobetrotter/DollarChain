@@ -73,9 +73,9 @@ export default function ChallengesPage() {
         setIsAuthenticated(false);
       }
 
-      // server-canonical balance (if provided)
-      if (payload?.user?.balance != null) {
-        setBalance(Number(payload.user.balance));
+      // server-canonical credits (if provided) — NOTE: server returns `user.credits`
+      if (payload?.user?.credits != null) {
+        setBalance(Number(payload.user.credits));
       }
     } catch (err) {
       console.warn("fetchChallenges failed, using fallback:", err?.message || err);
