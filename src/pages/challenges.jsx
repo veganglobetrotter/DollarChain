@@ -1,5 +1,5 @@
 // src/pages/challenges.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import "../components/goals.css";
 import XPBar from "../components/XPBar";
 import ChallengeCard from "../components/ChallengeCard";
@@ -12,11 +12,16 @@ import {
   createCustomChallenge as apiCreateCustomChallenge,
   claimChallenge as apiClaimChallenge,
 } from "../lib/challengesClient";
+import { supabase } from "../lib/supabase";
 
 /**
  * Challenges (Goals & Rewards) page shell
  * - Fetches /api/challenges if present, otherwise uses an embedded mock.
  * - Mobile-first layout, matches site tokens (max-w-6xl, cards, shadows).
+ *
+ * Notes:
+ * - This version gates create/claim behind authentication.
+ * - It listens for Supabase auth changes and refreshes the server data when a user signs in.
  */
 
 const FALLBACK_USER = {
@@ -47,12 +52,48 @@ export default function ChallengesPage() {
   // Toasts
   const { addToast } = useToasts();
 
-  // whether current client session is authenticated (set from server payload)
+  // whether current client session is authenticated (set from server payload or supabase)
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // helper to fetch challenges from API (used on mount and after sign-in)
+  const reloadChallenges = useCallback(async () => {
+    setLoading(true);
+    try {
+      const payload = await apiFetchChallenges();
+      setChallenges(Array.isArray(payload?.challenges) ? payload.challenges : FALLBACK_CHALLENGES);
+      setCustomChallenges(Array.isArray(payload?.custom) ? payload.custom : []);
+      if (payload?.user) {
+        setUser((u) => {
+          const apiUser = { ...u, ...payload.user };
+          if (storedXp !== null) apiUser.xp = storedXp;
+          return apiUser;
+        });
+        setIsAuthenticated(Boolean(payload.user && payload.user.id));
+      } else {
+        setIsAuthenticated(false);
+      }
+
+      // server-canonical balance (if provided)
+      if (payload?.user?.balance != null) {
+        setBalance(Number(payload.user.balance));
+      }
+    } catch (err) {
+      console.warn("fetchChallenges failed, using fallback:", err?.message || err);
+      setChallenges(FALLBACK_CHALLENGES);
+      setCustomChallenges([]);
+      setUser((u) => {
+        const merged = { ...FALLBACK_USER };
+        if (storedXp !== null) merged.xp = storedXp;
+        return merged;
+      });
+      setIsAuthenticated(false);
+    } finally {
+      setLoading(false);
+    }
+  }, [storedXp]);
 
   useEffect(() => {
     let mounted = true;
-    setLoading(true);
 
     // Initialize persisted balance & xp (from localStorage via creditsClient)
     try {
@@ -66,55 +107,68 @@ export default function ChallengesPage() {
         }
       }
     } catch (e) {
-      // ignore localStorage failures
       console.warn("Failed to read persisted balance/xp", e);
     }
 
-    // Use the client helper (falls back to local mock on error)
-    (async () => {
-      try {
-        const payload = await apiFetchChallenges();
-        if (!mounted) return;
-
-        setChallenges(Array.isArray(payload?.challenges) ? payload.challenges : FALLBACK_CHALLENGES);
-        setCustomChallenges(Array.isArray(payload?.custom) ? payload.custom : []);
-        if (payload?.user) {
-          setUser((u) => {
-            const apiUser = { ...u, ...payload.user };
-            if (storedXp !== null) apiUser.xp = storedXp;
-            return apiUser;
-          });
-          setIsAuthenticated(Boolean(payload.user && payload.user.id));
-        } else {
-          // not authenticated (server returned no user)
-          setIsAuthenticated(false);
-        }
-
-        // if server returned a canonical balance, prefer it
-        if (payload?.user?.balance != null) {
-          setBalance(Number(payload.user.balance));
-        }
-      } catch (err) {
-        // API missing or error - use local fallback
-        console.warn("fetchChallenges failed, using fallback:", err?.message || err);
-        setChallenges(FALLBACK_CHALLENGES);
-        setCustomChallenges([]);
-        setUser((u) => {
-          const merged = { ...FALLBACK_USER };
-          if (storedXp !== null) merged.xp = storedXp;
-          return merged;
-        });
-        setIsAuthenticated(false);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
+    // first load
+    reloadChallenges();
 
     return () => {
       mounted = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [reloadChallenges]);
+
+  // Listen for Supabase auth changes so we can refresh server-backed content
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      // get initial session
+      try {
+        const { data } = await supabase.auth.getSession();
+        const session = data?.session ?? null;
+        if (!mounted) return;
+        setIsAuthenticated(Boolean(session?.user));
+        if (session?.user) {
+          // attach minimal user info for display
+          setUser((u) => ({ ...u, id: session.user.id, email: session.user.email ?? u.email }));
+          // when user signed in, refresh server-side data to get canonical custom goals & balance
+          await reloadChallenges();
+        }
+      } catch (e) {
+        console.warn("auth.getSession failed", e);
+      }
+
+      // subscribe to auth changes
+      const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        if (!mounted) return;
+        setIsAuthenticated(Boolean(session?.user));
+        if (session?.user) {
+          setUser((u) => ({ ...u, id: session.user.id, email: session.user.email ?? u.email }));
+          // refresh server data (fetch custom challenges, balance)
+          await reloadChallenges();
+        } else {
+          // signed out — revert to fallback or public view
+          setUser(FALLBACK_USER);
+          setIsAuthenticated(false);
+          // keep local persisted balance/xp if present
+          const b = getBalance();
+          const xpVal = getXp();
+          if (b != null) setBalance(b);
+          if (xpVal != null) setStoredXp(xpVal);
+        }
+      });
+
+      return () => {
+        mounted = false;
+        try {
+          sub?.subscription?.unsubscribe?.();
+        } catch (e) {
+          // older supabase client surfaces unsubscribe differently; ignore if unavailable
+          if (sub?.unsubscribe) sub.unsubscribe();
+        }
+      };
+    })();
+  }, [reloadChallenges]);
 
   // Create custom challenge: require authentication (server-authoritative)
   const handleCreateCustom = async (c) => {
@@ -151,7 +205,6 @@ export default function ChallengesPage() {
         durationMs: 4200,
       });
     } catch (err) {
-      // keep optimistic local item; show a gentle warning toast
       console.warn("createCustomChallenge failed:", err);
       addToast({
         type: "warning",
@@ -162,7 +215,7 @@ export default function ChallengesPage() {
     }
   };
 
-  // Claim challenge: require authentication and call server; fallback to local only if server call fails for non-auth reasons
+  // Claim challenge: require authentication and call server; surface helpful toasts
   const handleClaim = async (ch) => {
     // Only allow claim when challenge is completed
     const completed = (ch.progress || 0) >= (ch.target || 1);
@@ -341,7 +394,7 @@ export default function ChallengesPage() {
                   </div>
                 </div>
 
-                <CustomChallengeForm onCreate={handleCreateCustom} />
+                <CustomChallengeForm onCreate={handleCreateCustom} disabled={!isAuthenticated} />
               </aside>
             </div>
           )}
