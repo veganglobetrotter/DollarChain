@@ -22,43 +22,43 @@ export default async function handler(req, res) {
     // create server supabase client (should use service_role key internally)
     const supabase = createSupabaseServerClient();
 
-    // Call RPC (atomic server-side). The RPC must be installed in your DB.
-    // RPC signature: claim_reward(p_user_id UUID, p_challenge_id UUID) -> TABLE(new_balance BIGINT, awarded_xp BIGINT)
+    // Call RPC (atomic server-side). Ensure we pass challengeId as text (your custom_challenges.id is text)
     const { data, error } = await supabase.rpc("claim_reward", {
       p_user_id: user.id,
-      p_challenge_id: challengeId,
+      p_challenge_id: String(challengeId), // enforce text
     });
 
     if (error) {
-      // Map common server exceptions raised by the PL/pgSQL function to sensible HTTP codes
       const msg = String(error.message || error);
       console.error("claimReward rpc error:", error);
 
-      if (msg.includes("challenge_not_found")) {
-        return res.status(404).json({ ok: false, error: "challenge_not_found" });
-      }
-      if (msg.includes("not_owner")) {
-        return res.status(403).json({ ok: false, error: "not_owner" });
-      }
-      if (msg.includes("not_complete")) {
-        return res.status(409).json({ ok: false, error: "not_complete" });
-      }
-      if (msg.includes("already_claimed")) {
-        return res.status(409).json({ ok: false, error: "already_claimed" });
-      }
+      if (msg.includes("challenge_not_found")) return res.status(404).json({ ok: false, error: "challenge_not_found" });
+      if (msg.includes("not_owner")) return res.status(403).json({ ok: false, error: "not_owner" });
+      if (msg.includes("not_complete")) return res.status(409).json({ ok: false, error: "not_complete" });
+      if (msg.includes("already_claimed")) return res.status(409).json({ ok: false, error: "already_claimed" });
 
-      // Fallback: return RPC message as bad request so caller can surface it
       return res.status(400).json({ ok: false, error: msg || "Claim failed" });
     }
 
     // RPC typically returns an array of rows for TABLE(...) results
     const result = Array.isArray(data) ? data[0] : data;
 
-    // normalize returned fields (some variants may return new_balance / awarded_xp or balance / xp)
-    const balance = result?.new_balance ?? result?.balance ?? result?.new_balance?.toString?.() ?? null;
-    const xp_awarded = result?.awarded_xp ?? result?.xp ?? result?.awarded_xp?.toString?.() ?? null;
+    // Normalize returned fields (compat with different RPC variants)
+    // Some RPs return new_balance / awarded_xp, others balance/xp, others credits
+    const creditsReturned =
+      result?.new_credits ??
+      result?.credits ??
+      result?.new_balance ??
+      result?.balance ??
+      null;
 
-    return res.status(200).json({ ok: true, balance, xp_awarded, raw: result });
+    const xpReturned =
+      result?.awarded_xp ??
+      result?.xp_awarded ??
+      result?.xp ??
+      null;
+
+    return res.status(200).json({ ok: true, credits: creditsReturned, xp: xpReturned, raw: result });
   } catch (e) {
     console.error("claimReward error:", e);
     return res.status(500).json({ ok: false, error: "Server error" });

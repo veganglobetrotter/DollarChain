@@ -34,8 +34,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, challenges: publicChallenges, custom: [], user: null });
     }
 
-    // Fetch custom challenges and user balances for this user
-    // NOTE: adapt table/column names to your DB schema
+    // Fetch custom challenges for this user
     const { data: custom, error: customErr } = await supabase
       .from("custom_challenges")
       .select("*")
@@ -47,10 +46,10 @@ export default async function handler(req, res) {
       console.error("getChallenges: custom fetch error", customErr);
     }
 
-    // Fetch user credits/xp if you have a user_credits or user_profiles table
+    // Fetch user credits (your table uses `credits` column)
     const { data: creditsData, error: creditsErr } = await supabase
       .from("user_credits")
-      .select("balance")
+      .select("credits, updated_at")
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -58,11 +57,29 @@ export default async function handler(req, res) {
       console.error("getChallenges: credits fetch error", creditsErr);
     }
 
+    // Compute total XP by summing user_claims.xp_awarded (history is authoritative)
+    let totalXp = 0;
+    try {
+      const { data: claims, error: claimsErr } = await supabase
+        .from("user_claims")
+        .select("xp_awarded")
+        .eq("user_id", user.id);
+
+      if (!claimsErr && Array.isArray(claims)) {
+        totalXp = claims.reduce((s, r) => s + (Number(r?.xp_awarded || 0)), 0);
+      } else if (claimsErr) {
+        console.error("getChallenges: user_claims fetch error", claimsErr);
+      }
+    } catch (e) {
+      // unexpected — just leave totalXp as 0
+      console.warn("getChallenges: user_claims aggregate failed", e);
+    }
+
     const userMeta = {
       id: user.id,
       email: user.email,
-      balance: creditsData?.balance ?? 0,
-      // xp may be stored in a separate table (adjust as needed)
+      credits: creditsData?.credits ?? 0,
+      xp: totalXp,
     };
 
     return res.status(200).json({ ok: true, challenges: publicChallenges, custom: custom || [], user: userMeta });
