@@ -47,6 +47,9 @@ export default function ChallengesPage() {
   // Toasts
   const { addToast } = useToasts();
 
+  // whether current client session is authenticated (set from server payload)
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
   useEffect(() => {
     let mounted = true;
     setLoading(true);
@@ -81,6 +84,15 @@ export default function ChallengesPage() {
             if (storedXp !== null) apiUser.xp = storedXp;
             return apiUser;
           });
+          setIsAuthenticated(Boolean(payload.user && payload.user.id));
+        } else {
+          // not authenticated (server returned no user)
+          setIsAuthenticated(false);
+        }
+
+        // if server returned a canonical balance, prefer it
+        if (payload?.user?.balance != null) {
+          setBalance(Number(payload.user.balance));
         }
       } catch (err) {
         // API missing or error - use local fallback
@@ -92,6 +104,7 @@ export default function ChallengesPage() {
           if (storedXp !== null) merged.xp = storedXp;
           return merged;
         });
+        setIsAuthenticated(false);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -103,9 +116,19 @@ export default function ChallengesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Create custom challenge: try API then fallback locally
+  // Create custom challenge: require authentication (server-authoritative)
   const handleCreateCustom = async (c) => {
-    // local optimistic update (keeps UI snappy)
+    if (!isAuthenticated) {
+      addToast({
+        type: "info",
+        title: "Sign in to create goals",
+        message: "Please sign in to create and sync custom goals with your account.",
+        durationMs: 5000,
+      });
+      return;
+    }
+
+    // local optimistic update for UI snappiness
     const nextLocal = [c, ...customChallenges].slice(0, 3);
     setCustomChallenges(nextLocal);
 
@@ -115,7 +138,7 @@ export default function ChallengesPage() {
         templateId: c.templateId,
         target: c.target,
       });
-      // if API returned newly created item, replace the optimistic one
+
       const created = res?.custom || res?.challenge || null;
       if (created) {
         setCustomChallenges((prev) => [created, ...prev.filter((p) => p.id !== c.id)].slice(0, 3));
@@ -139,7 +162,7 @@ export default function ChallengesPage() {
     }
   };
 
-  // Claim challenge: try API claim, otherwise fallback to local behaviour
+  // Claim challenge: require authentication and call server; fallback to local only if server call fails for non-auth reasons
   const handleClaim = async (ch) => {
     // Only allow claim when challenge is completed
     const completed = (ch.progress || 0) >= (ch.target || 1);
@@ -153,16 +176,27 @@ export default function ChallengesPage() {
       return;
     }
 
-    // values to apply locally if API not available
+    if (!isAuthenticated) {
+      addToast({
+        type: "info",
+        title: "Sign in to claim",
+        message: "Please sign in to claim rewards and sync them with your account.",
+        durationMs: 5000,
+      });
+      return;
+    }
+
+    // values to apply locally if API response doesn't include them
     const localCredits = Number(ch.credits || 0);
     const localXp = Number(ch.xp || 0);
 
     try {
       // Attempt server claim (requires signed-in user)
       const res = await apiClaimChallenge(ch.id);
-      // API may return actual values — prefer server values when present
-      const credited = Number(res?.credits ?? localCredits);
-      const xpCredited = Number(res?.xp ?? localXp);
+
+      // prefer server-returned fields; check several possible keys
+      const credited = Number(res?.credits ?? res?.balance ?? res?.new_balance ?? localCredits);
+      const xpCredited = Number(res?.xp ?? res?.xp_awarded ?? res?.awarded_xp ?? localXp);
 
       // Update client-side persisted balances using creditsClient
       const newBal = addCredits(credited);
@@ -188,35 +222,15 @@ export default function ChallengesPage() {
         durationMs: 6000,
       });
     } catch (err) {
-      // If API claim fails (unauthenticated or network), fall back to local claim flow
-      console.warn("apiClaimChallenge failed, falling back to local update:", err);
+      // If API claim fails due to network or server error (not auth), surface helpful message
+      console.warn("apiClaimChallenge failed:", err);
 
-      try {
-        const newBal = addCredits(localCredits);
-        setBalance(newBal);
-
-        const newXp = addXp(localXp);
-        setStoredXp(newXp);
-        setUser((u) => ({ ...u, xp: newXp }));
-
-        setChallenges((prev) => prev.map((p) => (p.id === ch.id ? { ...p, status: "claimed" } : p)));
-        setCustomChallenges((prev) => prev.map((p) => (p.id === ch.id ? { ...p, status: "claimed" } : p)));
-
-        addToast({
-          type: "success",
-          title: `Claimed — ${ch.title}`,
-          message: `${localCredits} credits added to your balance (local).`,
-          durationMs: 6000,
-        });
-      } catch (e) {
-        console.error("Local claim fallback failed:", e);
-        addToast({
-          type: "error",
-          title: "Claim failed",
-          message: "Failed to claim reward. See console for details.",
-          durationMs: 6000,
-        });
-      }
+      addToast({
+        type: "error",
+        title: "Claim failed",
+        message: "Unable to claim reward. If you're signed in, try again or check network.",
+        durationMs: 6000,
+      });
     }
   };
 
@@ -244,6 +258,31 @@ export default function ChallengesPage() {
               Complete goals, earn credits and level up. Credits will be added to your balance (mock view).
             </p>
           </header>
+
+          {/* Sign-in CTA banner when unauthenticated */}
+          {!isAuthenticated && (
+            <div className="mb-4 card" style={{ padding: 12, borderRadius: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ flex: 1, color: "#374151" }}>
+                  <strong>Sign in to claim rewards</strong>
+                  <div style={{ fontSize: 13, color: "#6b7280" }}>You must be signed in to create or claim goals — this keeps rewards secure and tied to your account.</div>
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // best-effort: trigger a custom event so App-level auth modal can open
+                      window.dispatchEvent(new CustomEvent("open-auth-modal"));
+                      addToast({ type: "info", title: "Sign in", message: "Open the sign-in dialog from the header.", durationMs: 3000 });
+                    }}
+                    className="btn btn-primary"
+                  >
+                    Sign in
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {loading ? (
             <div className="text-center py-12 text-gray-500">Loading Goals & Rewards…</div>
