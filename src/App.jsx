@@ -22,6 +22,10 @@ import { ToastProvider } from "./components/ToastProvider";
 // --- ADDED: UserProvider for global user/profile/wallet context
 import { UserProvider } from "./context/UserContext";
 
+// --- ADDED: Profile & Settings pages (rendered via currentView)
+import Profile from "./components/Profile";
+import Settings from "./components/Settings";
+
 function App() {
   const [parsedData, setParsedData] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -285,6 +289,12 @@ function App() {
                   />
                 )}
 
+                {/* Profile view */}
+                {!previewData && currentView === "profile" && <Profile />}
+
+                {/* Settings view */}
+                {!previewData && currentView === "settings" && <Settings />}
+
                 {/* Performance view */}
                 {!previewData && currentView === "performance" && <Performance />}
 
@@ -323,7 +333,7 @@ function App() {
                 )}
 
                 {/* Fallback small message for other views */}
-                {!previewData && !["home", "orders", "performance", "invoices", "goals"].includes(currentView) && (
+                {!previewData && !["home", "orders", "performance", "invoices", "goals", "profile", "settings"].includes(currentView) && (
                   <div className="formBox">
                     <h3 style={{ marginTop: 0 }}>Coming soon</h3>
                     <p style={{ color: "#6b7280" }}>This section ({currentView}) is a placeholder for future features.</p>
