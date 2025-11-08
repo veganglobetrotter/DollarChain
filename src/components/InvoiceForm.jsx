@@ -1,5 +1,7 @@
 // src/components/InvoiceForm.jsx
 import { useState, useEffect } from "react";
+import axios from "axios"; // added for calling credit APIs
+import { supabase } from "../lib/supabaseClient"; // adjust path if needed
 
 /**
  * InvoiceForm
@@ -17,6 +19,8 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
     paymentNumber: "",
   });
 
+  const [walletMessage, setWalletMessage] = useState(""); // new state for wallet feedback
+
   useEffect(() => {
     setFormData({
       buyerName: parsedData.buyerName || "",
@@ -32,17 +36,69 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e && e.preventDefault();
-    if (typeof onGenerate === "function") {
-      onGenerate(formData);
-    } else {
-      alert(`Invoice ready for ${formData.buyerName}!\n\n(We will show a preview next step.)`);
-      console.log("Final invoice data:", formData);
+
+    const creditsPerInvoice = 10; // default credits per invoice
+
+    // 1) Reserve credits first
+    let reservationId = null;
+    try {
+      const idempotencyKey = crypto.randomUUID();
+      const res = await axios.post("/api/reserveCredits", {
+        userId: supabase.auth.user().id,
+        amount: creditsPerInvoice,
+        idempotencyKey,
+      });
+      reservationId = res.data.reservation?.id || res.data.reservation_id;
+      setWalletMessage(`Reserved ${creditsPerInvoice} credits.`);
+    } catch (err) {
+      console.error("Reserve credits failed:", err);
+      setWalletMessage("Failed to reserve credits. Cannot generate invoice.");
+      return; // stop submission
+    }
+
+    // 2) Attempt invoice generation
+    try {
+      if (typeof onGenerate === "function") {
+        await onGenerate(formData);
+      } else {
+        alert(`Invoice ready for ${formData.buyerName}!\n\n(We will show a preview next step.)`);
+        console.log("Final invoice data:", formData);
+      }
+
+      // 3) Consume credits after successful generation
+      try {
+        await axios.post("/api/consumeCredits", {
+          userId: supabase.auth.user().id,
+          reservationId,
+          delta: creditsPerInvoice,
+          type: "invoice",
+          reference: `invoice-${Date.now()}`,
+        });
+        setWalletMessage(`Consumed ${creditsPerInvoice} credits.`);
+      } catch (consumeErr) {
+        console.error("Consume credits failed:", consumeErr);
+        setWalletMessage("Invoice generated, but failed to consume credits. Admin may need to adjust.");
+      }
+    } catch (generateErr) {
+      console.error("Invoice generation failed:", generateErr);
+
+      // 4) Release reserved credits if generation fails
+      try {
+        await axios.post("/api/releaseCredits", {
+          userId: supabase.auth.user().id,
+          reservationId,
+        });
+        setWalletMessage("Invoice failed. Reserved credits released.");
+      } catch (releaseErr) {
+        console.error("Release credits failed:", releaseErr);
+        setWalletMessage("Invoice failed and credits may be stuck. Admin check required.");
+      }
     }
   };
 
-  // Confidence badge component (small and reused)
+  // Confidence badge component
   const ConfidenceBadge = ({ score }) => {
     if (score === undefined || score === null) return null;
     const s = Number(score);
@@ -55,33 +111,23 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
       color: "#fff",
       marginLeft: 8,
     };
-    if (s >= 0.8) {
-      return <span style={{ ...base, background: "#16a34a" }}>✓ {Math.round(s * 100)}%</span>;
-    } else if (s >= 0.5) {
-      return <span style={{ ...base, background: "#f59e0b" }}>~ {Math.round(s * 100)}%</span>;
-    } else {
-      return <span style={{ ...base, background: "#ef4444" }}>! {Math.round(s * 100)}%</span>;
-    }
+    if (s >= 0.8) return <span style={{ ...base, background: "#16a34a" }}>✓ {Math.round(s * 100)}%</span>;
+    else if (s >= 0.5) return <span style={{ ...base, background: "#f59e0b" }}>~ {Math.round(s * 100)}%</span>;
+    else return <span style={{ ...base, background: "#ef4444" }}>! {Math.round(s * 100)}%</span>;
   };
 
   const confidence = parsedData?.confidence || {};
 
-  // safe clipboard helper (tries clipboard API, falls back to prompt)
   const safeCopyToClipboard = async (text) => {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(text);
         alert("Form copied to clipboard for easy testing.");
       } else {
-        // fallback: show prompt so user can copy manually
-        // eslint-disable-next-line no-alert
         window.prompt("Copy the form data (Ctrl+C / Cmd+C, Enter):", text);
       }
     } catch (err) {
-      // fallback: prompt
-      // eslint-disable-next-line no-console
       console.warn("Clipboard write failed, falling back to prompt:", err);
-      // eslint-disable-next-line no-alert
       window.prompt("Copy the form data:", text);
     }
   };
@@ -91,6 +137,13 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
       <h2 id="invoice-heading" style={{ marginTop: 0, marginBottom: 12 }}>
         🧾 Review & Edit Invoice
       </h2>
+
+      {/* Wallet feedback display */}
+      {walletMessage && (
+        <div style={{ marginBottom: 12, padding: 8, background: "#f0fdfa", color: "#065f46", borderRadius: 6 }}>
+          {walletMessage}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         <label style={{ ...labelStyle, color: "var(--text)" }} htmlFor="buyerName">
@@ -163,7 +216,9 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
           <div style={{ marginTop: 12, padding: 10, background: "#fffaf0", borderRadius: 8, border: "1px solid #fae6c1" }}>
             <strong style={{ color: "#92400e" }}>Parser notes:</strong>
             <ul style={{ margin: "8px 0 0 16px", color: "#92400e" }}>
-              {parsedData.notes.map((n, i) => <li key={i}>{n}</li>)}
+              {parsedData.notes.map((n, i) => (
+                <li key={i}>{n}</li>
+              ))}
             </ul>
           </div>
         )}
@@ -176,8 +231,6 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
               try {
                 onBack && onBack();
               } catch (err) {
-                // prevent unexpected throws from bubbling
-                // eslint-disable-next-line no-console
                 console.warn("onBack threw:", err);
               }
             }}
@@ -216,7 +269,6 @@ const inputStyle = {
   marginBottom: 12,
   fontSize: 15,
 };
-
 const textareaStyle = {
   width: "100%",
   padding: "0.7rem",

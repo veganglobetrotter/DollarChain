@@ -1,5 +1,6 @@
 // src/components/Sidebar.jsx
 import React, { useEffect } from "react";
+import { useUser } from "../context/UserContext"; // <-- added: use global user context
 
 export default function Sidebar({
   id, // accept id so parent can pass id="sidebar"
@@ -9,6 +10,8 @@ export default function Sidebar({
   open = true, // controls mobile visibility; defaults to true for backward compatibility
   onClose = () => {}, // optional close handler used by mobile toggle / Escape key
 }) {
+  const { profile, user } = useUser(); // <-- new: read user/profile from context
+
   const nav = [
     { id: "home", label: "Dashboard", icon: "🏠" },
     { id: "performance", label: "Performance", icon: "📈" },
@@ -16,6 +19,13 @@ export default function Sidebar({
     { id: "item3", label: "Goals & Rewards", icon: "🎯" },
     { id: "settings", label: "Settings", icon: "⚙️" },
   ];
+
+  // compute the display name (safe fallbacks)
+  const displayName =
+    (profile && (profile.full_name || profile.name)) ||
+    (user && (user.user_metadata?.full_name || user.user_metadata?.name)) ||
+    user?.email ||
+    sellerName;
 
   // translate nav ids to the canonical route id we want the app to receive.
   // keeps the visible label/id the same (avoids breaking other code) but
@@ -88,14 +98,51 @@ export default function Sidebar({
       }}
     >
       <div className="sidebar-card" onClick={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
-        <div className="sidebar-top">
-          <div className="avatar">
-            {(sellerName || "S").charAt(0).toUpperCase()}
-          </div>
+        <div
+          className="sidebar-top"
+          style={{ cursor: "pointer" }}
+          onClick={(e) => {
+            e.stopPropagation();
+            // navigate to profile when clicking the top card (seller area)
+            onNavigate("profile");
+            if (typeof onClose === "function") onClose();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onNavigate("profile");
+              if (typeof onClose === "function") onClose();
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-label="Open profile"
+        >
+          <div className="avatar">{(displayName || "S").charAt(0).toUpperCase()}</div>
 
           <div className="seller-info">
-            <div className="seller-name">{sellerName}</div>
-            <div className="seller-sub">Your account</div>
+            <div className="seller-name">{displayName}</div>
+            <div>
+              <button
+                type="button"
+                className="seller-sub"
+                onClick={(e) => {
+                  // make sure the click doesn't bubble twice (card also handles click)
+                  e.stopPropagation();
+                  onNavigate("profile");
+                  if (typeof onClose === "function") onClose();
+                }}
+                style={{
+                  all: "unset",
+                  cursor: "pointer",
+                  color: "var(--muted)",
+                  fontSize: 13,
+                  display: "inline-block",
+                }}
+              >
+                Your account
+              </button>
+            </div>
           </div>
         </div>
 
@@ -130,7 +177,9 @@ export default function Sidebar({
                     borderRadius: 6,
                   }}
                 >
-                  <span aria-hidden style={{ marginRight: 8 }}>{n.icon}</span>
+                  <span aria-hidden style={{ marginRight: 8 }}>
+                    {n.icon}
+                  </span>
                   {n.label}
                 </button>
               </li>
