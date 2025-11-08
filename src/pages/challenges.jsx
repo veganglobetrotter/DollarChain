@@ -110,8 +110,8 @@ export default function ChallengesPage() {
       console.warn("Failed to read persisted balance/xp", e);
     }
 
-    // first load
-    reloadChallenges();
+    // NOTE: initial challenge fetch is deferred until we know the session (see auth effect).
+    // This prevents a race that shows "Sign in to create goals" when the user is actually signed in.
 
     return () => {
       mounted = false;
@@ -127,15 +127,19 @@ export default function ChallengesPage() {
         const { data } = await supabase.auth.getSession();
         const session = data?.session ?? null;
         if (!mounted) return;
+
         setIsAuthenticated(Boolean(session?.user));
         if (session?.user) {
           // attach minimal user info for display
           setUser((u) => ({ ...u, id: session.user.id, email: session.user.email ?? u.email }));
-          // when user signed in, refresh server-side data to get canonical custom goals & balance
-          await reloadChallenges();
         }
+
+        // We now know the auth state — safe to load challenges (works for both signed-in and anonymous)
+        await reloadChallenges();
       } catch (e) {
         console.warn("auth.getSession failed", e);
+        // still attempt to load challenges (fallback handling inside reloadChallenges)
+        await reloadChallenges();
       }
 
       // subscribe to auth changes
@@ -144,8 +148,6 @@ export default function ChallengesPage() {
         setIsAuthenticated(Boolean(session?.user));
         if (session?.user) {
           setUser((u) => ({ ...u, id: session.user.id, email: session.user.email ?? u.email }));
-          // refresh server data (fetch custom challenges, balance)
-          await reloadChallenges();
         } else {
           // signed out — revert to fallback or public view
           setUser(FALLBACK_USER);
@@ -155,6 +157,13 @@ export default function ChallengesPage() {
           const xpVal = getXp();
           if (b != null) setBalance(b);
           if (xpVal != null) setStoredXp(xpVal);
+        }
+
+        // refresh server data (fetch custom challenges, balance) after auth change
+        try {
+          await reloadChallenges();
+        } catch (e) {
+          console.warn("reloadChallenges after auth change failed:", e);
         }
       });
 
