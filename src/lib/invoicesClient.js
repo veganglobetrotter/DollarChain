@@ -115,50 +115,105 @@ export async function markInvoicePaid(id, extra = {}) {
 /**
  * reserveCredits
  * - Reserves credits for a user
- * - Returns: { reservation: { id, amount }, error }
+ * - Params:
+ *    userId: string
+ *    amount: number
+ *    idempotencyKey?: string (optional) - if omitted a client-side fallback will be generated
+ * - Returns: { reservation: Object|null, error: null|Error }
  */
-export async function reserveCredits(userId, amount) {
-  if (!userId || !amount) throw new Error("userId and amount are required");
+export async function reserveCredits(userId, amount, idempotencyKey) {
+  if (!userId || typeof amount === "undefined" || amount === null) {
+    throw new Error("userId and amount are required");
+  }
+
+  // generate idempotency key if not provided
+  let key = idempotencyKey;
   try {
-    const res = await axios.post("/api/reserveCredits", { userId, amount });
-    return res.data;
+    if (!key) {
+      if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+        key = crypto.randomUUID();
+      } else {
+        key = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+      }
+    }
+  } catch (e) {
+    key = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+  }
+
+  try {
+    const res = await axios.post("/api/reserveCredits", { userId, amount, idempotencyKey: key });
+
+    // Normalize response shape
+    const payload = res?.data ?? null;
+    const reservation = (payload && (payload.reservation || payload)) || null;
+
+    return { reservation, error: null };
   } catch (err) {
     console.error("reserveCredits error:", err);
-    return { reservation: null, error: err };
+    const serverMessage = err?.response?.data ?? err?.message ?? err;
+    return { reservation: null, error: serverMessage };
   }
 }
 
 /**
  * consumeCredits
  * - Consumes reserved credits
- * - reservationId: required to tie consumption
- * - Returns: { success: boolean, error }
+ * - Params:
+ *    userId: string
+ *    reservationId: string
+ *    delta: number
+ *    type: string (e.g., 'invoice_generation')
+ *    reference?: string
+ * - Returns: { transaction: Object|null, error: null|Error }
  */
-export async function consumeCredits(userId, reservationId, delta, reference) {
-  if (!userId || !reservationId || !delta) throw new Error("userId, reservationId, and delta required");
+export async function consumeCredits(userId, reservationId, delta, type, reference) {
+  if (!userId || !reservationId || typeof delta === "undefined" || !type) {
+    throw new Error("userId, reservationId, delta and type are required");
+  }
+
   try {
-    const res = await axios.post("/api/consumeCredits", { userId, reservationId, delta, reference });
-    return res.data;
+    const res = await axios.post("/api/consumeCredits", {
+      userId,
+      reservationId,
+      delta,
+      type,
+      reference: reference ?? null,
+    });
+
+    // Normalize response shape: prefer res.data.transaction, else res.data
+    const payload = res?.data ?? null;
+    const transaction = (payload && (payload.transaction || payload)) || null;
+
+    return { transaction, error: null };
   } catch (err) {
     console.error("consumeCredits error:", err);
-    return { success: false, error: err };
+    const serverMessage = err?.response?.data ?? err?.message ?? err;
+    return { transaction: null, error: serverMessage };
   }
 }
 
 /**
  * releaseCredits
  * - Releases reserved credits without consuming
- * - reservationId required
- * - Returns: { success: boolean, error }
+ * - Params:
+ *    userId: string
+ *    reservationId: string
+ * - Returns: { reservation: Object|null, error: null|Error }
  */
 export async function releaseCredits(userId, reservationId) {
   if (!userId || !reservationId) throw new Error("userId and reservationId required");
+
   try {
     const res = await axios.post("/api/releaseCredits", { userId, reservationId });
-    return res.data;
+
+    const payload = res?.data ?? null;
+    const reservation = (payload && (payload.reservation || payload)) || null;
+
+    return { reservation, error: null };
   } catch (err) {
     console.error("releaseCredits error:", err);
-    return { success: false, error: err };
+    const serverMessage = err?.response?.data ?? err?.message ?? err;
+    return { reservation: null, error: serverMessage };
   }
 }
 
