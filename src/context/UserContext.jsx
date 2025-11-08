@@ -3,15 +3,15 @@
  * UserContext.jsx
  *
  * CLEANUP SUMMARY (what I changed and why):
- * - Renamed to `.jsx` so Vite/JSX tooling will parse JSX normally.
- * - Replaced `React.createElement(...)` with standard JSX at the return (clearer, idiomatic).
- * - Kept the module importing the client-side `supabase` from ../lib/supabase (anon-key).
- * - Kept all original logic (refreshUser, refreshProfile, refreshWallet, updateProfile) intact.
- * - Slightly simplified wallet/transactions result handling for clarity and consistency.
+ * - Ensured the auth session is awaited before fetching profile/wallet.
+ *   This fixes a race where the UI tried to read profile/wallet while the
+ *   Supabase session was still resolving, causing "Not signed in" errors.
+ * - Added an auth state change subscription to keep `user` in sync when
+ *   sign-in / sign-out events happen and to refresh profile/wallet accordingly.
  *
- * NOTE:
- * - This file is client-side only. Do NOT import server-only helpers (supabaseServer.js) here.
- * - If you prefer explicit typing or PropTypes, we can add them; I left the API unchanged.
+ * Notes:
+ * - Minimal, surgical edits: core refreshProfile/refreshWallet/updateProfile logic unchanged.
+ * - This file remains client-side and imports the client `supabase` from ../lib/supabase.
  */
 
 import React, { createContext, useContext, useEffect, useState } from "react";
@@ -38,8 +38,10 @@ export function UserProvider({ children }) {
   /** Load auth user from Supabase client (client-side) */
   async function refreshUser() {
     try {
-      // Preserve existing behavior: some apps still use supabase.auth.user()
-      const sUser = supabase.auth && typeof supabase.auth.user === "function" ? supabase.auth.user() : null;
+      // Explicitly ask Supabase for the current session so we don't race.
+      // supabase.auth.getSession() returns { data: { session } } in v2.
+      const { data } = await supabase.auth.getSession();
+      const sUser = data?.session?.user ?? null;
       setUser(sUser || null);
       return sUser || null;
     } catch (err) {
@@ -156,9 +158,11 @@ export function UserProvider({ children }) {
     }
   }
 
-  /* Initial load: user -> profile -> wallet */
+  /* Initial load: user -> profile -> wallet
+     Also subscribe to auth state changes to keep context in sync. */
   useEffect(() => {
     let mounted = true;
+
     (async () => {
       setLoading(true);
       const u = await refreshUser();
@@ -169,8 +173,32 @@ export function UserProvider({ children }) {
       if (!mounted) return;
       setLoading(false);
     })();
+
+    // subscribe to auth state changes so UI reacts immediately to sign-in/out
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      const u = session?.user ?? null;
+      setUser(u);
+
+      if (!u) {
+        // cleared session -> clear profile/wallet
+        setProfile(null);
+        setWallet(null);
+        setTransactions([]);
+        return;
+      }
+
+      // on sign-in or token refresh, refresh server-backed data
+      // fire-and-forget (we don't await here)
+      refreshProfile(u).catch((e) => console.warn("refreshProfile after auth change failed:", e));
+      refreshWallet(u).catch((e) => console.warn("refreshWallet after auth change failed:", e));
+    });
+
     return () => {
       mounted = false;
+      // unsubscribe if possible
+      if (authListener && typeof authListener.subscription?.unsubscribe === "function") {
+        authListener.subscription.unsubscribe();
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
