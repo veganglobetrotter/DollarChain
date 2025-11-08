@@ -1,7 +1,6 @@
-// src/components/InvoiceForm.jsx
 import { useState, useEffect } from "react";
 import axios from "axios"; // added for calling credit APIs
-import { supabase } from "../lib/supabaseClient"; // adjust path if needed
+import { supabase } from "../lib/supabase"; // adjusted to canonical client
 
 /**
  * InvoiceForm

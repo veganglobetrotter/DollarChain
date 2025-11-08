@@ -1,6 +1,5 @@
-// src/components/WalletSection.jsx
 import { useEffect, useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { supabase } from '../lib/supabase';
 import axios from 'axios';
 
 export default function WalletSection({ userId }) {
