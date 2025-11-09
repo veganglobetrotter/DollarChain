@@ -34,10 +34,10 @@ export default async function handler(req, res) {
 
     const supabaseAdmin = createSupabaseServerClient();
 
-    // Call RPC with BigInt
+    // Call RPC with _amount as string to avoid BigInt serialization error
     const { data, error } = await supabaseAdmin.rpc("reserve_credits_transaction_v2", {
       _user_id: userId,
-      _amount: BigInt(amount),
+      _amount: amount.toString(),
       _idempotency_key: idempotencyKey,
     });
 
