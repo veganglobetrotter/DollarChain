@@ -2,13 +2,6 @@ import { useState, useEffect } from "react";
 import axios from "axios"; // added for calling credit APIs
 import { supabase } from "../lib/supabase"; // canonical client
 
-/**
- * InvoiceForm
- * Props:
- * - parsedData: object from parser (buyerName, phone, items, total, confidence, notes)
- * - onBack: function to go back to the paste screen (optional)
- * - onGenerate: optional function(formData) to handle generating/previewing the invoice
- */
 export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGenerate }) {
   const [formData, setFormData] = useState({
     buyerName: "",
@@ -18,7 +11,7 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
     paymentNumber: "",
   });
 
-  const [walletMessage, setWalletMessage] = useState(""); // new state for wallet feedback
+  const [walletMessage, setWalletMessage] = useState(""); // state for wallet feedback
 
   useEffect(() => {
     setFormData({
@@ -38,9 +31,9 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
   const handleSubmit = async (e) => {
     e && e.preventDefault();
 
-    const creditsPerInvoice = 10; // default credits per invoice
+    const creditsPerInvoice = 10;
 
-    // --- 1) Resolve user ID properly ---
+    // 1) Resolve user ID properly
     let userId;
     try {
       const {
@@ -54,7 +47,7 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
       return;
     }
 
-    // --- 2) Reserve credits first ---
+    // 2) Reserve credits
     let reservationId = null;
     try {
       const idempotencyKey = crypto.randomUUID();
@@ -67,12 +60,23 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
       setWalletMessage(`Reserved ${creditsPerInvoice} credits.`);
     } catch (err) {
       console.error("Reserve credits failed:", err);
-      const serverMsg = err?.response?.data?.error || err.message || err;
+      // --- Properly stringify server error ---
+      let serverMsg = "Unknown error";
+      if (err?.response?.data) {
+        serverMsg =
+          typeof err.response.data === "string"
+            ? err.response.data
+            : JSON.stringify(err.response.data);
+      } else if (err?.message) {
+        serverMsg = err.message;
+      } else {
+        serverMsg = String(err);
+      }
       setWalletMessage(`Failed to reserve credits. ${serverMsg}`);
-      return; // stop submission
+      return;
     }
 
-    // --- 3) Attempt invoice generation ---
+    // 3) Attempt invoice generation
     try {
       if (typeof onGenerate === "function") {
         await onGenerate(formData);
@@ -81,7 +85,7 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
         console.log("Final invoice data:", formData);
       }
 
-      // --- 4) Consume credits after successful generation ---
+      // 4) Consume credits after successful generation
       try {
         await axios.post("/api/consumeCredits", {
           userId,
@@ -93,12 +97,16 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
         setWalletMessage(`Consumed ${creditsPerInvoice} credits.`);
       } catch (consumeErr) {
         console.error("Consume credits failed:", consumeErr);
-        setWalletMessage("Invoice generated, but failed to consume credits. Admin may need to adjust.");
+        let msg = "Invoice generated, but failed to consume credits. Admin may need to adjust.";
+        if (consumeErr?.response?.data) {
+          msg += ` (${JSON.stringify(consumeErr.response.data)})`;
+        }
+        setWalletMessage(msg);
       }
     } catch (generateErr) {
       console.error("Invoice generation failed:", generateErr);
 
-      // --- 5) Release reserved credits if generation fails ---
+      // 5) Release reserved credits if generation fails
       try {
         await axios.post("/api/releaseCredits", {
           userId,
@@ -107,12 +115,16 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
         setWalletMessage("Invoice failed. Reserved credits released.");
       } catch (releaseErr) {
         console.error("Release credits failed:", releaseErr);
-        setWalletMessage("Invoice failed and credits may be stuck. Admin check required.");
+        let msg = "Invoice failed and credits may be stuck. Admin check required.";
+        if (releaseErr?.response?.data) {
+          msg += ` (${JSON.stringify(releaseErr.response.data)})`;
+        }
+        setWalletMessage(msg);
       }
     }
   };
 
-  // Confidence badge component
+  // Confidence badge
   const ConfidenceBadge = ({ score }) => {
     if (score === undefined || score === null) return null;
     const s = Number(score);
@@ -152,7 +164,6 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
         🧾 Review & Edit Invoice
       </h2>
 
-      {/* Wallet feedback display */}
       {walletMessage && (
         <div style={{ marginBottom: 12, padding: 8, background: "#f0fdfa", color: "#065f46", borderRadius: 6 }}>
           {walletMessage}
@@ -226,7 +237,7 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
           placeholder="e.g. 254712345678 or 123456 (Paybill)"
         />
 
-        {parsedData?.notes && parsedData.notes.length > 0 && (
+        {parsedData?.notes?.length > 0 && (
           <div style={{ marginTop: 12, padding: 10, background: "#fffaf0", borderRadius: 8, border: "1px solid #fae6c1" }}>
             <strong style={{ color: "#92400e" }}>Parser notes:</strong>
             <ul style={{ margin: "8px 0 0 16px", color: "#92400e" }}>
@@ -238,18 +249,7 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
         )}
 
         <div className="form-controls" style={{ display: "flex", justifyContent: "space-between", marginTop: 14 }}>
-          <button
-            type="button"
-            className="btn-outline"
-            onClick={() => {
-              try {
-                onBack && onBack();
-              } catch (err) {
-                console.warn("onBack threw:", err);
-              }
-            }}
-            aria-label="Back to paste"
-          >
+          <button type="button" className="btn-outline" onClick={() => onBack?.()} aria-label="Back to paste">
             ⬅ Back
           </button>
 
@@ -262,7 +262,6 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
             >
               Copy
             </button>
-
             <button type="submit" className="btn-primary" aria-label="Generate invoice">
               Generate
             </button>
@@ -273,22 +272,6 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
   );
 }
 
-/* Inline styles kept minimal — primary visual styling is in App.css (.formBox, .btn-primary, etc.) */
 const labelStyle = { display: "block", marginBottom: 6, fontWeight: 600 };
-const inputStyle = {
-  width: "100%",
-  padding: "0.7rem",
-  borderRadius: 10,
-  border: "1px solid #e6e9ef",
-  marginBottom: 12,
-  fontSize: 15,
-};
-const textareaStyle = {
-  width: "100%",
-  padding: "0.7rem",
-  borderRadius: 10,
-  border: "1px solid #e6e9ef",
-  marginBottom: 12,
-  fontSize: 15,
-  resize: "vertical",
-};
+const inputStyle = { width: "100%", padding: "0.7rem", borderRadius: 10, border: "1px solid #e6e9ef", marginBottom: 12, fontSize: 15 };
+const textareaStyle = { width: "100%", padding: "0.7rem", borderRadius: 10, border: "1px solid #e6e9ef", marginBottom: 12, fontSize: 15, resize: "vertical" };
