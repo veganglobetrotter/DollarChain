@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios"; // added for calling credit APIs
-import { supabase } from "../lib/supabase"; // adjusted to canonical client
+import { supabase } from "../lib/supabase"; // canonical client
 
 /**
  * InvoiceForm
@@ -40,24 +40,39 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
 
     const creditsPerInvoice = 10; // default credits per invoice
 
-    // 1) Reserve credits first
+    // --- 1) Resolve user ID properly ---
+    let userId;
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      userId = user?.id;
+      if (!userId) throw new Error("User not authenticated");
+    } catch (err) {
+      console.error("Failed to get user:", err);
+      setWalletMessage("Failed to get user session. Cannot generate invoice.");
+      return;
+    }
+
+    // --- 2) Reserve credits first ---
     let reservationId = null;
     try {
       const idempotencyKey = crypto.randomUUID();
       const res = await axios.post("/api/reserveCredits", {
-        userId: supabase.auth.user().id,
+        userId,
         amount: creditsPerInvoice,
         idempotencyKey,
       });
-      reservationId = res.data.reservation?.id || res.data.reservation_id;
+      reservationId = res.data?.reservation?.id || res.data?.reservation_id;
       setWalletMessage(`Reserved ${creditsPerInvoice} credits.`);
     } catch (err) {
       console.error("Reserve credits failed:", err);
-      setWalletMessage("Failed to reserve credits. Cannot generate invoice.");
+      const serverMsg = err?.response?.data?.error || err.message || err;
+      setWalletMessage(`Failed to reserve credits. ${serverMsg}`);
       return; // stop submission
     }
 
-    // 2) Attempt invoice generation
+    // --- 3) Attempt invoice generation ---
     try {
       if (typeof onGenerate === "function") {
         await onGenerate(formData);
@@ -66,10 +81,10 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
         console.log("Final invoice data:", formData);
       }
 
-      // 3) Consume credits after successful generation
+      // --- 4) Consume credits after successful generation ---
       try {
         await axios.post("/api/consumeCredits", {
-          userId: supabase.auth.user().id,
+          userId,
           reservationId,
           delta: creditsPerInvoice,
           type: "invoice",
@@ -83,10 +98,10 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
     } catch (generateErr) {
       console.error("Invoice generation failed:", generateErr);
 
-      // 4) Release reserved credits if generation fails
+      // --- 5) Release reserved credits if generation fails ---
       try {
         await axios.post("/api/releaseCredits", {
-          userId: supabase.auth.user().id,
+          userId,
           reservationId,
         });
         setWalletMessage("Invoice failed. Reserved credits released.");
