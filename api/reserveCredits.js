@@ -15,10 +15,10 @@ export default async function handler(req, res) {
 
     const supabaseAdmin = createSupabaseServerClient();
 
-    // Call correct RPC
+    // Call correct RPC with BigInt for amount
     const { data, error } = await supabaseAdmin.rpc("reserve_credits_transaction_v2", {
       _user_id: userId,
-      _amount: amount,
+      _amount: BigInt(amount),       // ✅ ensure bigint
       _idempotency_key: idempotencyKey,
     });
 
