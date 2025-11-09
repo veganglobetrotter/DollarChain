@@ -4,7 +4,7 @@ import { TEMPLATES } from "../src/lib/challengeTemplates.js";
 
 /**
  * Root-level getChallenges for Vercel (/api/getChallenges).
- * Mirrors src/api/getChallenges.js but placed where Vercel expects it.
+ * Defensive: returns helpful 500 message if server config missing.
  */
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -12,7 +12,14 @@ export default async function handler(req, res) {
   }
 
   try {
-    const supabase = createSupabaseServerClient();
+    // defensive: createSupabaseServerClient may throw if envs are missing
+    let supabase;
+    try {
+      supabase = createSupabaseServerClient();
+    } catch (e) {
+      console.error("getChallenges: createSupabaseServerClient failed:", e?.message || e);
+      return res.status(500).json({ ok: false, error: "server-missing-config" });
+    }
 
     const publicChallenges = Object.values(TEMPLATES).map((t) => ({
       id: `tpl-${t.id}`,
@@ -25,10 +32,10 @@ export default async function handler(req, res) {
       public: true,
     }));
 
+    // try header -> query -> cookies
     const authHeader = (req.headers.authorization || "").replace("Bearer ", "").trim();
     const queryToken = (req.query && req.query.accessToken) ? String(req.query.accessToken).trim() : "";
     let cookieToken = "";
-
     const cookieHeader = req.headers?.cookie || "";
     if (cookieHeader) {
       cookieHeader.split(";").forEach((pair) => {
@@ -37,7 +44,7 @@ export default async function handler(req, res) {
         const k = rawK.trim();
         const v = rawV.join("=").trim();
         if (!v) return;
-        if (k === "sb-access-token" || k === "access_token" || k === "supabase-auth-token" || k === "sb:token") {
+        if (["sb-access-token", "access_token", "supabase-auth-token", "sb:token"].includes(k)) {
           cookieToken = v;
         }
       });
@@ -59,7 +66,6 @@ export default async function handler(req, res) {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(50);
-
     if (customErr) console.error("getChallenges: custom fetch error", customErr);
 
     const { data: creditsData, error: creditsErr } = await supabase
@@ -67,7 +73,6 @@ export default async function handler(req, res) {
       .select("credits, updated_at")
       .eq("user_id", user.id)
       .maybeSingle();
-
     if (creditsErr) console.error("getChallenges: credits fetch error", creditsErr);
 
     let totalXp = 0;
