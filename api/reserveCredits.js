@@ -1,11 +1,17 @@
 // src/api/reserveCredits.js
 import { createSupabaseServerClient } from "../src/lib/supabaseServer.js";
 
-// Helper to safely serialize BigInt to string for JSON
-function serializeBigInt(obj) {
-  return JSON.parse(
-    JSON.stringify(obj, (_, value) => (typeof value === "bigint" ? value.toString() : value))
-  );
+// Recursively convert BigInt values to string
+function convertBigInt(obj) {
+  if (Array.isArray(obj)) return obj.map(convertBigInt);
+  if (obj && typeof obj === "object") {
+    const res = {};
+    for (const [k, v] of Object.entries(obj)) {
+      res[k] = typeof v === "bigint" ? v.toString() : convertBigInt(v);
+    }
+    return res;
+  }
+  return obj;
 }
 
 export default async function handler(req, res) {
@@ -24,10 +30,10 @@ export default async function handler(req, res) {
 
     const supabaseAdmin = createSupabaseServerClient();
 
-    // Call correct RPC with BigInt for amount
+    // Call RPC
     const { data, error } = await supabaseAdmin.rpc("reserve_credits_transaction_v2", {
       _user_id: userId,
-      _amount: BigInt(amount), // ensure bigint
+      _amount: BigInt(amount),
       _idempotency_key: idempotencyKey,
     });
 
@@ -38,11 +44,10 @@ export default async function handler(req, res) {
         .json({ error: error.message || "reserve RPC failed", details: error });
     }
 
-    // Normalize and serialize reservation (BigInt-safe)
-    const reservation = data ?? null;
-    const serializedReservation = serializeBigInt(reservation);
+    // Convert all BigInt in the data before returning
+    const reservation = convertBigInt(data ?? null);
 
-    return res.status(200).json({ success: true, reservation: serializedReservation });
+    return res.status(200).json({ success: true, reservation });
   } catch (err) {
     console.error("reserveCredits error:", err);
     return res.status(500).json({ error: err?.message || String(err) });
