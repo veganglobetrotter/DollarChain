@@ -7,7 +7,11 @@ function convertBigInt(obj) {
   if (obj && typeof obj === "object") {
     const res = {};
     for (const [k, v] of Object.entries(obj)) {
-      res[k] = typeof v === "bigint" ? v.toString() : convertBigInt(v);
+      if (typeof v === "bigint") {
+        res[k] = v.toString();
+      } else {
+        res[k] = convertBigInt(v);
+      }
     }
     return res;
   }
@@ -30,12 +34,15 @@ export default async function handler(req, res) {
 
     const supabaseAdmin = createSupabaseServerClient();
 
-    // Call RPC
+    // Call RPC with BigInt
     const { data, error } = await supabaseAdmin.rpc("reserve_credits_transaction_v2", {
       _user_id: userId,
       _amount: BigInt(amount),
       _idempotency_key: idempotencyKey,
     });
+
+    // Log raw RPC response for debugging
+    console.log("reserveCredits raw RPC data:", data, "error:", error);
 
     if (error) {
       console.error("reserveCredits RPC error:", error);
@@ -46,6 +53,9 @@ export default async function handler(req, res) {
 
     // Convert all BigInt in the data before returning
     const reservation = convertBigInt(data ?? null);
+
+    // Log sanitized reservation
+    console.log("reserveCredits sanitized reservation:", reservation);
 
     return res.status(200).json({ success: true, reservation });
   } catch (err) {
