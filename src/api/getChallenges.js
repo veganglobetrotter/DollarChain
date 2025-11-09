@@ -2,6 +2,15 @@
 import { createSupabaseServerClient, getUserFromBearer } from "../lib/supabaseServer.js";
 import { TEMPLATES } from "../lib/challengeTemplates.js";
 
+/**
+ * getChallenges
+ * - Returns public challenges always.
+ * - If an access token is provided (Authorization header, cookie, or ?accessToken=),
+ *   attempts to resolve the user and return custom challenges & user meta.
+ *
+ * Small improvement: accept token via Authorization header OR cookies OR query string
+ * so clients that set tokens in cookies (or pass as query) will work reliably.
+ */
 export default async function handler(req, res) {
   if (req.method !== "GET") {
     return res.status(405).json({ ok: false, error: "Method not allowed" });
@@ -22,13 +31,37 @@ export default async function handler(req, res) {
       public: true,
     }));
 
-    // If Authorization header present, try to get user-specific data
+    // Attempt to locate an access token from multiple common locations:
+    // 1) Authorization header (Bearer ...)
+    // 2) query param ?accessToken=...
+    // 3) common cookie names (sb-access-token, access_token, supabase-auth-token)
     const authHeader = (req.headers.authorization || "").replace("Bearer ", "").trim();
-    if (!authHeader) {
+    const queryToken = (req.query && req.query.accessToken) ? String(req.query.accessToken).trim() : "";
+    let cookieToken = "";
+
+    const cookieHeader = req.headers?.cookie || "";
+    if (cookieHeader) {
+      // parse simple cookie header (k=v; k2=v2)
+      cookieHeader.split(";").forEach((pair) => {
+        const [rawK, ...rawV] = pair.split("=");
+        if (!rawK) return;
+        const k = rawK.trim();
+        const v = rawV.join("=").trim();
+        if (!v) return;
+        // check several common keys where access token might be stored
+        if (k === "sb-access-token" || k === "access_token" || k === "supabase-auth-token" || k === "sb:token") {
+          cookieToken = v;
+        }
+      });
+    }
+
+    const authToken = authHeader || queryToken || cookieToken;
+
+    if (!authToken) {
       return res.status(200).json({ ok: true, challenges: publicChallenges, custom: [], user: null });
     }
 
-    const user = await getUserFromBearer(authHeader);
+    const user = await getUserFromBearer(authToken);
     if (!user) {
       // invalid token — return public only
       return res.status(200).json({ ok: true, challenges: publicChallenges, custom: [], user: null });
