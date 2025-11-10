@@ -438,4 +438,49 @@ body {
 .sidebar { min-height: 100vh !important; }
 .sidebar-card { display: flex; flex-direction: column; flex: 1 1 auto !important; }
 
+/* ----------------- Template gallery styles ----------------- */
+.template-gallery { display: flex; flex-direction: column; gap: 18px; }
+
+.template-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+/* card */
+.template-card {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: var(--soft-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 180px;
+}
+
+/* thumbnail / placeholder */
+.template-thumb {
+  width: 100%;
+  height: 140px;
+  border-radius: 8px;
+  background: linear-gradient(180deg,#f8faf8,#f1f5f9);
+  display: block;
+  object-fit: cover;
+  font-weight: 700;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* actions */
+.template-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* responsive: collapse to 1 column on small screens */
+@media (max-width: 900px) {
+  .template-row { grid-template-columns: 1fr; }
+}
+
 /* End of file */
