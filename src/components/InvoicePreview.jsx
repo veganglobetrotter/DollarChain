@@ -81,7 +81,7 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
         return;
       }
 
-      // Build payload for PDF generator
+      // Build payload for PDF generator — include templateId so PDF matches preview
       const payload = {
         buyerName: buyerName,
         phone: phone,
@@ -90,6 +90,7 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
         paymentNumber: paymentNumber,
         id: invoiceId,
         sellerName: "DollarChain",
+        templateId: templateId || null, // <-- added
       };
 
       // Generate pdf blob and trigger immediate download for user
@@ -133,6 +134,7 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
         paymentNumber: paymentNumber,
         id: invoiceId,
         sellerName: "DollarChain",
+        templateId: templateId || null, // <-- added
       };
 
       // generate pdf blob
