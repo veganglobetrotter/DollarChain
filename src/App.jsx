@@ -28,6 +28,7 @@ import Settings from "./components/Settings";
 
 // --- ADDED: Template gallery (sibling UI for PasteBox)
 import TemplateGallery from "./components/TemplateGallery";
+import { getTemplateById } from "./lib/templates";
 
 function App() {
   const [parsedData, setParsedData] = useState(null);
@@ -110,7 +111,14 @@ function App() {
       setAuthOpen(true);
       return;
     }
-    setPreviewData(formData);
+
+    // Attach selected template id (if any) to previewData so InvoicePreview knows which template to render
+    const payload = {
+      ...formData,
+      templateId: selectedTemplate?.id || formData.templateId || null,
+    };
+
+    setPreviewData(payload);
     setShowForm(false);
   };
 
@@ -194,6 +202,7 @@ function App() {
         paymentNumber: payload.payment_number,
         id: invoiceId, // use DB id for filename
         sellerName: "DollarChain",
+        // optionally templateId: invoice.template_id
       });
 
       // Upload to Supabase Storage
@@ -259,8 +268,11 @@ function App() {
   }, [setMobileSidebarOpen]);
 
   // Template selection handler (fires preview with dummy data; does NOT touch credits)
-  const handleTemplateSelect = (template) => {
+  // Accepts a templateId (string) or null to clear selection.
+  const handleTemplateSelect = (templateId) => {
+    const template = templateId ? getTemplateById(templateId) : null;
     setSelectedTemplate(template || null);
+
     // expose on window for any listener or fallback
     try {
       window.SELECTED_TEMPLATE = template || null;
@@ -323,6 +335,7 @@ function App() {
                 {previewData && (
                   <InvoicePreview
                     invoice={previewData}
+                    templateId={previewData?.templateId || selectedTemplate?.id || null}
                     onBackEdit={handleEditFromPreview}
                     onClose={handleClosePreview}
                     onSave={handleSaveInvoice}
@@ -365,7 +378,10 @@ function App() {
                         {/* Paste area + Template gallery (siblings) */}
                         <div className="paste-area" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                           <PasteBox onParse={handleParse} />
-                          <TemplateGallery onSelect={handleTemplateSelect} />
+                          <TemplateGallery
+                            selectedTemplateId={selectedTemplate?.id}
+                            onSelect={handleTemplateSelect}
+                          />
                         </div>
                       </>
                     )}

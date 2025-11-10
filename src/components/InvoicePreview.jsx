@@ -1,19 +1,22 @@
 // src/components/InvoicePreview.jsx
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import generateInvoicePdfBlob from "../lib/pdf";
 import { uploadInvoicePdf, createSignedUrl } from "../lib/storage";
 import uploadInvoicePdfToServer from "../lib/uploadClient"; // NEW helper
 
+import { getTemplateById } from "../lib/templates";
+
 /**
  * InvoicePreview
  * Props:
  * - invoice (object): { buyerName, phone, items, total, paymentNumber, id, pdf_path, user_id }
+ * - templateId (string|null): optional template to render
  * - onBackEdit () => called when user wants to go back and edit
  * - onClose () => optional, goes back to paste screen
  * - onSave (invoice) => optional, will be used to persist the invoice
  */
-export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSave }) {
+export default function InvoicePreview({ invoice = {}, templateId = null, onBackEdit, onClose, onSave }) {
   const {
     buyerName = "",
     phone = "",
@@ -150,6 +153,99 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
     }
   };
 
+  // ------------------------
+  // Template rendering utils
+  // ------------------------
+  const selectedTemplate = useMemo(() => {
+    if (!templateId) return null;
+    try {
+      return getTemplateById(templateId);
+    } catch (err) {
+      return null;
+    }
+  }, [templateId]);
+
+  const buildItemsRowsHtml = (rows) => {
+    if (!rows || rows.length === 0) return "<tr><td colspan='2' style='color:#6b7280;padding:8px 6px'>No items</td></tr>";
+    // produce simple rows where each row shows "qty x name" in first column and blank second column
+    return rows
+      .map((r) => {
+        // parse qty and name from "2x Item" or "Item x2"
+        let qty = "1";
+        let name = r;
+        const m1 = r.match(/^(\d+)\s*x\s*(.+)$/i);
+        if (m1) {
+          qty = m1[1];
+          name = m1[2];
+        } else {
+          const m2 = r.match(/^(.+?)\s*x\s*(\d+)$/i);
+          if (m2) {
+            name = m2[1].trim();
+            qty = m2[2];
+          }
+        }
+        return `<tr style="border-top:1px solid #f1f5f9"><td style="padding:8px 6px">${qty}x ${escapeHtml(name)}</td><td style="padding:8px 6px; text-align:right">${""}</td></tr>`;
+      })
+      .join("");
+  };
+
+  const escapeHtml = (str) => {
+    if (typeof str !== "string") return str;
+    return str.replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+  };
+
+  const buildTemplateHtml = () => {
+    if (!selectedTemplate) return null;
+    let html = selectedTemplate.html || "";
+
+    // remove simple handlebars-style conditional blocks for qrDataUrl when we don't provide qrDataUrl
+    html = html.replace(/\{\{#if qrDataUrl\}\}[\s\S]*?\{\{\/if\}\}/g, "");
+
+    // Prepare replacements
+    const replacements = {
+      sellerName: escapeHtml(localStorage.getItem("sellerName") || "Seller Name"),
+      sellerLogoUrl: escapeHtml(localStorage.getItem("sellerLogoUrl") || "/favicon.ico"),
+      sellerPhone: escapeHtml(localStorage.getItem("sellerPhone") || ""),
+      sellerEmail: escapeHtml(localStorage.getItem("sellerEmail") || ""),
+      sellerAddress: escapeHtml(localStorage.getItem("sellerAddress") || ""),
+      sellerTagline: escapeHtml(localStorage.getItem("sellerTagline") || ""),
+      invoiceNumber: escapeHtml(invoiceId),
+      date: escapeHtml(dateStr),
+      dueDate: escapeHtml(dateStr),
+      buyerName: escapeHtml(buyerName || "Buyer"),
+      buyerPhone: escapeHtml(phone || ""),
+      subtotal: escapeHtml(total || ""),
+      total: escapeHtml(total || ""),
+      paymentNumber: escapeHtml(paymentNumber || ""),
+      paymentLabel: escapeHtml("M-Pesa"),
+      notesLine: escapeHtml((invoice && invoice.notes && invoice.notes.join(", ")) || "Thank you"),
+      vatPercent: "0",
+      vatAmount: "0",
+      payLink: "#",
+      qrDataUrl: "",
+    };
+
+    // Inject itemsRows (special handling)
+    const itemsRowsHtml = buildItemsRowsHtml(itemRows);
+    html = html.replace(/{{\s*itemsRows\s*}}/g, itemsRowsHtml);
+
+    // generic token replacement
+    Object.keys(replacements).forEach((k) => {
+      const re = new RegExp(`{{\\s*${k}\\s*}}`, "g");
+      html = html.replace(re, replacements[k]);
+    });
+
+    // remove any leftover mustache-ish tags for cleanliness
+    html = html.replace(/\{\{[^}]+\}\}/g, "");
+
+    return html;
+  };
+
+  const renderedTemplateHtml = useMemo(() => buildTemplateHtml(), [selectedTemplate, buyerName, phone, items, total, paymentNumber, invoiceId, dateStr]);
+
+  // ------------------------
+  // Render
+  // ------------------------
   return (
     <div className="formBox fade-in" style={{ padding: 20 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
@@ -166,72 +262,90 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
 
       <hr style={{ margin: "12px 0", borderColor: "#eef1f3" }} />
 
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        <div style={{ minWidth: 220 }}>
-          <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>BILL TO</div>
-          <div style={{ fontWeight: 700, color: "#07131a" }}>{buyerName || "—"}</div>
-          <div style={{ color: "#374151", marginTop: 6 }}>{phone || "—"}</div>
+      {/* If a template is selected, show the rendered template in an iframe for isolated styles */}
+      {renderedTemplateHtml ? (
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 13, color: "#374151", fontWeight: 700, marginBottom: 8 }}>Template preview</div>
+          <div style={{ border: "1px solid #eef1f3", borderRadius: 10, overflow: "hidden" }}>
+            <iframe
+              title="invoice-template-preview"
+              srcDoc={renderedTemplateHtml}
+              style={{ width: "100%", minHeight: 420, border: 0 }}
+              sandbox="allow-same-origin allow-popups allow-forms"
+            />
+          </div>
         </div>
+      ) : (
+        // fallback: show the small summary preview (existing UI)
+        <>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+            <div style={{ minWidth: 220 }}>
+              <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>BILL TO</div>
+              <div style={{ fontWeight: 700, color: "#07131a" }}>{buyerName || "—"}</div>
+              <div style={{ color: "#374151", marginTop: 6 }}>{phone || "—"}</div>
+            </div>
 
-        <div style={{ minWidth: 220 }}>
-          <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>PAYMENT</div>
-          <div style={{ fontWeight: 700, color: "#07131a" }}>{paymentNumber || "No number provided"}</div>
-          <div style={{ color: "#6b7280", marginTop: 6, fontSize: 13 }}>{total || "—"}</div>
-        </div>
-      </div>
+            <div style={{ minWidth: 220 }}>
+              <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>PAYMENT</div>
+              <div style={{ fontWeight: 700, color: "#07131a" }}>{paymentNumber || "No number provided"}</div>
+              <div style={{ color: "#6b7280", marginTop: 6, fontSize: 13 }}>{total || "—"}</div>
+            </div>
+          </div>
 
-      <div style={{ marginTop: 16 }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-          <thead>
-            <tr style={{ textAlign: "left", color: "#6b7280" }}>
-              <th style={{ padding: "8px 6px" }}>Item</th>
-              <th style={{ padding: "8px 6px", width: 120 }}>Qty</th>
-              <th style={{ padding: "8px 6px", width: 140 }}>Unit</th>
-            </tr>
-          </thead>
-          <tbody>
-            {itemRows.length ? (
-              itemRows.map((row, idx) => {
-                // Try to parse "2x T-Shirt" style strings vs "T-Shirt x2"
-                let qty = "";
-                let name = row;
-                let unit = "";
+          <div style={{ marginTop: 16 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+              <thead>
+                <tr style={{ textAlign: "left", color: "#6b7280" }}>
+                  <th style={{ padding: "8px 6px" }}>Item</th>
+                  <th style={{ padding: "8px 6px", width: 120 }}>Qty</th>
+                  <th style={{ padding: "8px 6px", width: 140 }}>Unit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {itemRows.length ? (
+                  itemRows.map((row, idx) => {
+                    // Try to parse "2x T-Shirt" style strings vs "T-Shirt x2"
+                    let qty = "";
+                    let name = row;
+                    let unit = "";
 
-                // common pattern: "2x T-Shirt" or "2 x T-Shirt"
-                const m1 = row.match(/^(\d+)\s*x\s*(.+)$/i);
-                if (m1) {
-                  qty = m1[1];
-                  name = m1[2];
-                } else {
-                  // pattern "T-Shirt x2"
-                  const m2 = row.match(/^(.+?)\s*x\s*(\d+)$/i);
-                  if (m2) {
-                    name = m2[1];
-                    qty = m2[2];
-                  } else {
-                    // fallback: no qty found
-                    qty = "1";
-                  }
-                }
+                    // common pattern: "2x T-Shirt" or "2 x T-Shirt"
+                    const m1 = row.match(/^(\d+)\s*x\s*(.+)$/i);
+                    if (m1) {
+                      qty = m1[1];
+                      name = m1[2];
+                    } else {
+                      // pattern "T-Shirt x2"
+                      const m2 = row.match(/^(.+?)\s*x\s*(\d+)$/i);
+                      if (m2) {
+                        name = m2[1];
+                        qty = m2[2];
+                      } else {
+                        // fallback: no qty found
+                        qty = "1";
+                      }
+                    }
 
-                return (
-                  <tr key={idx} style={{ borderTop: "1px solid #f1f5f9" }}>
-                    <td style={{ padding: "10px 6px" }}>{name}</td>
-                    <td style={{ padding: "10px 6px" }}>{qty}</td>
-                    <td style={{ padding: "10px 6px" }}>{unit}</td>
+                    return (
+                      <tr key={idx} style={{ borderTop: "1px solid #f1f5f9" }}>
+                        <td style={{ padding: "10px 6px" }}>{name}</td>
+                        <td style={{ padding: "10px 6px" }}>{qty}</td>
+                        <td style={{ padding: "10px 6px" }}>{unit}</td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td style={{ padding: "10px 6px", color: "#6b7280" }} colSpan={3}>
+                      No items detected
+                    </td>
                   </tr>
-                );
-              })
-            ) : (
-              <tr>
-                <td style={{ padding: "10px 6px", color: "#6b7280" }} colSpan={3}>
-                  No items detected
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 18, alignItems: "center", gap: 12 }}>
         <div style={{ color: "#6b7280", fontSize: 13 }}>
@@ -262,8 +376,6 @@ export default function InvoicePreview({ invoice = {}, onBackEdit, onClose, onSa
           >
             ⬅ Back to edit
           </button>
-
-          {/* Removed the old 'Save' button (redundant and caused errors for your app) */}
 
           <button type="button" className="btn-primary" onClick={handleDownload} aria-label="Download PDF">
             Download PDF

@@ -3,7 +3,7 @@ import React from "react";
 import { TEMPLATES } from "../lib/templates";
 import TemplateCard from "./TemplateCard";
 
-export default function TemplateGallery({ onSelect }) {
+export default function TemplateGallery({ selectedTemplateId, onSelect }) {
   const local = TEMPLATES.filter((t) => t.category === "local");
   const accent = TEMPLATES.filter((t) => t.category === "accent");
   const minimal = TEMPLATES.filter((t) => t.category === "minimal");
@@ -18,10 +18,24 @@ export default function TemplateGallery({ onSelect }) {
     <div className="template-gallery" style={{ marginTop: 16 }}>
       {rows.map((r) => (
         <div key={r.key} style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 13, color: "#374151", fontWeight: 700, marginBottom: 10 }}>{r.title}</div>
-          <div className="template-row" role={`template-row-${r.key}`}>
+          <div
+            style={{
+              fontSize: 13,
+              color: "#374151",
+              fontWeight: 700,
+              marginBottom: 10,
+            }}
+          >
+            {r.title}
+          </div>
+          <div className="template-row" role={`template-row-${r.key}`} style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             {r.templates.map((t) => (
-              <TemplateCard key={t.id} template={t} onSelect={onSelect} />
+              <TemplateCard
+                key={t.id}
+                template={t}
+                selected={selectedTemplateId === t.id}
+                onSelect={() => onSelect && onSelect(t.id)}
+              />
             ))}
           </div>
         </div>
