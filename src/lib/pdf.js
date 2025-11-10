@@ -1,10 +1,12 @@
 // src/lib/pdf.js
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { TEMPLATES } from "./templates";
 
 /**
  * generateInvoicePdfBlob(invoice)
  * Returns: { blob: Blob, fileName: string }
+ * Now supports optional invoice.templateId for styled layouts.
  */
 export default function generateInvoicePdfBlob(invoice = {}) {
   const {
@@ -15,23 +17,36 @@ export default function generateInvoicePdfBlob(invoice = {}) {
     paymentNumber = "",
     id = `INV-${Date.now().toString().slice(-6)}`,
     sellerName = "DollarChain",
+    templateId = null,
   } = invoice;
 
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
 
-  // Header
-  doc.setFontSize(18);
-  doc.setFont(undefined, "bold");
-  doc.text(sellerName, 40, 60);
-  doc.setFontSize(10);
-  doc.setFont(undefined, "normal");
-  doc.text(`Invoice: ${id}`, pageWidth - 200, 60);
-  doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - 200, 76);
+  // --- Template lookup ---
+  const tpl = TEMPLATES.find((t) => t.id === templateId) || TEMPLATES[0];
+  const accentColor = tpl?.style?.accentColor || "#2563eb";
+  const headerBg = tpl?.style?.headerBg || "#f8fafc";
+  const textColor = tpl?.style?.textColor || "#111827";
 
-  // Buyer & payment block
+  // --- Header ---
+  doc.setFillColor(headerBg);
+  doc.rect(0, 0, pageWidth, 80, "F");
+
+  doc.setFontSize(20);
+  doc.setTextColor(accentColor);
+  doc.setFont(undefined, "bold");
+  doc.text(sellerName, 40, 50);
+
+  doc.setFontSize(10);
+  doc.setTextColor(textColor);
+  doc.text(`Invoice: ${id}`, pageWidth - 200, 40);
+  doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - 200, 55);
+
+  // --- Buyer / Payment ---
   doc.setFontSize(11);
   doc.setFont(undefined, "bold");
+  doc.setTextColor(textColor);
   doc.text("Bill To:", 40, 110);
   doc.setFont(undefined, "normal");
   doc.text(buyerName || "-", 40, 126);
@@ -43,13 +58,14 @@ export default function generateInvoicePdfBlob(invoice = {}) {
   doc.text(paymentNumber || "-", pageWidth - 220, 126);
   doc.text(String(total || "-"), pageWidth - 220, 142);
 
-  // Items -> normalize to rows
+  // --- Items Normalization ---
   let itemRows = [];
   if (Array.isArray(items)) {
-    itemRows = items.map((it) => {
-      if (typeof it === "string") return [it, "1", ""];
-      return [it.name || "", String(it.qty || 1), ""];
-    });
+    itemRows = items.map((it) =>
+      typeof it === "string"
+        ? [it, "1", ""]
+        : [it.name || "", String(it.qty || 1), ""]
+    );
   } else if (typeof items === "string") {
     const list = items
       .split(",")
@@ -73,14 +89,18 @@ export default function generateInvoicePdfBlob(invoice = {}) {
     });
   }
 
-  // Table using autoTable
+  // --- Table ---
   try {
     autoTable(doc, {
       startY: 170,
       head: [["Item", "Qty", "Unit Price"]],
       body: itemRows,
-      theme: "striped",
-      headStyles: { fillColor: [237, 242, 247], textColor: 20, fontStyle: "bold" },
+      theme: tpl?.tableTheme || "striped",
+      headStyles: {
+        fillColor: tpl?.style?.headFillColor || [229, 231, 235],
+        textColor: 20,
+        fontStyle: "bold",
+      },
       styles: { fontSize: 10, cellPadding: 6 },
       columnStyles: {
         0: { cellWidth: "auto" },
@@ -99,22 +119,26 @@ export default function generateInvoicePdfBlob(invoice = {}) {
   }
 
   const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 20 : 300;
-  doc.setFontSize(11);
+
+  // --- Total ---
+  doc.setFontSize(12);
   doc.setFont(undefined, "bold");
+  doc.setTextColor(accentColor);
   doc.text("Total:", pageWidth - 200, finalY + 20);
   doc.setFont(undefined, "normal");
+  doc.setTextColor(textColor);
   doc.text(String(total || "-"), pageWidth - 120, finalY + 20);
 
-  // Footer
+  // --- Footer ---
   doc.setFontSize(9);
-  doc.setTextColor(120);
+  doc.setTextColor("#6b7280");
   doc.text(
-    "Thank you for your purchase — DollarChain. This invoice is auto-generated.",
+    "Thank you for your purchase — Powered by DollarChain.",
     40,
     doc.internal.pageSize.getHeight() - 40
   );
 
-  // Export blob
+  // --- Export ---
   const fileName = `${id}.pdf`;
   const blob = doc.output("blob");
 
