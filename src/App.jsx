@@ -26,6 +26,9 @@ import { UserProvider } from "./context/UserContext";
 import Profile from "./components/Profile";
 import Settings from "./components/Settings";
 
+// --- ADDED: Template gallery (sibling UI for PasteBox)
+import TemplateGallery from "./components/TemplateGallery";
+
 function App() {
   const [parsedData, setParsedData] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -37,6 +40,21 @@ function App() {
 
   // Mobile sidebar open state (for small screens)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // Template selection state (Step 1)
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+
+  // Dummy invoice used when previewing a template (will be replaced after parsing)
+  const DUMMY_INVOICE = {
+    buyerName: "Buyer Name",
+    phone: "+2547 123 45678",
+    items: "1x Sample item • 2x Example product",
+    total: "KES 1,200",
+    paymentNumber: "Paybill 123456",
+    rawText: "Sample pasted order message will replace this.",
+    confidence: null,
+    notes: ["This is a preview — real data replaces it after parsing."],
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -157,6 +175,7 @@ function App() {
         payment_number: invoice.paymentNumber || "",
         status: "pending",
         // pdf_path initially null; we'll update after upload
+        // template_id can be added here later (when DB has the column)
       };
 
       // Insert invoice row
@@ -238,6 +257,27 @@ function App() {
 
     setMobileSidebarOpen(false);
   }, [setMobileSidebarOpen]);
+
+  // Template selection handler (fires preview with dummy data; does NOT touch credits)
+  const handleTemplateSelect = (template) => {
+    setSelectedTemplate(template || null);
+    // expose on window for any listener or fallback
+    try {
+      window.SELECTED_TEMPLATE = template || null;
+    } catch (e) {
+      // ignore
+    }
+
+    // Broadcast selection
+    window.dispatchEvent(new CustomEvent("template-selected", { detail: template }));
+
+    // Open a preview in "preview mode" using dummy invoice so user sees how it looks.
+    window.dispatchEvent(
+      new CustomEvent("template-preview", {
+        detail: { template, mode: "preview", invoiceData: DUMMY_INVOICE },
+      })
+    );
+  };
 
   return (
     <ToastProvider>
@@ -322,7 +362,11 @@ function App() {
                           an invoice. You can edit details before creating the PDF.
                         </p>
 
-                        <PasteBox onParse={handleParse} />
+                        {/* Paste area + Template gallery (siblings) */}
+                        <div className="paste-area" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                          <PasteBox onParse={handleParse} />
+                          <TemplateGallery onSelect={handleTemplateSelect} />
+                        </div>
                       </>
                     )}
 
