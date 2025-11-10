@@ -64,7 +64,25 @@ export default function PasteBox({ onParse }) {
         idempotencyKey,
       });
 
-      reservationId = res?.data?.reservation?.id || res?.data?.reservation_id || res?.data?.reservationId;
+      // Extract reservation id robustly — server returns `reservation` which may be an array
+      const reservationRaw = res?.data?.reservation || res?.data?.reservationRaw || null;
+      if (!reservationRaw) {
+        // fallback: check other fields
+        reservationId = res?.data?.reservation_id || res?.data?.reservationId || null;
+      } else if (Array.isArray(reservationRaw)) {
+        reservationId = reservationRaw[0]?.reservation_id || reservationRaw[0]?.reservationId || reservationRaw[0]?.id || null;
+      } else if (typeof reservationRaw === "object") {
+        reservationId = reservationRaw?.reservation_id || reservationRaw?.reservationId || reservationRaw?.id || null;
+      }
+
+      // last resort: try common top-level names
+      reservationId = reservationId || res?.data?.reservation_id || res?.data?.reservationId || reservationId;
+
+      if (!reservationId) {
+        // If we couldn't determine a reservation id, fail early so server-side consume won't 400
+        throw new Error("Failed to parse reservation id from reserve response");
+      }
+
       setWalletMessage(`Reserved ${creditsPerParse} credits.`);
 
       // 3) Call parser (synchronous or asynchronous)
@@ -73,6 +91,13 @@ export default function PasteBox({ onParse }) {
       try {
         p = await Promise.resolve(parseOrderText(text));
       } catch (parseErr) {
+        // If parsing fails, attempt to release reservation before rethrowing
+        try {
+          await axios.post("/api/releaseCredits", { reservationId });
+          setWalletMessage("Parsing failed. Reserved credits released.");
+        } catch (releaseErr) {
+          console.error("Failed to release after parse error:", releaseErr);
+        }
         throw new Error(`Parsing failed: ${parseErr?.message || String(parseErr)}`);
       }
 
@@ -87,13 +112,13 @@ export default function PasteBox({ onParse }) {
         });
         setWalletMessage(`Consumed ${creditsPerParse} credits. Parsing complete.`);
       } catch (consumeErr) {
-        // If consume fails, attempt release then throw
-        console.error("Consume credits failed:", consumeErr);
+        // If consume fails, attempt release then throw so caller knows to check server
+        console.error("Consume credits failed:", consumeErr, consumeErr?.response?.data);
         try {
-          await axios.post("/api/releaseCredits", { userId, reservationId });
+          await axios.post("/api/releaseCredits", { reservationId });
           setWalletMessage("Failed to finalize credit consumption. Reserved credits released.");
         } catch (releaseErr) {
-          console.error("Release after consume-fail failed:", releaseErr);
+          console.error("Release after consume-fail failed:", releaseErr, releaseErr?.response?.data);
           setWalletMessage("Failed to consume credits and also failed to release reservation. Admin check required.");
         }
         throw consumeErr;
@@ -109,10 +134,10 @@ export default function PasteBox({ onParse }) {
     } catch (err) {
       console.error("Parse flow error:", err);
 
-      // If we reserved but later failed before consuming, release reservation
+      // If we reserved but later failed before consuming, release reservation (best-effort)
       if (reservationId && userId) {
         try {
-          await axios.post("/api/releaseCredits", { userId, reservationId });
+          await axios.post("/api/releaseCredits", { reservationId });
           setWalletMessage("Parsing failed. Reserved credits released.");
         } catch (releaseErr) {
           console.error("Failed to release reservation after parse error:", releaseErr);
