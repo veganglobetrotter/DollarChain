@@ -410,14 +410,15 @@ export const TEMPLATES = [
   },
 
   /* Row 2: Colour Accent */
+  /* ---------- Accent 1: Red diagonal banner / modern invoice ---------- */
   {
     id: "accent-1",
     category: "accent",
-    name: "Accent Sidebar",
+    name: "Accent Diagonal",
     thumbnail: "/templates/accent-1.png",
-    description: "Left sidebar in brand colour; modern and bold.",
+    description: "Diagonal banner accent; bold red, clear totals and payment area.",
     options: { width: 720, qr: false },
-    style: { accentColor: "#0ea5a3", headerBg: "#0ea5a3", textColor: "#07131a", suggestedWidth: 720 },
+    style: { accentColor: "#e11d48", headerBg: "#ffffff", textColor: "#07131a", suggestedWidth: 720 },
     sampleData: {
       sellerName: "DollarChain",
       sellerLogoUrl: "/logos/dollarchain-logo.png",
@@ -442,188 +443,282 @@ export const TEMPLATES = [
       currency: "KES"
     },
     html: `<!doctype html>
-<html>
-<head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Invoice — Accent Sidebar</title>
-<style>
-  :root{ --accent:#0ea5a3; --bg:#fff; --text:#07131a; --muted:#64748b; --pad:18px; --w:720px; --radius:12px; --base-font:Inter, system-ui, -apple-system, "Segoe UI", Roboto; }
-  *{box-sizing:border-box}
-  body{font-family:var(--base-font); background:#f5f7f8; display:flex; justify-content:center; padding:18px; -webkit-font-smoothing:antialiased;}
-  .wrap{width:var(--w);}
-  .card{display:grid; grid-template-columns:180px 1fr; gap:0; background:var(--bg); border-radius:var(--radius); overflow:hidden; box-shadow:0 12px 36px rgba(10,15,20,0.06);}
-  .sidebar{background:var(--accent); color:white; padding:var(--pad); display:flex; flex-direction:column; gap:10px; align-items:flex-start;}
-  .logo{height:56px; width:56px; background:rgba(255,255,255,0.06); border-radius:8px; object-fit:contain;}
-  .sidebar .brand{font-weight:900; font-size:18px; letter-spacing:0.2px;}
-  .sidebar .tag{font-size:13px; opacity:0.95;}
-  .content{padding:var(--pad);}
-  .head{display:flex; justify-content:space-between; align-items:center;}
-  .items table{width:100%; border-collapse:collapse; margin-top:14px; font-size:14px;}
-  .items td, .items th{padding:10px 0; border-bottom:1px solid #f1f5f9;}
-  .summary{display:flex; justify-content:flex-end; margin-top:14px; gap:12px;}
-  .total{font-weight:900; font-size:20px;}
-  .paybtn{display:inline-block; padding:10px 14px; border-radius:8px; background:var(--accent); color:white; text-decoration:none; font-weight:700;}
-  @media (max-width:820px){ .card{grid-template-columns:1fr} .sidebar{flex-direction:row; justify-content:space-between; align-items:center} }
-</style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="card" role="article" aria-label="Invoice">
-      <aside class="sidebar" aria-hidden="false">
-        <img src="{{sellerLogoUrl}}" alt="{{sellerName}}" class="logo" onerror="this.style.display='none'"/>
-        <div style="margin-top:6px">
-          <div class="brand">{{sellerName}}</div>
-          <div class="tag">{{sellerTagline}}</div>
-        </div>
-        <div style="margin-top:auto; font-size:12px; opacity:.95;">Invoice #{{invoiceNumber}}<br/>{{date}}</div>
-      </aside>
-
-      <main class="content">
-        <div class="head">
-          <div>
-            <div style="font-weight:900; font-size:18px;">Invoice</div>
-            <div style="color:var(--muted); font-size:13px;">Bill to: <strong>{{buyerName}}</strong></div>
+  <html>
+  <head>
+  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Invoice — Accent Diagonal</title>
+  <style>
+    :root{
+      --w:720px;
+      --pad:18px;
+      --red:#e11d48;
+      --muted:#6b7280;
+      --text:#07131a;
+      --paper:#ffffff;
+      --base: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{font-family:var(--base); background:#f5f5f7; padding:24px; display:flex; justify-content:center; -webkit-font-smoothing:antialiased;}
+    .wrap{width:var(--w); display:block;}
+    .card{background:var(--paper); border-radius:12px; overflow:hidden; box-shadow:0 20px 50px rgba(10,12,20,0.08);}
+    /* diagonal accent using pseudo element */
+    .accent{
+      position:relative; background:linear-gradient(180deg,#fff,#fff); padding:var(--pad) 24px 22px 24px;
+    }
+    .accent::before{
+      content:""; position:absolute; left:-120px; top:-40px; width:420px; height:240px;
+      transform:rotate(-18deg); background:linear-gradient(90deg,var(--red), #c81a42);
+      border-radius:8px; box-shadow: 0 8px 20px rgba(225,29,72,0.08);
+    }
+    .hdr{position:relative; display:flex; justify-content:space-between; align-items:center; gap:14px;}
+    .brand{position:relative; z-index:2; display:flex; gap:12px; align-items:center;}
+    .logo{height:56px; width:56px; object-fit:contain; background:#fff; padding:6px; border-radius:8px;}
+    .company{font-weight:900; font-size:18px; color:var(--text);}
+    .tag{font-size:13px; color:var(--muted);}
+    .invoiceLabel{position:relative; z-index:2; text-align:right;}
+    .invoiceLabel .title{font-weight:900; font-size:20px; color:white; background:rgba(0,0,0,0.08); padding:8px 12px; border-radius:6px; display:inline-block; margin-bottom:4px;}
+    .metaSmall{font-size:13px; color:var(--muted)}
+    .body{position:relative; z-index:2; padding:18px 24px 28px 24px; background:linear-gradient(180deg, rgba(255,255,255,0.00), rgba(255,255,255,0.95));}
+    .grid{display:flex; justify-content:space-between; gap:20px; margin-top:6px;}
+    .items{width:100%; border-collapse:collapse; margin-top:16px; font-size:14px;}
+    .items thead th{font-weight:700; text-align:left; padding:12px 8px; color:var(--muted); background:transparent; border-bottom:3px solid rgba(0,0,0,0.06);}
+    .items td{padding:12px 8px; border-bottom:2px solid rgba(0,0,0,0.06); vertical-align:middle;}
+    .items tbody tr:hover td{background:rgba(225,29,72,0.02);}
+    .summaryRow{display:flex; justify-content:flex-end; margin-top:14px; gap:18px;}
+    .summaryVal{font-weight:900; font-size:18px; color:var(--text);}
+    .payment{margin-top:18px; display:flex; justify-content:space-between; gap:16px; align-items:center;}
+    .payment .left{font-size:13px; color:var(--muted)}
+    .payment .cta{background:var(--red); color:white; padding:10px 14px; border-radius:8px; text-decoration:none; font-weight:800;}
+    .footer{padding:14px 24px; background:#fff; border-top:1px solid rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; gap:12px;}
+    .notes{font-size:13px; color:var(--muted)}
+    @media print{ body{background:transparent} .card{box-shadow:none} .accent::before{display:none} }
+  </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <div class="accent" role="article" aria-label="Invoice">
+          <div class="hdr">
+            <div class="brand">
+              <img src="{{sellerLogoUrl}}" alt="{{sellerName}} logo" class="logo" onerror="this.style.display='none'"/>
+              <div>
+                <div class="company">{{sellerName}}</div>
+                <div class="tag">{{sellerTagline}}</div>
+              </div>
+            </div>
+            <div class="invoiceLabel">
+              <div class="title" style="background:linear-gradient(90deg, rgba(0,0,0,0.06), rgba(0,0,0,0.02)); color:white; padding:8px 16px; border-radius:6px; font-size:22px;">INVOICE</div>
+              <div style="font-size:13px; color:#fff; opacity:0.95; margin-top:6px;">#{{invoiceNumber}} • {{date}}</div>
+            </div>
           </div>
-          <div style="text-align:right;">
-            <div style="font-weight:700;">Total</div>
-            <div class="total">{{total}}</div>
+
+          <div class="body">
+            <div class="grid" aria-hidden="false">
+              <div>
+                <div style="font-weight:700; margin-bottom:6px;">Bill to</div>
+                <div class="metaSmall">{{buyerName}} • {{buyerPhone}}</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:13px; color:var(--muted)">Due</div>
+                <div style="font-weight:700;">{{dueDate}}</div>
+              </div>
+            </div>
+
+            <table class="items" aria-label="Line items">
+              <thead>
+                <tr><th>Description</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit</th><th style="text-align:right">Total</th></tr>
+              </thead>
+              <tbody>
+                {{itemsRows}}
+              </tbody>
+            </table>
+
+            <div class="summaryRow">
+              <div style="text-align:right;">
+                <div style="color:var(--muted); font-size:13px;">Subtotal</div>
+                <div class="summaryVal">{{subtotal}}</div>
+              </div>
+            </div>
+
+            <div class="payment" role="region" aria-label="Payment details">
+              <div class="left">
+                <div style="font-weight:700; margin-bottom:6px;">Payment method</div>
+                <div style="font-weight:800;">{{paymentLabel}} • {{paymentNumber}}</div>
+                <div style="font-size:12px; color:var(--muted); margin-top:6px;">{{paymentNote}}</div>
+              </div>
+              <div style="text-align:right;">
+                <a class="cta" href="{{payLink}}">Pay now</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="footer">
+            <div class="notes">{{notesLine}}</div>
+            <div style="font-size:12px; color:var(--muted)">Sent via DollarChain</div>
           </div>
         </div>
-
-        <div class="items">
-          <table aria-label="Line items">
-            <thead><tr><th style="text-align:left">Item</th><th style="text-align:right">Amount</th></tr></thead>
-            <tbody>
-              {{itemsRows}}
-            </tbody>
-          </table>
-        </div>
-
-        <div class="summary">
-          <div style="text-align:right;">
-            <div style="font-size:13px; color:var(--muted)">Subtotal</div>
-            <div style="font-weight:700">{{subtotal}}</div>
-          </div>
-        </div>
-
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:18px;">
-          <div style="font-size:13px; color:var(--muted)">{{notesLine}}</div>
-          <a class="paybtn" href="{{payLink}}">Pay now</a>
-        </div>
-      </main>
+      </div>
     </div>
-  </div>
-</body>
-</html>`
+  </body>
+  </html>`
   },
 
+  /* ---------- Accent 2: Navy header with orange title (studio / corporate) ---------- */
   {
     id: "accent-2",
     category: "accent",
-    name: "Accent Topband",
+    name: "Accent Studio",
     thumbnail: "/templates/accent-2.png",
-    description: "Top band accent colour, large Totals area and CTAs.",
+    description: "Large navy header, orange INVOICE title, compact service table and clear payment block.",
     options: { width: 720, qr: false },
-    style: { accentColor: "#ef4444", headerBg: "#ef4444", textColor: "#07131a", suggestedWidth: 720 },
+    style: { accentColor: "#2b2b7a", headerBg: "#2b2b7a", textColor: "#07131a", suggestedWidth: 720 },
     sampleData: {
       sellerName: "DollarChain",
       sellerLogoUrl: "/logos/dollarchain-logo.png",
       sellerTagline: "Sell more. Send invoices faster.",
       sellerAddress: "123 Nairobi Rd\nNairobi, Kenya",
       sellerPhone: "+254 700 000 000",
-      buyerName: "Samuel Kimani",
-      buyerPhone: "+254 711 222 333",
-      items: "3x Dress Shirt, 1x Belt",
-      subtotal: "KES 6,500",
-      total: "KES 6,500",
-      paymentNumber: "Paybill 222333",
-      paymentLabel: "Paybill",
-      paymentNote: "Reference: invoice #222333",
-      notesLine: "Delivered to Nairobi CBD",
+      buyerName: "Pauline Njeri",
+      buyerPhone: "+254 700 111 222",
+      items: "1x Jacket, 2x T-Shirt, 1x Cap",
+      subtotal: "KES 9,800",
+      total: "KES 9,800",
+      paymentNumber: "Paybill 555444",
+      paymentLabel: "M-Pesa Paybill",
+      paymentNote: "Pay to Paybill 555444",
+      notesLine: "Order processed — please check sizes",
       qrDataUrl: "",
       date: "2025-11-11",
-      dueDate: "2025-11-20",
+      dueDate: "2025-11-18",
       vatPercent: "0",
       vatAmount: "KES 0",
       payLink: "#",
       currency: "KES"
     },
     html: `<!doctype html>
-<html>
-<head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Invoice — Accent Topband</title>
-<style>
-  :root{ --accent:#ef4444; --w:720px; --pad:20px; --muted:#6b7280; --text:#07131a; --base-font:Inter, system-ui, -apple-system, "Segoe UI", Roboto; }
-  *{box-sizing:border-box}
-  body{font-family:var(--base-font); background:#f6f7f8; padding:20px; display:flex; justify-content:center; -webkit-font-smoothing:antialiased;}
-  .card{width:var(--w); background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 12px 36px rgba(12,14,20,0.06);}
-  .band{background:linear-gradient(90deg,var(--accent), #c2410c); padding:20px; color:white;}
-  .band .title{font-weight:900; font-size:18px;}
-  .body{padding:18px;}
-  .meta{display:flex; justify-content:space-between; gap:12px; color:var(--muted); font-size:13px;}
-  .items{margin-top:12px; width:100%; border-collapse:collapse;}
-  .items td, .items th{padding:10px 0; border-bottom:1px solid #f1f5f9;}
-  .cta{margin-top:14px; display:flex; justify-content:flex-end;}
-  .btn{background:var(--accent); color:white; padding:10px 14px; border-radius:8px; text-decoration:none; font-weight:700;}
-</style>
-</head>
-<body>
-  <div class="card" role="article">
-    <div class="band">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div style="display:flex; align-items:center; gap:14px;">
-          <img src="{{sellerLogoUrl}}" alt="{{sellerName}}" style="height:46px; width:46px; object-fit:contain; border-radius:8px; background:rgba(255,255,255,0.06)" onerror="this.style.display='none'"/>
+  <html>
+  <head>
+  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Invoice — Accent Studio</title>
+  <style>
+    :root{
+      --w:720px;
+      --pad:20px;
+      --navy:#2b2b7a;
+      --orange:#ff9b3b;
+      --muted:#6b7280;
+      --text:#07131a;
+      --base: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{font-family:var(--base); background:#f7f8fb; padding:26px; display:flex; justify-content:center; -webkit-font-smoothing:antialiased;}
+    .card{width:var(--w); background:white; border-radius:10px; overflow:hidden; box-shadow:0 18px 48px rgba(12,14,20,0.06);}
+    .band{background:var(--navy); color:white; padding:20px 28px; display:flex; justify-content:space-between; align-items:center; gap:12px;}
+    .band .title{font-weight:900; font-size:36px; color:var(--orange); letter-spacing:1px;}
+    .band .contact{font-size:13px; opacity:0.95;}
+    .main{padding:22px 28px;}
+    .topRow{display:flex; justify-content:space-between; gap:16px; align-items:flex-start;}
+    .bill{font-size:14px; color:var(--muted); white-space:pre-line;}
+    .items{width:100%; border-collapse:collapse; margin-top:18px; font-size:13px;}
+    .items thead th{font-weight:700; color:var(--muted); padding:10px 8px; border-bottom:2px solid #eef2f8; text-align:left;}
+    .items td{padding:10px 8px; border-bottom:1px solid #f1f5f9;}
+    .serviceGrid{display:grid; grid-template-columns:1fr auto; gap:12px; margin-top:16px;}
+    .paymentBox{margin-top:18px; background:#f6f8ff; padding:14px; border-radius:10px; border:1px solid rgba(43,43,122,0.06); display:flex; justify-content:space-between; align-items:center;}
+    .totals{margin-top:18px; display:flex; justify-content:flex-end; gap:18px; align-items:end;}
+    .totalVal{font-weight:900; font-size:20px; color:var(--text);}
+    .footer{padding:18px 28px; border-top:1px solid #f1f3f6; display:flex; justify-content:space-between; align-items:center;}
+    .mutedSmall{font-size:13px;color:var(--muted)}
+    @media print{ .card{box-shadow:none} .band{box-shadow:none} }
+  </style>
+  </head>
+  <body>
+    <div class="card" role="article" aria-label="Invoice">
+      <div class="band" aria-hidden="false">
+        <div style="display:flex; gap:14px; align-items:center;">
+          <div style="font-size:12px; opacity:0.95;">(210) 788-8829</div>
+          <div style="font-size:12px; opacity:0.95;">|</div>
+          <div style="font-size:12px; opacity:0.95;">www.designstudio.com</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="title">INVOICE</div>
+          <div style="font-size:12px; opacity:0.95;">{{date}}</div>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="topRow">
           <div>
-            <div class="title">{{sellerName}}</div>
-            <div style="font-size:12px; opacity:.95;">{{sellerTagline}}</div>
+            <div style="font-weight:900; font-size:18px;">Bill To</div>
+            <div class="bill">{{buyerName}}
+              <div style="margin-top:6px; color:var(--muted)">{{buyerPhone}}</div>
+            </div>
+          </div>
+
+          <div style="text-align:right;">
+            <div style="font-size:13px; color:var(--muted)">Invoice Number</div>
+            <div style="font-weight:800;">#{{invoiceNumber}}</div>
+            <div style="margin-top:8px; font-size:13px; color:var(--muted)">Due</div>
+            <div style="font-weight:700;">{{dueDate}}</div>
           </div>
         </div>
 
-        <div style="text-align:right;">
-          <div style="font-weight:700;">Invoice #{{invoiceNumber}}</div>
-          <div style="font-size:13px;">{{date}}</div>
+        <div class="serviceGrid">
+          <div>
+            <table class="items" aria-label="Service details">
+              <thead>
+                <tr><th style="width:60%">Description of Service</th><th style="text-align:right">Quantity</th><th style="text-align:right">Rate</th><th style="text-align:right">Total</th></tr>
+              </thead>
+              <tbody>
+                {{itemsRows}}
+              </tbody>
+            </table>
+          </div>
+
+          <div style="max-width:280px;">
+            <div style="background:white; border-radius:10px; padding:12px; border:1px solid #eef2f8;">
+              <div style="font-size:13px; color:var(--muted)">Payment Information</div>
+              <div style="margin-top:8px;">
+                <div style="font-weight:800;">{{paymentLabel}}</div>
+                <div style="font-size:13px; color:var(--muted); margin-top:6px">{{paymentNumber}}</div>
+              </div>
+
+              <div style="margin-top:12px; display:flex; justify-content:space-between; gap:8px;">
+                <div style="color:var(--muted); font-size:13px;">Subtotal</div><div style="font-weight:800;">{{subtotal}}</div>
+              </div>
+              <div style="display:flex; justify-content:space-between; gap:8px; margin-top:6px; color:var(--muted); font-size:13px;">
+                <div>Tax ({{vatPercent}}%)</div><div>{{vatAmount}}</div>
+              </div>
+              <div style="border-top:1px dashed #eef2f8; margin-top:10px; padding-top:10px; display:flex; justify-content:space-between; align-items:center;">
+                <div style="font-weight:900;">Total</div><div style="font-weight:900; font-size:18px;">{{total}}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:18px; display:flex; justify-content:space-between; align-items:center;">
+          <div style="font-size:13px; color:var(--muted)">{{notesLine}}</div>
+          <div style="text-align:right; color:var(--muted)">Sent via DollarChain</div>
         </div>
       </div>
-    </div>
 
-    <div class="body">
-      <div class="meta">
-        <div>Bill to: <strong>{{buyerName}}</strong></div>
-        <div>Due: <strong>{{dueDate}}</strong></div>
-      </div>
-
-      <table class="items" aria-label="Items list">
-        <tbody>
-          {{itemsRows}}
-        </tbody>
-      </table>
-
-      <div style="display:flex; justify-content:space-between; margin-top:12px;">
-        <div style="color:var(--muted);">Notes: {{notesLine}}</div>
-        <div style="text-align:right;">
-          <div style="color:var(--muted)">Subtotal</div>
-          <div style="font-weight:800; font-size:18px;">{{total}}</div>
-        </div>
-      </div>
-
-      <div class="cta">
-        <a href="{{payLink}}" class="btn">Pay Now</a>
+      <div class="footer">
+        <div style="font-size:13px; color:var(--muted)">Terms and Conditions: Payment due on receipt. Late fees may apply.</div>
+        <div style="font-weight:800; font-size:13px;">Signature</div>
       </div>
     </div>
-  </div>
-</body>
-</html>`
+  </body>
+  </html>`
   },
 
+  /* ---------- Accent 3: Grey card with red right totals ribbon (catalog / product-heavy) ---------- */
   {
     id: "accent-3",
     category: "accent",
-    name: "Accent Blocks",
+    name: "Accent Right Ribbon",
     thumbnail: "/templates/accent-3.png",
-    description: "Color blocks to segment invoice data and draw attention.",
+    description: "Muted grey main card with a red right-hand ribbon for totals and CTAs.",
     options: { width: 780, qr: false },
-    style: { accentColor: "#6366f1", headerBg: "#ffffff", textColor: "#07131a", suggestedWidth: 780 },
+    style: { accentColor: "#ef4444", headerBg: "#f7f7f9", textColor: "#07131a", suggestedWidth: 780 },
     sampleData: {
       sellerName: "DollarChain",
       sellerLogoUrl: "/logos/dollarchain-logo.png",
@@ -648,60 +743,103 @@ export const TEMPLATES = [
       currency: "KES"
     },
     html: `<!doctype html>
-<html>
-<head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Invoice — Accent Blocks</title>
-<style>
-  :root{ --accent:#6366f1; --muted:#6b7280; --text:#07131a; --w:780px; --pad:18px; --base-font:Inter, system-ui, -apple-system, "Segoe UI", Roboto; }
-  *{box-sizing:border-box}
-  body{font-family:var(--base-font); background:#f3f4f6; display:flex; justify-content:center; padding:20px; -webkit-font-smoothing:antialiased;}
-  .card{width:var(--w); background:#fff; border-radius:10px; padding:var(--pad); box-shadow:0 14px 40px rgba(10,12,20,0.06);}
-  .row{display:flex; gap:14px;}
-  .block{flex:1; padding:14px; border-radius:10px; background:#fbfbff;}
-  .accentBlock{background:linear-gradient(180deg,var(--accent), #4f46e5); color:white;}
-  .items{margin-top:12px; border-collapse:collapse; width:100%;}
-  .items td{padding:10px 0; border-bottom:1px solid #f2f4fb;}
-  .summary{margin-top:12px; display:flex; justify-content:flex-end;}
-  .total{font-weight:900; font-size:20px;}
-</style>
-</head>
-<body>
-  <div class="card" role="article">
-    <div class="row">
-      <div class="block accentBlock">
-        <div style="font-weight:900; font-size:18px;">{{sellerName}}</div>
-        <div style="font-size:13px; opacity:.95;">{{sellerTagline}}</div>
-      </div>
-      <div class="block">
-        <div style="display:flex; justify-content:space-between;">
-          <div>
-            <div style="font-weight:700;">Bill to</div>
-            <div style="color:var(--muted)">{{buyerName}}</div>
+  <html>
+  <head>
+  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Invoice — Accent Right Ribbon</title>
+  <style>
+    :root{
+      --w:780px;
+      --pad:18px;
+      --accent:#ef4444;
+      --muted:#6b7280;
+      --text:#07131a;
+      --cardbg:#f6f7f9;
+      --base: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{font-family:var(--base); background:#efeff2; padding:26px; display:flex; justify-content:center; -webkit-font-smoothing:antialiased;}
+    .wrap{width:var(--w); display:flex; justify-content:center;}
+    .card{display:flex; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 18px 40px rgba(10,12,20,0.06); width:100%;}
+    .main{flex:1; padding:var(--pad) 20px; background:var(--cardbg);}
+    .ribbon{width:220px; background:linear-gradient(180deg,var(--accent), #c53030); color:white; padding:24px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px;}
+    .ribbon .ttl{font-weight:900; font-size:20px; letter-spacing:0.6px;}
+    .ribbon .totalAmt{font-weight:900; font-size:26px;}
+    .hdr{display:flex; justify-content:space-between; align-items:center; gap:12px;}
+    .logo{height:56px; width:56px; object-fit:contain; background:#fff; padding:6px; border-radius:8px;}
+    .company{font-weight:800; font-size:16px; color:var(--text);}
+    .meta{font-size:13px; color:var(--muted)}
+    .items{width:100%; border-collapse:collapse; margin-top:16px; font-size:13px; background:white; border-radius:8px; overflow:hidden;}
+    .items thead th{font-weight:700; color:var(--muted); text-align:left; padding:12px 10px; border-bottom:2px solid #eef2f7;}
+    .items td{padding:12px 10px; border-bottom:1px solid #f3f5f8;}
+    .items tbody tr:last-child td{border-bottom:1px dashed #e8eaee;}
+    .payment{margin-top:16px; display:flex; gap:12px; align-items:center; justify-content:space-between;}
+    .payBtn{background:var(--accent); color:white; padding:10px 14px; border-radius:8px; font-weight:800; text-decoration:none;}
+    .foot{margin-top:18px; font-size:13px; color:var(--muted); display:flex; justify-content:space-between;}
+    @media print{ .card{box-shadow:none} .ribbon{background:var(--accent)} }
+  </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card" role="article" aria-label="Invoice">
+        <div class="main">
+          <div class="hdr">
+            <div style="display:flex; gap:12px; align-items:center;">
+              <img src="{{sellerLogoUrl}}" alt="{{sellerName}} logo" class="logo" onerror="this.style.display='none'"/>
+              <div>
+                <div class="company">{{sellerName}}</div>
+                <div class="meta">{{sellerAddress}}</div>
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-weight:900; font-size:18px;">Invoice</div>
+              <div style="font-size:13px; color:var(--muted)">#{{invoiceNumber}} • {{date}}</div>
+            </div>
           </div>
-          <div style="text-align:right;">
-            <div style="font-size:13px;color:var(--muted)">Invoice</div>
-            <div style="font-weight:800;">#{{invoiceNumber}}</div>
+
+          <div style="margin-top:10px; display:flex; justify-content:space-between; gap:18px;">
+            <div>
+              <div style="font-weight:700;">Bill to</div>
+              <div style="font-size:13px; color:var(--muted)">{{buyerName}} • {{buyerPhone}}</div>
+            </div>
+            <div style="text-align:right; color:var(--muted)">
+              <div>Due</div><div style="font-weight:700;">{{dueDate}}</div>
+            </div>
+          </div>
+
+          <table class="items" aria-label="Line items">
+            <thead>
+              <tr><th style="width:55%">Item</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Qty</th><th style="text-align:right">Total</th></tr>
+            </thead>
+            <tbody>
+              {{itemsRows}}
+            </tbody>
+          </table>
+
+          <div class="payment">
+            <div style="font-size:13px; color:var(--muted)">{{notesLine}}</div>
+            <div style="text-align:right;">
+              <div style="color:var(--muted); font-size:13px;">Payment method</div>
+              <div style="font-weight:800; margin-top:6px;">{{paymentLabel}} • {{paymentNumber}}</div>
+            </div>
+          </div>
+
+          <div class="foot">
+            <div>Sent via DollarChain</div>
+            <div style="color:var(--muted)">{{date}}</div>
           </div>
         </div>
+
+        <aside class="ribbon" role="complementary" aria-label="Totals">
+          <div style="text-transform:uppercase; opacity:0.9; font-size:12px;">Grand Total</div>
+          <div class="totalAmt">{{total}}</div>
+          <a class="payBtn" href="{{payLink}}">Pay Now</a>
+          <div style="font-size:12px; opacity:0.95;">Due: {{dueDate}}</div>
+        </aside>
       </div>
     </div>
-
-    <table class="items" aria-label="Line items">
-      <tbody>{{itemsRows}}</tbody>
-    </table>
-
-    <div class="summary">
-      <div style="text-align:right;">
-        <div style="color:var(--muted)">Subtotal</div>
-        <div class="total">{{total}}</div>
-      </div>
-    </div>
-
-    <div style="margin-top:12px; color:var(--muted)">{{notesLine}}</div>
-  </div>
-</body>
-</html>`
+  </body>
+  </html>`
   },
 
   /* Row 3: Clean Minimalist */
