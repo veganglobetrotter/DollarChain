@@ -7,9 +7,7 @@
 
 export const TEMPLATES = [
   /* Row 1: Localised / Print-Friendly */
-  /* REPLACE existing local-1, local-2, local-3 objects with these */
-
-  /* Local 1 — classic blue receipt (traditional, narrow) */
+  /* Local 1 — classic blue receipt (tuned fonts, spacing, deeper blue) */
   {
     id: "local-1",
     category: "local",
@@ -17,7 +15,7 @@ export const TEMPLATES = [
     thumbnail: "/templates/local-1.png",
     description: "Narrow receipt style, mobile-first, M-Pesa / Paybill friendly.",
     options: { width: 360, qr: true, showPaymentLabel: true, currency: "KES" },
-    style: { accentColor: "#1a8917", headerBg: "#ffffff", textColor: "#0b1220", suggestedWidth: 360 },
+    style: { accentColor: "#123A8A", headerBg: "#ffffff", textColor: "#0b1220", suggestedWidth: 360 },
     sampleData: {
       sellerName: "DollarChain",
       sellerLogoUrl: "/logos/dollarchain-logo.png",
@@ -52,30 +50,30 @@ export const TEMPLATES = [
     :root{
       --paper-w:360px;
       --pad:10px;
-      --blue:#0f4ea8;
+      --blue:#123A8A;            /* deeper reference blue */
       --muted:#6b7280;
       --text:#0b1220;
-      --accent:#1a8917;
-      --base-font: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --base-serif: "Merriweather", Georgia, "Times New Roman", serif;
+      --base-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
     *{box-sizing:border-box}
-    body{font-family:var(--base-font); background:#f7f8fb; padding:18px; display:flex; justify-content:center; -webkit-font-smoothing:antialiased;}
-    .paper{width:var(--paper-w); background:#fff; padding:var(--pad); border-radius:6px; box-shadow:0 8px 22px rgba(8,12,16,0.05); border:1px solid #e6eef9;}
-    .topPill{display:block; width:86px; margin:6px auto 4px; text-align:center; background:var(--blue); color:white; font-weight:800; padding:4px 6px; border-radius:6px; letter-spacing:1px; font-size:11px;}
-    .company{font-weight:900; color:var(--blue); text-align:center; font-size:14px; margin-bottom:6px;}
+    body{font-family:var(--base-sans); background:#f7f8fb; padding:18px; display:flex; justify-content:center; -webkit-font-smoothing:antialiased;}
+    .paper{width:var(--paper-w); background:#fff; padding:var(--pad); border-radius:6px; box-shadow:0 8px 22px rgba(8,12,16,0.05); border:1px solid #e6eef9; line-height:1.18;}
+    .topPill{display:block; width:86px; margin:6px auto 4px; text-align:center; background:var(--blue); color:white; font-weight:900; padding:4px 6px; border-radius:6px; letter-spacing:1px; font-size:11px; font-family:var(--base-serif)}
+    .company{font-weight:900; color:var(--blue); text-align:center; font-size:14px; margin-bottom:4px; font-family:var(--base-serif)}
     .meta{font-size:11px; color:var(--muted); text-align:center; white-space:pre-line; margin-bottom:8px;}
     .formRow{display:flex; gap:8px; font-size:12px; margin:6px 0; align-items:center;}
-    .formRow .label{min-width:48px; color:var(--muted);}
-    .formLine{flex:1; border-bottom:2px solid #eef4ff; padding:6px 4px; font-weight:700;}
+    .formRow .label{min-width:48px; color:var(--muted); font-size:11px;}
+    .formLine{flex:1; border-bottom:2px solid #eef4ff; padding:6px 4px; font-weight:700; font-size:13px;}
     .divider{height:1px; background:#eef2f6; margin:10px 0;}
     table.items{width:100%; border-collapse:collapse; font-size:13px; margin-top:6px;}
-    table.items thead td{font-weight:800; color:var(--blue); padding:6px 4px; border-bottom:2px solid #dbeafe;}
+    table.items thead td{font-weight:800; color:var(--blue); padding:6px 4px; border-bottom:2px solid #dbeafe; font-size:12px;}
     table.items td{padding:8px 4px; border-bottom:1px dashed #eef4ff;}
-    .qty{width:52px; color:var(--muted);}
-    .price{width:86px; text-align:right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;}
+    .qty{width:52px; color:var(--muted); font-size:12px;}
+    .price{width:86px; text-align:right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace; font-size:12px;}
     .bottomRow{display:flex; justify-content:space-between; align-items:center; margin-top:8px;}
     .noBox{font-size:12px; color:#b91c1c; font-weight:800;}
-    .totalBox{background:var(--blue); color:white; padding:6px 8px; border-radius:6px; font-weight:900; min-width:84px; text-align:center;}
+    .totalBox{background:var(--blue); color:white; padding:6px 8px; border-radius:6px; font-weight:900; min-width:84px; text-align:center; font-size:13px;}
     .paybox{background:#fbfff9; border:1px solid #eef8ee; padding:10px; border-radius:8px; margin-top:10px; font-size:13px; display:flex; justify-content:space-between; align-items:center;}
     .qr{width:72px; height:72px; background:#fff; border-radius:6px; display:inline-block; object-fit:contain;}
     .foot{font-size:11px; color:var(--muted); margin-top:10px; text-align:center; white-space:pre-line;}
@@ -135,7 +133,7 @@ export const TEMPLATES = [
       <div class="paybox" role="region" aria-label="Payment details">
         <div>
           <div style="font-size:12px;color:var(--muted)">Pay via</div>
-          <div style="font-weight:800;font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;">{{paymentLabel}} · {{paymentNumber}}</div>
+          <div style="font-weight:800;font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;">{{paymentLabel}} · {{paymentNumber}}</div>
           <div style="font-size:12px;color:var(--muted); margin-top:6px;">{{paymentNote}}</div>
         </div>
         <div>
@@ -153,7 +151,7 @@ export const TEMPLATES = [
   </html>`
   },
 
-  /* Local 2 — modern green invoice (clean grid, logo top-right, green accents) */
+  /* Local 2 — modern green invoice (tuned green, clearer typography) */
   {
     id: "local-2",
     category: "local",
@@ -161,7 +159,7 @@ export const TEMPLATES = [
     thumbnail: "/templates/local-2.png",
     description: "Balanced print-friendly layout, clear payment area and QR.",
     options: { width: 480, qr: true, showPaymentLabel: true, currency: "KES" },
-    style: { accentColor: "#16a34a", headerBg: "#ffffff", textColor: "#0b1220", suggestedWidth: 480 },
+    style: { accentColor: "#15803D", headerBg: "#ffffff", textColor: "#0b1220", suggestedWidth: 480 },
     sampleData: {
       sellerName: "DollarChain",
       sellerLogoUrl: "/logos/dollarchain-logo.png",
@@ -195,29 +193,31 @@ export const TEMPLATES = [
     :root{
       --w:480px;
       --pad:18px;
-      --green:#16a34a;
+      --green:#15803D;           /* tuned green */
       --muted:#6b7280;
       --text:#0b1220;
-      --base-font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      --base-sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --base-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace;
     }
     *{box-sizing:border-box}
-    body{font-family:var(--base-font); background:#f6f7f8; display:flex; justify-content:center; padding:18px; -webkit-font-smoothing:antialiased;}
-    .card{width:var(--w); background:white; border-radius:10px; padding:var(--pad); box-shadow:0 10px 30px rgba(8,12,16,0.04); border:1px solid #e9f4ee;}
+    body{font-family:var(--base-sans); background:#f6f7f8; display:flex; justify-content:center; padding:18px; -webkit-font-smoothing:antialiased;}
+    .card{width:var(--w); background:white; border-radius:10px; padding:var(--pad); box-shadow:0 10px 30px rgba(8,12,16,0.04); border:1px solid #eef7ef; line-height:1.24;}
     .header{display:flex; justify-content:space-between; align-items:center; gap:12px;}
-    .logo{height:56px; width:56px; object-fit:contain; border-radius:8px; background:#f8faf8; padding:6px;}
-    .company{font-weight:800; font-size:16px; color:var(--green);}
+    .logo{height:56px; width:56px; object-fit:contain; border-radius:8px; background:#f7faf7; padding:6px;}
+    .company{font-weight:800; font-size:16px; color:var(--green); letter-spacing:0.2px;}
     .meta{font-size:12px; color:var(--muted); white-space:pre-line; margin-top:4px;}
     .grid{display:grid; grid-template-columns:1fr auto; gap:12px; margin-top:14px;}
     .bill{font-size:13px}
     .items{width:100%; border-collapse:collapse; margin-top:12px; font-size:13px;}
-    .items th{font-size:12px; text-align:left; color:var(--muted); padding:8px 0; border-bottom:2px solid #ecfdf3;}
+    .items th{font-size:12px; text-align:left; color:var(--muted); padding:8px 0; border-bottom:2px solid #ecfdf0;}
     .items td{padding:10px 0; border-bottom:1px solid #f1f5f9;}
     .right{text-align:right}
     .totals{margin-top:12px; display:flex; justify-content:flex-end; gap:18px; align-items:end;}
     .totalVal{font-weight:900; font-size:18px; color:var(--text);}
-    .paymentCard{margin-top:12px; border-radius:8px; padding:12px; background:linear-gradient(180deg,#f8fff8,#f0fbf0); border:1px solid #e6f4ea;}
+    .paymentCard{margin-top:12px; border-radius:8px; padding:12px; background:linear-gradient(180deg,#f6fff6,#f1fbef); border:1px solid #e6f6ea;}
     .payLink{display:inline-block; padding:8px 12px; background:var(--green); color:white; border-radius:8px; text-decoration:none; font-weight:700;}
     .qr{width:86px;height:86px;border-radius:6px;object-fit:contain}
+    .mutedSmall{font-size:12px;color:var(--muted)}
     @media print{ .card{box-shadow:none; border:none} }
   </style>
   </head>
@@ -243,7 +243,7 @@ export const TEMPLATES = [
           <div class="bill">{{buyerName}} • {{buyerPhone}}</div>
         </div>
         <div style="text-align:right;">
-          <div style="font-size:13px; color:var(--muted)">Due</div>
+          <div class="mutedSmall">Due</div>
           <div style="font-weight:700;">{{dueDate}}</div>
         </div>
       </div>
@@ -275,7 +275,7 @@ export const TEMPLATES = [
       <div class="paymentCard" role="region" aria-label="Payment details">
         <div style="display:flex; justify-content:space-between; gap:12px; align-items:center;">
           <div>
-            <div style="font-size:12px;color:var(--muted)">Payment method</div>
+            <div class="mutedSmall">Payment method</div>
             <div style="font-weight:800;">{{paymentLabel}} • {{paymentNumber}}</div>
             <div style="font-size:12px;color:var(--muted); margin-top:6px;">{{paymentNote}}</div>
           </div>
@@ -294,7 +294,7 @@ export const TEMPLATES = [
   </html>`
   },
 
-  /* Local 3 — corporate grey invoice (structured blocks, bold INVOICE) */
+  /* Local 3 — corporate grey invoice (tuned greys, bolder 'INVOICE' and compact spacing) */
   {
     id: "local-3",
     category: "local",
@@ -302,7 +302,7 @@ export const TEMPLATES = [
     thumbnail: "/templates/local-3.png",
     description: "Very compact receipt for quick sales and WhatsApp sharing.",
     options: { width: 320, qr: false, showPaymentLabel: true, currency: "KES" },
-    style: { accentColor: "#1a8917", headerBg: "#ffffff", textColor: "#07131a", suggestedWidth: 320 },
+    style: { accentColor: "#111827", headerBg: "#ffffff", textColor: "#07131a", suggestedWidth: 320 },
     sampleData: {
       sellerName: "DollarChain",
       sellerLogoUrl: "/logos/dollarchain-logo.png",
@@ -338,15 +338,15 @@ export const TEMPLATES = [
       --muted:#6b7280;
       --text:#07131a;
       --accent:#111827;
-      --base-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      --base-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
     }
     *{box-sizing:border-box}
-    body{font-family:var(--base-font); background:#fafafa; padding:18px; display:flex; justify-content:center; -webkit-font-smoothing:antialiased;}
-    .paper{width:var(--w); background:#fff; padding:var(--pad); border-radius:8px; box-shadow:0 8px 20px rgba(0,0,0,0.04); border:1px solid #eef0f3;}
+    body{font-family:var(--base-sans); background:#fafafa; padding:18px; display:flex; justify-content:center; -webkit-font-smoothing:antialiased;}
+    .paper{width:var(--w); background:#fff; padding:var(--pad); border-radius:8px; box-shadow:0 8px 20px rgba(0,0,0,0.04); border:1px solid #eef0f3; line-height:1.18;}
     .hdr{display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px;}
     .logo{height:44px; width:44px; object-fit:contain; border-radius:6px; background:#f3f4f6; padding:6px;}
-    .brand{font-weight:900; font-size:15px; color:var(--accent);}
-    .invoiceLabel{font-weight:900; font-size:16px; color:#111827;}
+    .brand{font-weight:900; font-size:15px; color:var(--accent); letter-spacing:0.2px;}
+    .invoiceLabel{font-weight:900; font-size:16px; color:#111827; letter-spacing:0.6px;}
     .meta{font-size:12px; color:var(--muted); white-space:pre-line;}
     hr.sep{border:none; border-top:1px solid #f1f3f5; margin:10px 0;}
     .to{font-size:13px; margin-bottom:6px;}
