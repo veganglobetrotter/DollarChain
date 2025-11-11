@@ -18,50 +18,40 @@ export const TEMPLATES = [
   export const TEMPLATES = [
     /* Row 1: Localised / Print-Friendly */
     /* Local 1 — classic blue receipt (stronger ruled lines) */
-  // src/lib/templates.js
-  // Templates metadata + HTML fragments for DollarChain invoice templates.
-  // Each template includes an `html` property (template literal) with placeholders like {{sellerName}}, {{itemsRows}}, {{total}}.
-  // Keep placeholders consistent with InvoicePreview builder: {{sellerName}}, {{sellerLogoUrl}}, {{sellerPhone}}, {{sellerEmail}},
-  // {{sellerAddress}}, {{sellerTagline}}, {{invoiceNumber}}, {{date}}, {{buyerName}}, {{buyerPhone}}, {{itemsRows}},
-  // {{subtotal}}, {{total}}, {{paymentNumber}}, {{paymentLabel}}, {{paymentNote}}, {{notesLine}}, {{qrDataUrl}}, {{payLink}}, {{dueDate}}, {{vatPercent}}, {{vatAmount}}.
-
-  export const TEMPLATES = [
-    /* Row 1: Localised / Print-Friendly */
-    /* Local 1 — classic blue receipt (stronger ruled lines) */
-    {
-      id: "local-1",
-      category: "local",
-      name: "Local Compact",
-      thumbnail: "/templates/local-1.png",
-      description: "Narrow receipt style, mobile-first, M-Pesa / Paybill friendly.",
-      options: { width: 360, qr: true, showPaymentLabel: true, currency: "KES" },
-      style: { accentColor: "#123A8A", headerBg: "#ffffff", textColor: "#0b1220", suggestedWidth: 360 },
-      sampleData: {
-        sellerName: "DollarChain",
-        sellerLogoUrl: "/logos/dollarchain-logo.png",
-        sellerTagline: "Fast invoices via WhatsApp",
-        sellerAddress: "123 Nairobi Rd\nNairobi, Kenya",
-        sellerPhone: "+254 700 000 000",
-        sellerEmail: "hi@dollarchain.app",
-        buyerName: "Grace Mwende",
-        buyerPhone: "+254 712 345 678",
-        // include unit prices in sample data to show column mapping in preview
-        items: "2 x Cotton Shirt @ 1800, 1 x Leather Belt @ 1200, 3 x Socks @ 200",
-        subtotal: "KES 5,400",
-        total: "KES 5,400",
-        paymentNumber: "Paybill 123456",
-        paymentLabel: "M-Pesa Paybill",
-        paymentNote: "Use invoice #123456 as reference",
-        notesLine: "Thank you — please keep this receipt",
-        qrDataUrl: "",
-        date: "2025-11-11",
-        dueDate: "2025-11-18",
-        vatPercent: "0",
-        vatAmount: "KES 0",
-        payLink: "#",
-        currency: "KES"
-      },
-      html: `<!doctype html>
+  {
+    id: "local-1",
+    category: "local",
+    name: "Local Compact",
+    thumbnail: "/templates/local-1.png",
+    description: "Narrow receipt style, mobile-first, M-Pesa / Paybill friendly.",
+    options: { width: 360, qr: true, showPaymentLabel: true, currency: "KES" },
+    style: { accentColor: "#123A8A", headerBg: "#ffffff", textColor: "#0b1220", suggestedWidth: 360 },
+    sampleData: {
+      sellerName: "DollarChain",
+      sellerLogoUrl: "/logos/dollarchain-logo.png",
+      sellerTagline: "Fast invoices via WhatsApp",
+      sellerAddress: "123 Nairobi Rd\nNairobi, Kenya",
+      sellerPhone: "+254 700 000 000",
+      sellerEmail: "hi@dollarchain.app",
+      buyerName: "Grace Mwende",
+      buyerPhone: "+254 712 345 678",
+      // clearer dummy lines with unit prices so parser can fill columns
+      items: "2x Cotton Shirt @ 1800, 1x Leather Belt @ 1000, 3x Socks @ 200",
+      subtotal: "KES 5,200",
+      total: "KES 5,200",
+      paymentNumber: "Paybill 123456",
+      paymentLabel: "M-Pesa Paybill",
+      paymentNote: "Use invoice #123456 as reference",
+      notesLine: "Thank you — please keep this receipt",
+      qrDataUrl: "",
+      date: "2025-11-11",
+      dueDate: "2025-11-18",
+      vatPercent: "0",
+      vatAmount: "KES 0",
+      payLink: "#",
+      currency: "KES"
+    },
+    html: `<!doctype html>
   <html>
   <head>
   <meta charset="utf-8" />
@@ -94,7 +84,7 @@ export const TEMPLATES = [
     table.items td{padding:10px 4px; border-bottom:2px solid rgba(18,58,138,0.08); vertical-align:middle;}
     table.items tbody tr:last-child td{border-bottom:2px dashed rgba(18,58,138,0.12);}
     .qty{width:52px; color:var(--muted); font-size:12px;}
-    .price{width:86px; text-align:right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Roboto Mono, monospace; font-size:12px;}
+    .price{width:86px; text-align:right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace; font-size:12px;}
     .bottomRow{display:flex; justify-content:space-between; align-items:center; margin-top:8px;}
     .noBox{font-size:12px; color:#b91c1c; font-weight:800;}
     .totalBox{background:var(--blue); color:white; padding:6px 8px; border-radius:6px; font-weight:900; min-width:84px; text-align:center; font-size:13px;}
@@ -144,7 +134,7 @@ export const TEMPLATES = [
             <td class="price">CTS</td>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="items-local-1">
           {{itemsRows}}
         </tbody>
       </table>
@@ -157,7 +147,7 @@ export const TEMPLATES = [
       <div class="paybox" role="region" aria-label="Payment details">
         <div>
           <div style="font-size:12px;color:var(--muted)">Pay via</div>
-          <div style="font-weight:800;font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Roboto Mono, monospace;">{{paymentLabel}} · {{paymentNumber}}</div>
+          <div style="font-weight:800;font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', monospace;">{{paymentLabel}} · {{paymentNumber}}</div>
           <div style="font-size:12px;color:var(--muted); margin-top:6px;">{{paymentNote}}</div>
         </div>
         <div>
@@ -172,378 +162,80 @@ export const TEMPLATES = [
       </div>
     </div>
 
-    <!-- Normalizer script: when itemsRows is not pre-rendered as <tr>s, parse plain-text items string
-         into structured rows (qty, description, unitPrice, total). This keeps templates backward-compatible
-         with older forms that submit a single items string like "2 x Cotton Shirt @ 1800, 1 x Belt @ 1200". -->
     <script>
-      (function(){
-        function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+      (function normalizeRows(tbodyId){
+        function fmt(n){
+          if(n === '' || n === null || n === undefined) return '';
+          var num = Number(String(n).replace(/[,\\s]/g, ''));
+          if(Number.isNaN(num)) return '';
+          return num.toLocaleString('en-US');
+        }
+
         function parseLine(line){
-          line = (line||'').trim();
+          line = String(line || '').trim();
           if(!line) return null;
-          var qty='', desc='', unitPrice='', total='';
-          // pattern: "2 x Item @ 1800"
-          var m = line.match(/^(\d+)\s*[x×]\s*(.+?)(?:\s*@\s*([\d,\.]+))?$/i);
-          if(m){ qty = m[1]; desc = m[2].trim(); unitPrice = m[3] ? m[3].trim() : ''; if(unitPrice && qty){ total = ''; } return {qty, desc, unitPrice, total}; }
-          // pattern: "Item - 2 - 1800"
-          m = line.match(/^(.+?)\s*[-–—]\s*(\d+)(?:\s*[-–—]\s*([\d,\.]+))?/);
-          if(m){ desc = m[1].trim(); qty = m[2].trim(); unitPrice = m[3] ? m[3].trim() : ''; return {qty, desc, unitPrice, total}; }
-          // pipe or comma separated: desc | qty | unit
-          var parts = line.split(/\s*\|\s*/);
-          if(parts.length >= 2){ desc = parts[0].trim(); qty = parts[1].trim(); unitPrice = parts[2] ? parts[2].trim() : ''; return {qty, desc, unitPrice, total}; }
-          parts = line.split(/\s*,\s*/);
-          if(parts.length >= 2){ desc = parts[0].trim(); qty = parts[1].trim(); unitPrice = parts[2] ? parts[2].trim() : ''; return {qty, desc, unitPrice, total}; }
-          // leading qty
-          m = line.match(/^(\d+)\s+(.+)$/);
-          if(m){ qty = m[1]; desc = m[2].trim(); return {qty, desc, unitPrice, total}; }
-          // fallback: treat everything as description
-          desc = line; return {qty, desc, unitPrice, total};
+          // Pattern: "2x Cotton Shirt @ 1800" OR "2 Cotton Shirt @1800" OR "2x Cotton Shirt"
+          var m = line.match(/^(\\d+)\\s*[x×]?\\s*(.+?)\\s*(?:@\\s*([\\d,\\.]+))?$/i);
+          if(m) return { qty: m[1].trim(), desc: m[2].trim(), unit: (m[3]||'').trim() };
+          // Pattern: "Cotton Shirt - 2 - 1800"
+          m = line.match(/^(.+?)\\s*[-–—]\\s*(\\d+)(?:\\s*[-–—]\\s*([\\d,\\.]+))?$/);
+          if(m) return { desc: m[1].trim(), qty: m[2].trim(), unit: (m[3]||'').trim() };
+          // pipe separated "desc | qty | unit"
+          var parts = line.split(/\\s*\\|\\s*/);
+          if(parts.length >= 2) return { desc: parts[0].trim(), qty: parts[1].trim(), unit: (parts[2]||'').trim() };
+          // comma separated: "desc,qty,unit"
+          parts = line.split(/\\s*,\\s*/);
+          if(parts.length >= 2) return { desc: parts[0].trim(), qty: parts[1].trim(), unit: (parts[2]||'').trim() };
+          // "2 Jacket" number first
+          m = line.match(/^(\\d+)\\s+(.+)$/);
+          if(m) return { qty: m[1].trim(), desc: m[2].trim(), unit: '' };
+          // fallback: everything as description
+          return { desc: line, qty: '', unit: '' };
         }
 
-        function normalize(src){
-          if(!src) return [];
-          if(Array.isArray(src)) return src.map(it=>({qty:it.qty||'', desc:it.description||it.name||'', unitPrice:it.unitPrice||it.price||'', total:it.total||''}));
-          var raw = String(src||'');
-          var lines = raw.split(/[\r\n]+|[,•·]+/).map(function(l){return l.trim();}).filter(Boolean);
-          var out = [];
-          for(var i=0;i<lines.length;i++){ var item = parseLine(lines[i]); if(item) out.push(item); }
-          return out;
-        }
+        var tbody = document.getElementById(tbodyId);
+        if(!tbody) return;
+        // if already has structured rows, do nothing
+        if(tbody.querySelector('tr')) return;
+        // raw text (could be comma separated inserted by your templating)
+        var raw = tbody.textContent || '';
+        // Try to also read from data-items attribute if present
+        var attrItems = tbody.getAttribute('data-items');
+        if(attrItems && attrItems.trim()) raw = attrItems;
+        var lines = raw.split(/[\\r\\n]+|[,•·]+/).map(function(l){ return l.trim(); }).filter(Boolean);
+        if(lines.length === 0) return;
+        var frag = document.createDocumentFragment();
+        lines.forEach(function(line){
+          var it = parseLine(line);
+          if(!it) return;
+          var qtyN = parseInt(String(it.qty || '').replace(/\\D/g,''),10) || 0;
+          var unitN = 0;
+          if(it.unit){
+            unitN = Number(String(it.unit).replace(/[,\\s]/g,'') || 0);
+            if(Number.isNaN(unitN)) unitN = 0;
+          }
+          var lineTotal = (qtyN && unitN) ? (qtyN * unitN) : '';
+          var tr = document.createElement('tr');
 
-        function renderRows(items){
-          return items.map(function(it){
-            return '<tr>' +
-              '<td class="qty">'+escapeHtml(it.qty)+'</td>' +
-              '<td>'+escapeHtml(it.desc)+'</td>' +
-              '<td class="price">'+escapeHtml(it.unitPrice||'')+'</td>' +
-              '<td class="price">'+escapeHtml(it.total||'')+'</td>' +
-              '<td class="price"></td>' +
-              '</tr>';
-          }).join('');
-        }
+          var tdQty = document.createElement('td'); tdQty.className = 'qty'; tdQty.textContent = it.qty || '';
+          var tdDesc = document.createElement('td'); tdDesc.textContent = it.desc || '';
+          var tdUnit = document.createElement('td'); tdUnit.className = 'price'; tdUnit.textContent = it.unit ? fmt(it.unit) : '';
+          var tdKsh = document.createElement('td'); tdKsh.className = 'price'; tdKsh.textContent = lineTotal ? fmt(lineTotal) : '';
+          var tdCts = document.createElement('td'); tdCts.className = 'price'; tdCts.textContent = ''; // cents/cts column left intentionally empty
 
-        try{
-          var tbody = document.querySelector('table.items tbody');
-          if(!tbody) return;
-          // if tbody already has <tr> we assume server-side rendering populated it
-          if(tbody.querySelector('tr')) return;
-          // if placeholder replacement put a single plain-text items string here, normalize it
-          var raw = tbody.textContent || '';
-          // also support a data-items attribute on the table if present
-          var table = document.querySelector('table.items');
-          var dataItems = table && table.getAttribute('data-items');
-          var itemsSource = (dataItems && dataItems.trim()) || raw;
-          var items = normalize(itemsSource);
-          if(items.length) tbody.innerHTML = renderRows(items);
-        }catch(e){ console.error('items normalizer error', e); }
-      })();
+          tr.appendChild(tdQty);
+          tr.appendChild(tdDesc);
+          tr.appendChild(tdUnit);
+          tr.appendChild(tdKsh);
+          tr.appendChild(tdCts);
+          frag.appendChild(tr);
+        });
+        tbody.innerHTML = '';
+        tbody.appendChild(frag);
+      })('items-local-1');
     </script>
   </body>
   </html>`
-    },
-
-    /* Local 2 — modern green invoice (bolder separators) */
-    {
-      id: "local-2",
-      category: "local",
-      name: "Local Classic",
-      thumbnail: "/templates/local-2.png",
-      description: "Balanced print-friendly layout, clear payment area and QR.",
-      options: { width: 480, qr: true, showPaymentLabel: true, currency: "KES" },
-      style: { accentColor: "#15803D", headerBg: "#ffffff", textColor: "#0b1220", suggestedWidth: 480 },
-      sampleData: {
-        sellerName: "DollarChain",
-        sellerLogoUrl: "/logos/dollarchain-logo.png",
-        sellerTagline: "Fast invoices via WhatsApp",
-        sellerAddress: "123 Nairobi Rd\nNairobi, Kenya",
-        sellerPhone: "+254 700 000 000",
-        sellerEmail: "hi@dollarchain.app",
-        buyerName: "James Otieno",
-        buyerPhone: "+254 733 555 121",
-        items: "1 x Handmade Bag @ 1200, 2 x Silk Scarf @ 1000",
-        subtotal: "KES 3,200",
-        total: "KES 3,200",
-        paymentNumber: "Paybill 987654",
-        paymentLabel: "M-Pesa Paybill",
-        paymentNote: "Include invoice #987654 as reference",
-        notesLine: "Packed and ready — deliver within 48 hours",
-        qrDataUrl: "",
-        date: "2025-11-11",
-        dueDate: "2025-11-25",
-        vatPercent: "0",
-        vatAmount: "KES 0",
-        payLink: "#",
-        currency: "KES"
-      },
-      html: `<!doctype html>
-  <html>
-  <head>
-  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Invoice — Local Classic</title>
-  <style>
-    :root{
-      --w:480px;
-      --pad:18px;
-      --green:#15803D;
-      --muted:#6b7280;
-      --text:#0b1220;
-      --base-sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      --base-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Roboto Mono, monospace;
-    }
-    *{box-sizing:border-box}
-    body{font-family:var(--base-sans); background:#f6f7f8; display:flex; justify-content:center; padding:18px; -webkit-font-smoothing:antialiased;}
-    .card{width:var(--w); background:white; border-radius:10px; padding:var(--pad); box-shadow:0 10px 30px rgba(8,12,16,0.04); border:1px solid #eef7ef; line-height:1.24;}
-    .header{display:flex; justify-content:space-between; align-items:center; gap:12px;}
-    .logo{height:56px; width:56px; object-fit:contain; border-radius:8px; background:#f7faf7; padding:6px;}
-    .company{font-weight:800; font-size:16px; color:var(--green); letter-spacing:0.2px;}
-    .meta{font-size:12px; color:var(--muted); white-space:pre-line; margin-top:4px;}
-    .grid{display:grid; grid-template-columns:1fr auto; gap:12px; margin-top:14px;}
-    .bill{font-size:13px}
-    /* ===== make the item separators stronger ===== */
-    .items{width:100%; border-collapse:collapse; margin-top:12px; font-size:13px; box-shadow:inset 0 -1px 0 rgba(21,128,61,0.03);}
-    .items thead th{font-size:12px; text-align:left; color:var(--muted); padding:10px 6px; border-bottom:3px solid rgba(21,128,61,0.14);}
-    .items td{padding:12px 6px; border-bottom:2px solid rgba(21,128,61,0.06); vertical-align:middle;}
-    .items tbody tr:hover td{background:rgba(21,128,61,0.02);}
-    .items tbody tr:last-child td{border-bottom:2px dashed rgba(21,128,61,0.08);}
-    .right{text-align:right}
-    .totals{margin-top:12px; display:flex; justify-content:flex-end; gap:18px; align-items:end;}
-    .totalVal{font-weight:900; font-size:18px; color:var(--text);}
-    .paymentCard{margin-top:12px; border-radius:8px; padding:12px; background:linear-gradient(180deg,#f6fff6,#f1fbef); border:1px solid #e6f6ea;}
-    .payLink{display:inline-block; padding:8px 12px; background:var(--green); color:white; border-radius:8px; text-decoration:none; font-weight:700;}
-    .qr{width:86px;height:86px;border-radius:6px;object-fit:contain}
-    .mutedSmall{font-size:12px;color:var(--muted)}
-    @media print{ .card{box-shadow:none; border:none} }
-  </style>
-  </head>
-  <body>
-    <div class="card" role="article" aria-label="Invoice">
-      <header class="header">
-        <div style="display:flex; gap:12px; align-items:center;">
-          <div>
-            <div class="company">{{sellerName}}</div>
-            <div class="meta">{{sellerAddress}}</div>
-          </div>
-        </div>
-        <div style="text-align:right;">
-          <img src="{{sellerLogoUrl}}" alt="{{sellerName}} logo" class="logo" onerror="this.style.display='none'"/>
-          <div style="font-weight:900; font-size:18px; margin-top:6px;">Invoice</div>
-          <div style="font-size:12px; color:var(--muted);">#{{invoiceNumber}} • {{date}}</div>
-        </div>
-      </header>
-
-      <div class="grid" aria-hidden="false">
-        <div>
-          <div style="font-weight:700; margin-bottom:6px;">Bill to</div>
-          <div class="bill">{{buyerName}} • {{buyerPhone}}</div>
-        </div>
-        <div style="text-align:right;">
-          <div class="mutedSmall">Due</div>
-          <div style="font-weight:700;">{{dueDate}}</div>
-        </div>
-      </div>
-
-      <table class="items" aria-label="Line items">
-        <thead>
-          <tr><th>Description</th><th class="right">Rate, KSH</th><th class="right">Qty</th><th class="right">Amount</th></tr>
-        </thead>
-        <tbody>
-          {{itemsRows}}
-        </tbody>
-      </table>
-
-      <div style="margin-top:10px;">
-        <div style="display:flex; justify-content:space-between; color:var(--muted); font-size:13px;">
-          <div>Subtotal</div><div>{{subtotal}}</div>
-        </div>
-        <div style="display:flex; justify-content:space-between; color:var(--muted); font-size:13px;">
-          <div>VAT ({{vatPercent}}%)</div><div>{{vatAmount}}</div>
-        </div>
-        <div class="totals">
-          <div style="text-align:right;">
-            <div style="font-size:13px; color:var(--muted)">Total</div>
-            <div class="totalVal">{{total}}</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="paymentCard" role="region" aria-label="Payment details">
-        <div style="display:flex; justify-content:space-between; gap:12px; align-items:center;">
-          <div>
-            <div class="mutedSmall">Payment method</div>
-            <div style="font-weight:800;">{{paymentLabel}} • {{paymentNumber}}</div>
-            <div style="font-size:12px;color:var(--muted); margin-top:6px;">{{paymentNote}}</div>
-          </div>
-          <div style="text-align:right;">
-            <a class="payLink" href="{{payLink}}">Pay now</a>
-            <div style="margin-top:8px;">
-              {{#if qrDataUrl}}<img src="{{qrDataUrl}}" alt="QR to pay" class="qr"/>{{/if}}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style="margin-top:12px; font-size:12px; color:var(--muted)">{{notesLine}}</div>
-    </div>
-
-    <script>
-      (function(){
-        function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-        function parseLine(line){
-          line = (line||'').trim(); if(!line) return null;
-          var qty='', desc='', unitPrice='', total='';
-          var m = line.match(/^(\d+)\s*[x×]\s*(.+?)(?:\s*@\s*([\d,\.]+))?$/i);
-          if(m){ qty = m[1]; desc = m[2].trim(); unitPrice = m[3] ? m[3].trim() : ''; return {qty, desc, unitPrice, total}; }
-          m = line.match(/^(.+?)\s*[-–—]\s*(\d+)(?:\s*[-–—]\s*([\d,\.]+))?/);
-          if(m){ desc = m[1].trim(); qty = m[2].trim(); unitPrice = m[3] ? m[3].trim() : ''; return {qty, desc, unitPrice, total}; }
-          var parts = line.split(/\s*\|\s*/); if(parts.length >= 2){ desc = parts[0].trim(); qty = parts[1].trim(); unitPrice = parts[2] ? parts[2].trim() : ''; return {qty, desc, unitPrice, total}; }
-          parts = line.split(/\s*,\s*/); if(parts.length >= 2){ desc = parts[0].trim(); qty = parts[1].trim(); unitPrice = parts[2] ? parts[2].trim() : ''; return {qty, desc, unitPrice, total}; }
-          m = line.match(/^(\d+)\s+(.+)$/); if(m){ qty = m[1]; desc = m[2].trim(); return {qty, desc, unitPrice, total}; }
-          desc = line; return {qty, desc, unitPrice, total};
-        }
-        function normalize(src){ if(!src) return []; if(Array.isArray(src)) return src.map(it=>({qty:it.qty||'', desc:it.description||it.name||'', unitPrice:it.unitPrice||it.price||'', total:it.total||''}));
-          var raw = String(src||''); var lines = raw.split(/[\r\n]+|[,•·]+/).map(function(l){return l.trim();}).filter(Boolean); var out=[]; for(var i=0;i<lines.length;i++){ var item = parseLine(lines[i]); if(item) out.push(item); } return out; }
-        function renderRows(items){ return items.map(function(it){ return '<tr><td>'+escapeHtml(it.desc)+'</td><td class="price">'+escapeHtml(it.unitPrice||'')+'</td><td class="right">'+escapeHtml(it.qty||'')+'</td><td class="right">'+escapeHtml(it.total||'')+'</td></tr>'; }).join(''); }
-        try{ var tbody = document.querySelector('table.items tbody'); if(!tbody) return; if(tbody.querySelector('tr')) return; var raw = tbody.textContent || ''; var table = document.querySelector('table.items'); var dataItems = table && table.getAttribute('data-items'); var itemsSource = (dataItems && dataItems.trim()) || raw; var items = normalize(itemsSource); if(items.length) tbody.innerHTML = renderRows(items); }catch(e){ console.error('items normalizer error', e); }
-      })();
-    </script>
-  </body>
-  </html>`
-    },
-
-    /* Local 3 — corporate grey invoice (crisper grey separators) */
-    {
-      id: "local-3",
-      category: "local",
-      name: "Local Narrow",
-      thumbnail: "/templates/local-3.png",
-      description: "Very compact receipt for quick sales and WhatsApp sharing.",
-      options: { width: 320, qr: false, showPaymentLabel: true, currency: "KES" },
-      style: { accentColor: "#111827", headerBg: "#ffffff", textColor: "#07131a", suggestedWidth: 320 },
-      sampleData: {
-        sellerName: "DollarChain",
-        sellerLogoUrl: "/logos/dollarchain-logo.png",
-        sellerTagline: "Fast invoices via WhatsApp",
-        sellerAddress: "123 Nairobi Rd\nNairobi, Kenya",
-        sellerPhone: "+254 700 000 000",
-        buyerName: "Aisha Hassan",
-        buyerPhone: "+254 722 333 444",
-        items: "1 x Coffee Mug @ 200, 2 x Sticker Pack @ 150",
-        subtotal: "KES 500",
-        total: "KES 500",
-        paymentNumber: "Phone: +254 722 333 444",
-        paymentLabel: "Phone",
-        paymentNote: "",
-        notesLine: "Thanks for your purchase",
-        qrDataUrl: "",
-        date: "2025-11-11",
-        dueDate: "2025-11-11",
-        vatPercent: "0",
-        vatAmount: "KES 0",
-        payLink: "#",
-        currency: "KES"
-      },
-      html: `<!doctype html>
-  <html>
-  <head>
-  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Receipt — Local Narrow</title>
-  <style>
-    :root{
-      --w:320px;
-      --pad:12px;
-      --muted:#6b7280;
-      --text:#07131a;
-      --accent:#111827;
-      --base-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-    }
-    *{box-sizing:border-box}
-    body{font-family:var(--base-sans); background:#fafafa; padding:18px; display:flex; justify-content:center; -webkit-font-smoothing:antialiased;}
-    .paper{width:var(--w); background:#fff; padding:var(--pad); border-radius:8px; box-shadow:0 8px 20px rgba(0,0,0,0.04); border:1px solid #eef0f3; line-height:1.18;}
-    .hdr{display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px;}
-    .logo{height:44px; width:44px; object-fit:contain; border-radius:6px; background:#f3f4f6; padding:6px;}
-    .brand{font-weight:900; font-size:15px; color:var(--accent); letter-spacing:0.2px;}
-    .invoiceLabel{font-weight:900; font-size:16px; color:#111827; letter-spacing:0.6px;}
-    .meta{font-size:12px; color:var(--muted); white-space:pre-line;}
-    hr.sep{border:none; border-top:1px solid #f1f3f5; margin:10px 0;}
-    .to{font-size:13px; margin-bottom:6px;}
-    /* ===== crisp grey lines for the receipt book look ===== */
-    .items{width:100%; font-size:13px; border-top:2px solid #e6e9ee; border-bottom:2px solid #e6e9ee; margin:10px 0; border-collapse:collapse;}
-    .items td{padding:10px 0; border-bottom:1.5px solid #e9edf2;}
-    .items tbody tr:last-child td{border-bottom:1.5px dashed #dfe4ea;}
-    .total{font-weight:800; font-size:15px; text-align:right; margin-top:8px;}
-    .pay{margin-top:8px; padding:8px; background:#fafafa; border:1px solid #eef0f2; border-radius:6px; font-size:12px;}
-    .foot{font-size:11px; color:var(--muted); margin-top:10px; text-align:center; white-space:pre-line;}
-    @media print{ .paper{box-shadow:none; border:none} }
-  </style>
-  </head>
-  <body>
-    <div class="paper" role="article" aria-label="Receipt">
-      <div class="hdr">
-        <div style="display:flex; gap:10px; align-items:center;">
-          <img src="{{sellerLogoUrl}}" alt="{{sellerName}}" class="logo" onerror="this.style.display='none'"/>
-          <div>
-            <div class="brand">{{sellerName}}</div>
-            <div class="meta">{{sellerPhone}}</div>
-          </div>
-        </div>
-        <div style="text-align:right;">
-          <div class="invoiceLabel">INVOICE</div>
-          <div class="meta">#{{invoiceNumber}} • {{date}}</div>
-        </div>
-      </div>
-
-      <hr class="sep"/>
-
-      <div class="to">
-        <div style="font-weight:700;">To</div>
-        <div class="meta">{{buyerName}} · {{buyerPhone}}</div>
-      </div>
-
-      <table class="items" aria-hidden="false">
-        <tbody>
-          {{itemsRows}}
-        </tbody>
-      </table>
-
-      <div class="total">TOTAL: {{total}}</div>
-
-      <div class="pay">
-        <div style="font-weight:700;">Pay: {{paymentLabel}}</div>
-        <div style="font-size:12px;color:var(--muted)">{{paymentNumber}}</div>
-        {{#if qrDataUrl}}<div style="margin-top:8px;text-align:center;"><img src="{{qrDataUrl}}" alt="QR" style="width:86px;height:86px;object-fit:contain; border-radius:6px;"/></div>{{/if}}
-      </div>
-
-      <div class="foot">Thank you for your business · Sent via DollarChain</div>
-    </div>
-
-    <script>
-      (function(){
-        function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-        function parseLine(line){
-          line = (line||'').trim(); if(!line) return null;
-          var qty='', desc='', unitPrice='', total='';
-          var m = line.match(/^(\d+)\s*[x×]\s*(.+?)(?:\s*@\s*([\d,\.]+))?$/i);
-          if(m){ qty = m[1]; desc = m[2].trim(); unitPrice = m[3] ? m[3].trim() : ''; return {qty, desc, unitPrice, total}; }
-          m = line.match(/^(.+?)\s*[-–—]\s*(\d+)(?:\s*[-–—]\s*([\d,\.]+))?/);
-          if(m){ desc = m[1].trim(); qty = m[2].trim(); unitPrice = m[3] ? m[3].trim() : ''; return {qty, desc, unitPrice, total}; }
-          var parts = line.split(/\s*\|\s*/); if(parts.length >= 2){ desc = parts[0].trim(); qty = parts[1].trim(); unitPrice = parts[2] ? parts[2].trim() : ''; return {qty, desc, unitPrice, total}; }
-          parts = line.split(/\s*,\s*/); if(parts.length >= 2){ desc = parts[0].trim(); qty = parts[1].trim(); unitPrice = parts[2] ? parts[2].trim() : ''; return {qty, desc, unitPrice, total}; }
-          m = line.match(/^(\d+)\s+(.+)$/); if(m){ qty = m[1]; desc = m[2].trim(); return {qty, desc, unitPrice, total}; }
-          desc = line; return {qty, desc, unitPrice, total};
-        }
-        function normalize(src){ if(!src) return []; if(Array.isArray(src)) return src.map(it=>({qty:it.qty||'', desc:it.description||it.name||'', unitPrice:it.unitPrice||it.price||'', total:it.total||''}));
-          var raw = String(src||''); var lines = raw.split(/[\r\n]+|[,•·]+/).map(function(l){return l.trim();}).filter(Boolean); var out=[]; for(var i=0;i<lines.length;i++){ var item = parseLine(lines[i]); if(item) out.push(item); } return out; }
-        function renderRows(items){ return items.map(function(it){ return '<tr><td>'+escapeHtml(it.desc)+'</td><td class="price">'+escapeHtml(it.unitPrice||'')+'</td><td class="price">'+escapeHtml(it.qty||'')+'</td></tr>'; }).join(''); }
-        try{ var tbody = document.querySelector('table.items tbody'); if(!tbody) return; if(tbody.querySelector('tr')) return; var raw = tbody.textContent || ''; var table = document.querySelector('table.items'); var dataItems = table && table.getAttribute('data-items'); var itemsSource = (dataItems && dataItems.trim()) || raw; var items = normalize(itemsSource); if(items.length) tbody.innerHTML = renderRows(items); }catch(e){ console.error('items normalizer error', e); }
-      })();
-    </script>
-  </body>
-  </html>`
-    }
-  ];
-
-  export function getTemplateById(id) {
-    return TEMPLATES.find((t) => t.id === id) || null;
   }
 
   /* Row 2: Colour Accent */
