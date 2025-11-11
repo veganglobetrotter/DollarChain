@@ -1,10 +1,9 @@
 // src/lib/templates.js
 // Templates metadata + HTML fragments for DollarChain invoice templates.
 // Each template includes an `html` property (template literal) with placeholders like {{sellerName}}, {{itemsRows}}, {{total}}.
-// Replace placeholders before rendering to PDF or showing in preview.
-//
-// Note: For robust data injection consider using Mustache/Handlebars or server-side React renderToStaticMarkup.
-// This file exports TEMPLATES and a helper `getTemplateById`.
+// Keep placeholders consistent with InvoicePreview builder: {{sellerName}}, {{sellerLogoUrl}}, {{sellerPhone}}, {{sellerEmail}},
+// {{sellerAddress}}, {{sellerTagline}}, {{invoiceNumber}}, {{date}}, {{buyerName}}, {{buyerPhone}}, {{itemsRows}},
+// {{subtotal}}, {{total}}, {{paymentNumber}}, {{paymentLabel}}, {{paymentNote}}, {{notesLine}}, {{qrDataUrl}}, {{payLink}}, {{dueDate}}, {{vatPercent}}, {{vatAmount}}.
 
 export const TEMPLATES = [
   /* Row 1: Localised / Print-Friendly */
@@ -14,7 +13,8 @@ export const TEMPLATES = [
     name: "Local Compact",
     thumbnail: "/templates/local-1.png",
     description: "Narrow receipt style, mobile-first, M-Pesa / Paybill friendly.",
-    options: { width: 360, qr: true, showPaymentLabel: true },
+    options: { width: 360, qr: true, showPaymentLabel: true, currency: "KES" },
+    style: { accentColor: "#1a8917", headerBg: "#ffffff", textColor: "#0b1220", suggestedWidth: 360 },
     html: `<!doctype html>
 <html>
 <head>
@@ -30,8 +30,9 @@ export const TEMPLATES = [
     --paper-width: 360px;
     --pad: 12px;
     --radius: 8px;
+    --base-font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
   }
-  body{font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial; color:var(--text); background: #f6f7f8; padding: 18px; display:flex; justify-content:center;}
+  body{font-family:var(--base-font); color:var(--text); background: #f6f7f8; padding: 18px; display:flex; justify-content:center;}
   .paper{width:var(--paper-width); background:var(--page-bg); padding:var(--pad); border-radius:8px; box-shadow: 0 6px 20px rgba(10,10,10,0.04);}
   .hdr{display:flex; gap:8px; align-items:center; margin-bottom:8px;}
   .logo{width:56px; height:56px; border-radius:8px; background:#f3f4f6; object-fit:contain;}
@@ -117,15 +118,16 @@ export const TEMPLATES = [
     name: "Local Classic",
     thumbnail: "/templates/local-2.png",
     description: "Balanced print-friendly layout, clear payment area and QR.",
-    options: { width: 480, qr: true, showPaymentLabel: true },
+    options: { width: 480, qr: true, showPaymentLabel: true, currency: "KES" },
+    style: { accentColor: "#1a8917", headerBg: "#ffffff", textColor: "#0b1220", suggestedWidth: 480 },
     html: `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Invoice — Local Classic</title>
 <style>
-  :root{ --bg:#ffffff; --text:#0b1220; --muted:#6b7280; --accent:#1a8917; --w:480px; --pad:16px; --radius:10px; }
-  body{font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial; background:#f3f4f6; display:flex; justify-content:center; padding:18px;}
+  :root{ --bg:#ffffff; --text:#0b1220; --muted:#6b7280; --accent:#1a8917; --w:480px; --pad:16px; --radius:10px; --base-font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial; }
+  body{font-family:var(--base-font); background:#f3f4f6; display:flex; justify-content:center; padding:18px;}
   .card{width:var(--w); background:var(--bg); padding:var(--pad); border-radius:var(--radius); box-shadow:0 8px 24px rgba(6,10,15,0.06);}
   header{display:flex; justify-content:space-between; align-items:center; gap:12px;}
   .logo{height:56px; width:56px; object-fit:contain; border-radius:8px; background:#fafafa;}
@@ -213,15 +215,16 @@ export const TEMPLATES = [
     name: "Local Narrow",
     thumbnail: "/templates/local-3.png",
     description: "Very compact receipt for quick sales and WhatsApp sharing.",
-    options: { width: 320, qr: false, showPaymentLabel: true },
+    options: { width: 320, qr: false, showPaymentLabel: true, currency: "KES" },
+    style: { accentColor: "#1a8917", headerBg: "#ffffff", textColor: "#07131a", suggestedWidth: 320 },
     html: `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Receipt — Local Narrow</title>
 <style>
-  :root{ --w:320px; --pad:10px; --text:#07131a; --muted:#6b7280; --accent:#1a8917; }
-  body{font-family:monospace, ui-monospace, "Courier New", monospace; background:#fafafa; padding:18px; display:flex; justify-content:center;}
+  :root{ --w:320px; --pad:10px; --text:#07131a; --muted:#6b7280; --accent:#1a8917; --base-font: monospace, ui-monospace, "Courier New", monospace; }
+  body{font-family:var(--base-font); background:#fafafa; padding:18px; display:flex; justify-content:center;}
   .paper{width:var(--w); background:#fff; padding:var(--pad); border-radius:6px; box-shadow:0 6px 18px rgba(0,0,0,0.04);}
   .center{text-align:center;}
   .logo{height:48px; object-fit:contain; margin:0 auto; display:block;}
@@ -271,14 +274,15 @@ export const TEMPLATES = [
     thumbnail: "/templates/accent-1.png",
     description: "Left sidebar in brand colour; modern and bold.",
     options: { width: 720, qr: false },
+    style: { accentColor: "#0ea5a3", headerBg: "#0ea5a3", textColor: "#07131a", suggestedWidth: 720 },
     html: `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Invoice — Accent Sidebar</title>
 <style>
-  :root{ --accent:#0ea5a3; --bg:#fff; --text:#07131a; --muted:#64748b; --pad:18px; --w:720px; --radius:12px; }
-  body{font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto; background:#f5f7f8; display:flex; justify-content:center; padding:18px;}
+  :root{ --accent:#0ea5a3; --bg:#fff; --text:#07131a; --muted:#64748b; --pad:18px; --w:720px; --radius:12px; --base-font:Inter, system-ui, -apple-system, "Segoe UI", Roboto; }
+  body{font-family:var(--base-font); background:#f5f7f8; display:flex; justify-content:center; padding:18px;}
   .wrap{width:var(--w);}
   .card{display:grid; grid-template-columns:160px 1fr; gap:0; background:var(--bg); border-radius:var(--radius); overflow:hidden; box-shadow:0 10px 30px rgba(10,15,20,0.06);}
   .sidebar{background:var(--accent); color:white; padding:var(--pad); display:flex; flex-direction:column; gap:10px; align-items:flex-start;}
@@ -352,14 +356,15 @@ export const TEMPLATES = [
     thumbnail: "/templates/accent-2.png",
     description: "Top band accent colour, large Totals area and CTAs.",
     options: { width: 720, qr: false },
+    style: { accentColor: "#ef4444", headerBg: "#ef4444", textColor: "#07131a", suggestedWidth: 720 },
     html: `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Invoice — Accent Topband</title>
 <style>
-  :root{ --accent:#ef4444; --w:720px; --pad:20px; --muted:#6b7280; --text:#07131a; }
-  body{font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto; background:#f6f7f8; padding:20px; display:flex; justify-content:center;}
+  :root{ --accent:#ef4444; --w:720px; --pad:20px; --muted:#6b7280; --text:#07131a; --base-font:Inter, system-ui, -apple-system, "Segoe UI", Roboto; }
+  body{font-family:var(--base-font); background:#f6f7f8; padding:20px; display:flex; justify-content:center;}
   .card{width:var(--w); background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 10px 30px rgba(12,14,20,0.06);}
   .band{background:linear-gradient(90deg,var(--accent), #c2410c); padding:20px; color:white;}
   .band .title{font-weight:800; font-size:18px;}
@@ -379,7 +384,7 @@ export const TEMPLATES = [
           <img src="{{sellerLogoUrl}}" alt="{{sellerName}}" style="height:46px; width:46px; object-fit:contain; border-radius:8px; background:rgba(255,255,255,0.06)" onerror="this.style.display='none'"/>
           <div>
             <div class="title">{{sellerName}}</div>
-            <div style="font-size:12px; opacity:.9;">{{sellerSub}}</div>
+            <div style="font-size:12px; opacity:.9;">{{sellerTagline}}</div>
           </div>
         </div>
 
@@ -426,14 +431,15 @@ export const TEMPLATES = [
     thumbnail: "/templates/accent-3.png",
     description: "Color blocks to segment invoice data and draw attention.",
     options: { width: 780, qr: false },
+    style: { accentColor: "#6366f1", headerBg: "#ffffff", textColor: "#07131a", suggestedWidth: 780 },
     html: `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Invoice — Accent Blocks</title>
 <style>
-  :root{ --accent:#6366f1; --muted:#6b7280; --text:#07131a; --w:780px; --pad:18px; }
-  body{font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto; background:#f3f4f6; display:flex; justify-content:center; padding:20px;}
+  :root{ --accent:#6366f1; --muted:#6b7280; --text:#07131a; --w:780px; --pad:18px; --base-font:Inter, system-ui, -apple-system, "Segoe UI", Roboto; }
+  body{font-family:var(--base-font); background:#f3f4f6; display:flex; justify-content:center; padding:20px;}
   .card{width:var(--w); background:#fff; border-radius:10px; padding:var(--pad); box-shadow:0 12px 36px rgba(10,12,20,0.06);}
   .row{display:flex; gap:12px;}
   .block{flex:1; padding:12px; border-radius:8px; background:#fbfbff;}
@@ -449,7 +455,7 @@ export const TEMPLATES = [
     <div class="row">
       <div class="block accentBlock">
         <div style="font-weight:800; font-size:16px;">{{sellerName}}</div>
-        <div style="font-size:13px; opacity:.95;">{{sellerSub}}</div>
+        <div style="font-size:13px; opacity:.95;">{{sellerTagline}}</div>
       </div>
       <div class="block">
         <div style="display:flex; justify-content:space-between;">
@@ -490,14 +496,15 @@ export const TEMPLATES = [
     thumbnail: "/templates/clean-1.png",
     description: "Whitespace, subtle typography, professional and clean.",
     options: { width: 820, qr: false },
+    style: { accentColor: "#16a34a", headerBg: "#ffffff", textColor: "#07131a", suggestedWidth: 820 },
     html: `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Invoice — Minimalist Classic</title>
 <style>
-  :root{ --bg:#ffffff; --text:#07131a; --muted:#6b7280; --pad:24px; --w:820px; --radius:12px; }
-  body{font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial; background:#f7f8fa; display:flex; justify-content:center; padding:22px;}
+  :root{ --bg:#ffffff; --text:#07131a; --muted:#6b7280; --pad:24px; --w:820px; --radius:12px; --base-font:Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial; }
+  body{font-family:var(--base-font); background:#f7f8fa; display:flex; justify-content:center; padding:22px;}
   .card{width:var(--w); background:var(--bg); border-radius:var(--radius); padding:var(--pad); box-shadow:0 10px 28px rgba(10,15,20,0.06);}
   .header{display:flex; justify-content:space-between; align-items:flex-start;}
   .title{font-weight:900; font-size:22px;}
@@ -566,14 +573,15 @@ export const TEMPLATES = [
     thumbnail: "/templates/clean-2.png",
     description: "Wide layout, precise typographic scale — great for printing.",
     options: { width: 1000, qr: false },
+    style: { accentColor: "#111827", headerBg: "#ffffff", textColor: "#07131a", suggestedWidth: 1000 },
     html: `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Invoice — Minimalist Wide</title>
 <style>
-  :root{ --w:1000px; --pad:28px; --muted:#6b7280; --text:#07131a; }
-  body{font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto; background:#f4f6f8; padding:26px; display:flex; justify-content:center;}
+  :root{ --w:1000px; --pad:28px; --muted:#6b7280; --text:#07131a; --base-font:Inter, system-ui, -apple-system, "Segoe UI", Roboto; }
+  body{font-family:var(--base-font); background:#f4f6f8; padding:26px; display:flex; justify-content:center;}
   .card{width:var(--w); background:#fff; border-radius:10px; padding:var(--pad); box-shadow:0 10px 30px rgba(6,8,12,0.06);}
   .top{display:flex; justify-content:space-between; align-items:center;}
   .logo{height:64px; width:64px; object-fit:contain;}
@@ -631,14 +639,15 @@ export const TEMPLATES = [
     thumbnail: "/templates/clean-3.png",
     description: "Tighter spacing, still minimal — for short receipts/invoices.",
     options: { width: 680, qr: false },
+    style: { accentColor: "#16a34a", headerBg: "#ffffff", textColor: "#07131a", suggestedWidth: 680 },
     html: `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Invoice — Minimalist Compact</title>
 <style>
-  :root{ --w:680px; --pad:16px; --muted:#6b7280; }
-  body{font-family:Inter, system-ui, -apple-system, Roboto, Arial; background:#fafafb; padding:18px; display:flex; justify-content:center;}
+  :root{ --w:680px; --pad:16px; --muted:#6b7280; --base-font:Inter, system-ui, -apple-system, Roboto, Arial; }
+  body{font-family:var(--base-font); background:#fafafb; padding:18px; display:flex; justify-content:center;}
   .card{width:var(--w); background:white; border-radius:8px; padding:var(--pad); box-shadow:0 8px 20px rgba(8,12,16,0.05);}
   .top{display:flex; justify-content:space-between; align-items:center;}
   .items{margin-top:10px; border-collapse:collapse; width:100%;}

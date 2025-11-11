@@ -57,16 +57,65 @@ function App() {
     notes: ["This is a preview — real data replaces it after parsing."],
   };
 
+  // Fetch profile metadata and set default template if present
+  const fetchAndSetDefaultTemplate = async (userId) => {
+    try {
+      if (!userId) return;
+      const { data, error } = await supabase.from("profiles").select("metadata").eq("id", userId).maybeSingle();
+      if (error) {
+        console.warn("Failed to fetch profile metadata:", error);
+        return;
+      }
+      const metadata = data?.metadata || {};
+      const defaultTplId = metadata?.default_invoice_template || metadata?.defaultTemplate || null;
+      if (defaultTplId) {
+        const tpl = getTemplateById(defaultTplId);
+        if (tpl) {
+          setSelectedTemplate(tpl);
+          try {
+            window.SELECTED_TEMPLATE = tpl;
+          } catch (e) {}
+          window.dispatchEvent(new CustomEvent("template-selected", { detail: tpl }));
+        } else {
+          // If template id referenced does not exist, clear selection
+          setSelectedTemplate(null);
+        }
+      }
+    } catch (err) {
+      console.error("fetchAndSetDefaultTemplate error:", err);
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
     (async () => {
       const { data } = await supabase.auth.getSession();
       if (!mounted) return;
-      setUser(data?.session?.user ?? null);
+      const sessionUser = data?.session?.user ?? null;
+      setUser(sessionUser);
+
+      // if signed in, attempt to load default template from profile metadata
+      if (sessionUser?.id) {
+        fetchAndSetDefaultTemplate(sessionUser.id);
+      }
     })();
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const sessionUser = session?.user ?? null;
+      setUser(sessionUser);
+
+      // if user signed in, fetch default template
+      if (sessionUser?.id) {
+        fetchAndSetDefaultTemplate(sessionUser.id);
+      } else {
+        // user signed out — clear template
+        setSelectedTemplate(null);
+        try {
+          window.SELECTED_TEMPLATE = null;
+        } catch (e) {}
+        window.dispatchEvent(new CustomEvent("template-selected", { detail: null }));
+      }
+
       if (session?.user && pendingFormData) {
         setPreviewData(pendingFormData);
         setPendingFormData(null);
@@ -268,9 +317,18 @@ function App() {
   }, [setMobileSidebarOpen]);
 
   // Template selection handler (fires preview with dummy data; does NOT touch credits)
-  // Accepts a templateId (string) or null to clear selection.
-  const handleTemplateSelect = (templateId) => {
-    const template = templateId ? getTemplateById(templateId) : null;
+  // Accepts either a template object or a template id (string), or null to clear selection.
+  const handleTemplateSelect = (tmplOrId) => {
+    let template = null;
+    if (!tmplOrId) {
+      template = null;
+    } else if (typeof tmplOrId === "string") {
+      template = getTemplateById(tmplOrId);
+    } else {
+      // assume it's already a template object
+      template = tmplOrId;
+    }
+
     setSelectedTemplate(template || null);
 
     // expose on window for any listener or fallback
