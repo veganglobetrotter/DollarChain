@@ -45,11 +45,18 @@ function App() {
   // Template selection state (Step 1)
   const [selectedTemplate, setSelectedTemplate] = useState(null);
 
+  // Template preview modal state
+  const [tplModalOpen, setTplModalOpen] = useState(false);
+  const [tplModalTemplate, setTplModalTemplate] = useState(null);
+  const [tplModalInvoiceData, setTplModalInvoiceData] = useState(null);
+  const [tplModalSeller, setTplModalSeller] = useState(null);
+  const [tplModalRenderedHtml, setTplModalRenderedHtml] = useState("");
+
   // Dummy invoice used when previewing a template (will be replaced after parsing)
   const DUMMY_INVOICE = {
     buyerName: "Buyer Name",
     phone: "+2547 123 45678",
-    items: "1x Sample item • 2x Example product",
+    items: "1x Sample item, 2x Example product",
     total: "KES 1,200",
     paymentNumber: "Paybill 123456",
     rawText: "Sample pasted order message will replace this.",
@@ -57,7 +64,156 @@ function App() {
     notes: ["This is a preview — real data replaces it after parsing."],
   };
 
+  // -------------------------
+  // Helpers for template render
+  // -------------------------
+  const escapeHtml = (str) => {
+    if (typeof str !== "string") return str ?? "";
+    return str.replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+  };
+
+  const buildItemsRowsHtml = (items) => {
+    // Accept array of {name, qty} OR string "2x T-Shirt, Trousers x1"
+    let rows = [];
+    if (!items) rows = [];
+    else if (Array.isArray(items)) rows = items.map((it) => `${it.qty || 1}x ${it.name || ""}`);
+    else if (typeof items === "string") {
+      rows = items
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    } else {
+      rows = [];
+    }
+
+    if (!rows.length) return "<tr><td colspan='2' style='color:#6b7280;padding:8px 6px'>No items</td></tr>";
+
+    return rows
+      .map((r) => {
+        let qty = "1";
+        let name = r;
+        const m1 = r.match(/^(\d+)\s*x\s*(.+)$/i);
+        if (m1) {
+          qty = m1[1];
+          name = m1[2];
+        } else {
+          const m2 = r.match(/^(.+?)\s*x\s*(\d+)$/i);
+          if (m2) {
+            name = m2[1].trim();
+            qty = m2[2];
+          }
+        }
+        return `<tr style="border-top:1px solid #f1f5f9"><td style="padding:8px 6px">${qty}x ${escapeHtml(name)}</td><td style="padding:8px 6px; text-align:right">${""}</td></tr>`;
+      })
+      .join("");
+  };
+
+  const renderTemplateHtml = (template, invoiceData = {}, seller = {}) => {
+    if (!template || !template.html) return null;
+    let html = template.html;
+
+    // Remove simple handlebars-style conditional blocks for qrDataUrl when not provided
+    html = html.replace(/\{\{#if qrDataUrl\}\}[\s\S]*?\{\{\/if\}\}/g, "");
+
+    const dateStr = new Date().toLocaleString();
+    const itemsRowsHtml = buildItemsRowsHtml(invoiceData.items || invoiceData.itemsRows || invoiceData.itemsRowsHtml || invoiceData.items || "");
+    const replacements = {
+      sellerName: escapeHtml(seller.sellerName || localStorage.getItem("sellerName") || "Seller Name"),
+      sellerLogoUrl: escapeHtml(seller.sellerLogoUrl || localStorage.getItem("sellerLogoUrl") || "/favicon.ico"),
+      sellerPhone: escapeHtml(seller.sellerPhone || localStorage.getItem("sellerPhone") || ""),
+      sellerEmail: escapeHtml(seller.sellerEmail || localStorage.getItem("sellerEmail") || ""),
+      sellerAddress: escapeHtml(seller.sellerAddress || localStorage.getItem("sellerAddress") || ""),
+      sellerTagline: escapeHtml(seller.sellerTagline || localStorage.getItem("sellerTagline") || ""),
+      invoiceNumber: escapeHtml(invoiceData.id || invoiceData.invoiceNumber || invoiceData.invoice || `INV-${Date.now().toString().slice(-6)}`),
+      date: escapeHtml(invoiceData.date || dateStr),
+      dueDate: escapeHtml(invoiceData.dueDate || invoiceData.date || dateStr),
+      buyerName: escapeHtml(invoiceData.buyerName || invoiceData.buyer || invoiceData.to || "Buyer"),
+      buyerPhone: escapeHtml(invoiceData.phone || invoiceData.buyerPhone || ""),
+      subtotal: escapeHtml(invoiceData.subtotal || invoiceData.total || ""),
+      total: escapeHtml(invoiceData.total || invoiceData.subtotal || ""),
+      paymentNumber: escapeHtml(invoiceData.paymentNumber || invoiceData.payment_number || ""),
+      paymentLabel: escapeHtml(invoiceData.paymentLabel || "M-Pesa"),
+      paymentNote: escapeHtml(invoiceData.paymentNote || ""),
+      notesLine: escapeHtml((invoiceData.notes && invoiceData.notes.join(", ")) || invoiceData.notes || "Thank you"),
+      vatPercent: escapeHtml(invoiceData.vatPercent || "0"),
+      vatAmount: escapeHtml(invoiceData.vatAmount || "0"),
+      payLink: escapeHtml(invoiceData.payLink || "#"),
+      qrDataUrl: escapeHtml(invoiceData.qrDataUrl || ""),
+      itemsRows: itemsRowsHtml,
+    };
+
+    Object.keys(replacements).forEach((k) => {
+      const re = new RegExp(`{{\\s*${k}\\s*}}`, "g");
+      html = html.replace(re, replacements[k]);
+    });
+
+    // strip any leftover tokens
+    html = html.replace(/\{\{[^}]+\}\}/g, "");
+
+    return html;
+  };
+
+  // -------------------------
+  // Modal event wiring
+  // -------------------------
+  useEffect(() => {
+    const onTemplatePreview = (e) => {
+      try {
+        const detail = e.detail || {};
+        const template = detail.template || null;
+        const invoiceData = detail.invoiceData || DUMMY_INVOICE;
+        const seller = detail.seller || {
+          sellerName: localStorage.getItem("sellerName") || "Seller Name",
+          sellerLogoUrl: localStorage.getItem("sellerLogoUrl") || "/favicon.ico",
+          sellerPhone: localStorage.getItem("sellerPhone") || "",
+          sellerEmail: localStorage.getItem("sellerEmail") || "",
+          sellerAddress: localStorage.getItem("sellerAddress") || "",
+          sellerTagline: localStorage.getItem("sellerTagline") || "",
+        };
+
+        if (!template) {
+          // nothing to preview
+          return;
+        }
+
+        const html = renderTemplateHtml(template, invoiceData, seller) || template.html || "";
+        setTplModalRenderedHtml(html);
+        setTplModalTemplate(template);
+        setTplModalInvoiceData(invoiceData);
+        setTplModalSeller(seller);
+        setTplModalOpen(true);
+      } catch (err) {
+        console.error("template-preview handler failed:", err);
+      }
+    };
+
+    window.addEventListener("template-preview", onTemplatePreview);
+    return () => window.removeEventListener("template-preview", onTemplatePreview);
+  }, []);
+
+  const closeTplModal = () => {
+    setTplModalOpen(false);
+    setTplModalTemplate(null);
+    setTplModalInvoiceData(null);
+    setTplModalSeller(null);
+    setTplModalRenderedHtml("");
+  };
+
+  const applyTemplateFromModal = (tpl) => {
+    if (!tpl) return;
+    // set as selected
+    setSelectedTemplate(tpl);
+    try {
+      window.SELECTED_TEMPLATE = tpl;
+    } catch (e) {}
+    window.dispatchEvent(new CustomEvent("template-selected", { detail: tpl }));
+    // Also close modal
+    closeTplModal();
+  };
+
+  // -------------------------
   // Fetch profile metadata and set default template if present
+  // -------------------------
   const fetchAndSetDefaultTemplate = async (userId) => {
     try {
       if (!userId) return;
@@ -487,6 +643,66 @@ function App() {
           )}
 
           <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} onAuthSuccess={() => setAuthOpen(false)} />
+
+          {/* Template Preview Modal */}
+          {tplModalOpen && tplModalTemplate && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Preview ${tplModalTemplate.name}`}
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 12000,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "rgba(0,0,0,0.45)",
+                padding: 20,
+              }}
+              onClick={(e) => {
+                // close when clicking backdrop only
+                if (e.target === e.currentTarget) closeTplModal();
+              }}
+            >
+              <div style={{ width: "min(1100px, 98%)", maxHeight: "92%", background: "#fff", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid #eef2f6" }}>
+                  <div>
+                    <div style={{ fontWeight: 800 }}>{tplModalTemplate.name}</div>
+                    <div style={{ color: "#6b7280", fontSize: 13 }}>{tplModalTemplate.description}</div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      className="btn-outline"
+                      onClick={() => {
+                        closeTplModal();
+                      }}
+                    >
+                      Close
+                    </button>
+                    <button
+                      className="btn-primary"
+                      onClick={() => {
+                        applyTemplateFromModal(tplModalTemplate);
+                      }}
+                    >
+                      Use this
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ padding: 12, overflow: "auto", background: "#f7fafc", flex: 1 }}>
+                  <iframe
+                    title={`template-preview-${tplModalTemplate.id}`}
+                    srcDoc={tplModalRenderedHtml}
+                    style={{ width: "100%", minHeight: 520, border: 0, background: "white" }}
+                    sandbox="allow-same-origin allow-popups allow-forms"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </UserProvider>
     </ToastProvider>
