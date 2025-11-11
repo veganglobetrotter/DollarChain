@@ -7,7 +7,7 @@
 
 export const TEMPLATES = [
   /* Row 1: Localised / Print-Friendly */
-  /* Local 1 — classic blue receipt (tuned fonts, spacing, deeper blue) */
+  /* Local 1 — classic blue receipt (stronger ruled lines) */
   {
     id: "local-1",
     category: "local",
@@ -50,7 +50,7 @@ export const TEMPLATES = [
     :root{
       --paper-w:360px;
       --pad:10px;
-      --blue:#123A8A;            /* deeper reference blue */
+      --blue:#123A8A;
       --muted:#6b7280;
       --text:#0b1220;
       --base-serif: "Merriweather", Georgia, "Times New Roman", serif;
@@ -66,9 +66,12 @@ export const TEMPLATES = [
     .formRow .label{min-width:48px; color:var(--muted); font-size:11px;}
     .formLine{flex:1; border-bottom:2px solid #eef4ff; padding:6px 4px; font-weight:700; font-size:13px;}
     .divider{height:1px; background:#eef2f6; margin:10px 0;}
-    table.items{width:100%; border-collapse:collapse; font-size:13px; margin-top:6px;}
-    table.items thead td{font-weight:800; color:var(--blue); padding:6px 4px; border-bottom:2px solid #dbeafe; font-size:12px;}
-    table.items td{padding:8px 4px; border-bottom:1px dashed #eef4ff;}
+    /* ===== stronger, visible item lines ===== */
+    table.items{width:100%; border-collapse:collapse; font-size:13px; margin-top:6px; background:linear-gradient(180deg,transparent 0, transparent calc(100% - 1px), rgba(19,58,138,0.06) 100%);}
+    table.items thead td{font-weight:800; color:var(--blue); padding:8px 4px; border-bottom:3px solid rgba(18,58,138,0.18); font-size:12px;}
+    table.items tbody tr{background:transparent;}
+    table.items td{padding:10px 4px; border-bottom:2px solid rgba(18,58,138,0.08); vertical-align:middle;}
+    table.items tbody tr:last-child td{border-bottom:2px dashed rgba(18,58,138,0.12);}
     .qty{width:52px; color:var(--muted); font-size:12px;}
     .price{width:86px; text-align:right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace; font-size:12px;}
     .bottomRow{display:flex; justify-content:space-between; align-items:center; margin-top:8px;}
@@ -151,7 +154,7 @@ export const TEMPLATES = [
   </html>`
   },
 
-  /* Local 2 — modern green invoice (tuned green, clearer typography) */
+  /* Local 2 — modern green invoice (bolder separators) */
   {
     id: "local-2",
     category: "local",
@@ -193,7 +196,7 @@ export const TEMPLATES = [
     :root{
       --w:480px;
       --pad:18px;
-      --green:#15803D;           /* tuned green */
+      --green:#15803D;
       --muted:#6b7280;
       --text:#0b1220;
       --base-sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -208,9 +211,12 @@ export const TEMPLATES = [
     .meta{font-size:12px; color:var(--muted); white-space:pre-line; margin-top:4px;}
     .grid{display:grid; grid-template-columns:1fr auto; gap:12px; margin-top:14px;}
     .bill{font-size:13px}
-    .items{width:100%; border-collapse:collapse; margin-top:12px; font-size:13px;}
-    .items th{font-size:12px; text-align:left; color:var(--muted); padding:8px 0; border-bottom:2px solid #ecfdf0;}
-    .items td{padding:10px 0; border-bottom:1px solid #f1f5f9;}
+    /* ===== make the item separators stronger ===== */
+    .items{width:100%; border-collapse:collapse; margin-top:12px; font-size:13px; box-shadow:inset 0 -1px 0 rgba(21,128,61,0.03);}
+    .items thead th{font-size:12px; text-align:left; color:var(--muted); padding:10px 6px; border-bottom:3px solid rgba(21,128,61,0.14);}
+    .items td{padding:12px 6px; border-bottom:2px solid rgba(21,128,61,0.06); vertical-align:middle;}
+    .items tbody tr:hover td{background:rgba(21,128,61,0.02);}
+    .items tbody tr:last-child td{border-bottom:2px dashed rgba(21,128,61,0.08);}
     .right{text-align:right}
     .totals{margin-top:12px; display:flex; justify-content:flex-end; gap:18px; align-items:end;}
     .totalVal{font-weight:900; font-size:18px; color:var(--text);}
@@ -294,7 +300,7 @@ export const TEMPLATES = [
   </html>`
   },
 
-  /* Local 3 — corporate grey invoice (tuned greys, bolder 'INVOICE' and compact spacing) */
+  /* Local 3 — corporate grey invoice (crisper grey separators) */
   {
     id: "local-3",
     category: "local",
@@ -350,8 +356,10 @@ export const TEMPLATES = [
     .meta{font-size:12px; color:var(--muted); white-space:pre-line;}
     hr.sep{border:none; border-top:1px solid #f1f3f5; margin:10px 0;}
     .to{font-size:13px; margin-bottom:6px;}
-    .items{width:100%; font-size:13px; border-top:1px solid #eef2f6; border-bottom:1px solid #eef2f6; margin:10px 0;}
-    .items td{padding:8px 0; border-bottom:1px solid #f6f7f8;}
+    /* ===== crisp grey lines for the receipt book look ===== */
+    .items{width:100%; font-size:13px; border-top:2px solid #e6e9ee; border-bottom:2px solid #e6e9ee; margin:10px 0; border-collapse:collapse;}
+    .items td{padding:10px 0; border-bottom:1.5px solid #e9edf2;}
+    .items tbody tr:last-child td{border-bottom:1.5px dashed #dfe4ea;}
     .total{font-weight:800; font-size:15px; text-align:right; margin-top:8px;}
     .pay{margin-top:8px; padding:8px; background:#fafafa; border:1px solid #eef0f2; border-radius:6px; font-size:12px;}
     .foot{font-size:11px; color:var(--muted); margin-top:10px; text-align:center; white-space:pre-line;}
