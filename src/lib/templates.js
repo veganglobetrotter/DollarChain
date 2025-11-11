@@ -410,7 +410,7 @@ export const TEMPLATES = [
   },
 
   /* Row 2: Colour Accent */
-  /* ---------- Accent 1: Red diagonal banner / modern invoice ---------- */
+  /* ---------- Accent 1: Diagonal / red banner (fixed item placement) ---------- */
   {
     id: "accent-1",
     category: "accent",
@@ -448,42 +448,26 @@ export const TEMPLATES = [
   <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Invoice — Accent Diagonal</title>
   <style>
-    :root{
-      --w:720px;
-      --pad:18px;
-      --red:#e11d48;
-      --muted:#6b7280;
-      --text:#07131a;
-      --paper:#ffffff;
-      --base: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-    }
+    :root{ --w:720px; --pad:18px; --red:#e11d48; --muted:#6b7280; --text:#07131a; --paper:#ffffff; --base: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
     *{box-sizing:border-box}
     body{font-family:var(--base); background:#f5f5f7; padding:24px; display:flex; justify-content:center; -webkit-font-smoothing:antialiased;}
     .wrap{width:var(--w); display:block;}
     .card{background:var(--paper); border-radius:12px; overflow:hidden; box-shadow:0 20px 50px rgba(10,12,20,0.08);}
-    /* diagonal accent using pseudo element */
-    .accent{
-      position:relative; background:linear-gradient(180deg,#fff,#fff); padding:var(--pad) 24px 22px 24px;
-    }
-    .accent::before{
-      content:""; position:absolute; left:-120px; top:-40px; width:420px; height:240px;
-      transform:rotate(-18deg); background:linear-gradient(90deg,var(--red), #c81a42);
-      border-radius:8px; box-shadow: 0 8px 20px rgba(225,29,72,0.08);
-    }
-    .hdr{position:relative; display:flex; justify-content:space-between; align-items:center; gap:14px;}
-    .brand{position:relative; z-index:2; display:flex; gap:12px; align-items:center;}
+    .accent{position:relative; padding:var(--pad) 24px 22px 24px;}
+    .accent::before{content:""; position:absolute; left:-120px; top:-40px; width:420px; height:240px; transform:rotate(-18deg); background:linear-gradient(90deg,var(--red), #c81a42); border-radius:8px; box-shadow:0 8px 20px rgba(225,29,72,0.08);}
+    .hdr{position:relative; z-index:2; display:flex; justify-content:space-between; align-items:center; gap:14px;}
+    .brand{display:flex; gap:12px; align-items:center;}
     .logo{height:56px; width:56px; object-fit:contain; background:#fff; padding:6px; border-radius:8px;}
     .company{font-weight:900; font-size:18px; color:var(--text);}
     .tag{font-size:13px; color:var(--muted);}
     .invoiceLabel{position:relative; z-index:2; text-align:right;}
-    .invoiceLabel .title{font-weight:900; font-size:20px; color:white; background:rgba(0,0,0,0.08); padding:8px 12px; border-radius:6px; display:inline-block; margin-bottom:4px;}
-    .metaSmall{font-size:13px; color:var(--muted)}
+    .invoiceLabel .title{font-weight:900; font-size:22px; color:rgba(255,255,255,0.98); padding:8px 12px; border-radius:6px; display:inline-block;}
     .body{position:relative; z-index:2; padding:18px 24px 28px 24px; background:linear-gradient(180deg, rgba(255,255,255,0.00), rgba(255,255,255,0.95));}
     .grid{display:flex; justify-content:space-between; gap:20px; margin-top:6px;}
     .items{width:100%; border-collapse:collapse; margin-top:16px; font-size:14px;}
-    .items thead th{font-weight:700; text-align:left; padding:12px 8px; color:var(--muted); background:transparent; border-bottom:3px solid rgba(0,0,0,0.06);}
-    .items td{padding:12px 8px; border-bottom:2px solid rgba(0,0,0,0.06); vertical-align:middle;}
-    .items tbody tr:hover td{background:rgba(225,29,72,0.02);}
+    .items thead th{font-weight:700; text-align:left; padding:12px 8px; color:var(--muted); border-bottom:3px solid rgba(0,0,0,0.06);}
+    .items td{padding:12px 8px; border-bottom:2px solid rgba(0,0,0,0.06); vertical-align:middle; text-align:left;}
+    .items td.right{text-align:right}
     .summaryRow{display:flex; justify-content:flex-end; margin-top:14px; gap:18px;}
     .summaryVal{font-weight:900; font-size:18px; color:var(--text);}
     .payment{margin-top:18px; display:flex; justify-content:space-between; gap:16px; align-items:center;}
@@ -507,7 +491,7 @@ export const TEMPLATES = [
               </div>
             </div>
             <div class="invoiceLabel">
-              <div class="title" style="background:linear-gradient(90deg, rgba(0,0,0,0.06), rgba(0,0,0,0.02)); color:white; padding:8px 16px; border-radius:6px; font-size:22px;">INVOICE</div>
+              <div class="title">INVOICE</div>
               <div style="font-size:13px; color:#fff; opacity:0.95; margin-top:6px;">#{{invoiceNumber}} • {{date}}</div>
             </div>
           </div>
@@ -528,7 +512,7 @@ export const TEMPLATES = [
               <thead>
                 <tr><th>Description</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit</th><th style="text-align:right">Total</th></tr>
               </thead>
-              <tbody>
+              <tbody id="items-accent-1">
                 {{itemsRows}}
               </tbody>
             </table>
@@ -559,11 +543,61 @@ export const TEMPLATES = [
         </div>
       </div>
     </div>
+
+    <script>
+      // Robust fallback: parse plain-text items into proper table rows.
+      (function normalizeItems(tbodyId){
+        function parseLine(line){
+          line = line.trim();
+          if(!line) return null;
+          // Patterns:
+          // "2x Jacket" or "2 x Jacket"
+          var m = line.match(/^(\d+)\s*[x×]\s*(.+)$/i);
+          if(m) return {desc: m[2].trim(), qty: m[1].trim()};
+          // "Jacket - 2 - 1500" or "Jacket - 2"
+          m = line.match(/^(.+?)\s*[-–—]\s*(\d+)(?:\s*[-–—]\s*([\d,.]+))?$/);
+          if(m) return {desc: m[1].trim(), qty: m[2].trim(), unit: (m[3]||'').trim()};
+          // "desc | qty | unit"
+          var parts = line.split(/\s*\|\s*/);
+          if(parts.length >= 2) return {desc: parts[0].trim(), qty: parts[1].trim(), unit: (parts[2]||'').trim()};
+          // "desc,qty,unit"
+          parts = line.split(/\s*,\s*/);
+          if(parts.length >= 2) return {desc: parts[0].trim(), qty: parts[1].trim(), unit: (parts[2]||'').trim()};
+          // "2 Jacket" -> number first
+          m = line.match(/^(\d+)\s+(.+)$/);
+          if(m) return {desc: m[2].trim(), qty: m[1].trim()};
+          // fallback: everything as description
+          return {desc: line, qty: ''};
+        }
+
+        var tbody = document.getElementById(tbodyId);
+        if(!tbody) return;
+        // if there are already <tr> rows, assume the system produced correct markup.
+        if(tbody.querySelector('tr')) return;
+        var raw = tbody.textContent || '';
+        var lines = raw.split(/[\r\n]+|[,•·]+/).map(function(l){ return l.trim(); }).filter(Boolean);
+        if(lines.length === 0) return;
+        var frag = document.createDocumentFragment();
+        lines.forEach(function(line){
+          var item = parseLine(line);
+          if(!item) return;
+          var tr = document.createElement('tr');
+          var tdDesc = document.createElement('td'); tdDesc.textContent = item.desc || '';
+          var tdQty = document.createElement('td'); tdQty.className = 'right'; tdQty.textContent = item.qty || '';
+          var tdUnit = document.createElement('td'); tdUnit.className = 'right'; tdUnit.textContent = item.unit || '';
+          var tdTotal = document.createElement('td'); tdTotal.className = 'right'; tdTotal.textContent = '';
+          tr.appendChild(tdDesc); tr.appendChild(tdQty); tr.appendChild(tdUnit); tr.appendChild(tdTotal);
+          frag.appendChild(tr);
+        });
+        tbody.innerHTML = '';
+        tbody.appendChild(frag);
+      })('items-accent-1');
+    </script>
   </body>
   </html>`
   },
 
-  /* ---------- Accent 2: Navy header with orange title (studio / corporate) ---------- */
+  /* ---------- Accent 2: Studio / navy header (fixed item placement) ---------- */
   {
     id: "accent-2",
     category: "accent",
@@ -601,15 +635,7 @@ export const TEMPLATES = [
   <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Invoice — Accent Studio</title>
   <style>
-    :root{
-      --w:720px;
-      --pad:20px;
-      --navy:#2b2b7a;
-      --orange:#ff9b3b;
-      --muted:#6b7280;
-      --text:#07131a;
-      --base: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-    }
+    :root{ --w:720px; --pad:20px; --navy:#2b2b7a; --orange:#ff9b3b; --muted:#6b7280; --text:#07131a; --base: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
     *{box-sizing:border-box}
     body{font-family:var(--base); background:#f7f8fb; padding:26px; display:flex; justify-content:center; -webkit-font-smoothing:antialiased;}
     .card{width:var(--w); background:white; border-radius:10px; overflow:hidden; box-shadow:0 18px 48px rgba(12,14,20,0.06);}
@@ -622,6 +648,7 @@ export const TEMPLATES = [
     .items{width:100%; border-collapse:collapse; margin-top:18px; font-size:13px;}
     .items thead th{font-weight:700; color:var(--muted); padding:10px 8px; border-bottom:2px solid #eef2f8; text-align:left;}
     .items td{padding:10px 8px; border-bottom:1px solid #f1f5f9;}
+    .items td.right{text-align:right}
     .serviceGrid{display:grid; grid-template-columns:1fr auto; gap:12px; margin-top:16px;}
     .paymentBox{margin-top:18px; background:#f6f8ff; padding:14px; border-radius:10px; border:1px solid rgba(43,43,122,0.06); display:flex; justify-content:space-between; align-items:center;}
     .totals{margin-top:18px; display:flex; justify-content:flex-end; gap:18px; align-items:end;}
@@ -649,9 +676,7 @@ export const TEMPLATES = [
         <div class="topRow">
           <div>
             <div style="font-weight:900; font-size:18px;">Bill To</div>
-            <div class="bill">{{buyerName}}
-              <div style="margin-top:6px; color:var(--muted)">{{buyerPhone}}</div>
-            </div>
+            <div class="bill">{{buyerName}}<div style="margin-top:6px; color:var(--muted)">{{buyerPhone}}</div></div>
           </div>
 
           <div style="text-align:right;">
@@ -668,7 +693,7 @@ export const TEMPLATES = [
               <thead>
                 <tr><th style="width:60%">Description of Service</th><th style="text-align:right">Quantity</th><th style="text-align:right">Rate</th><th style="text-align:right">Total</th></tr>
               </thead>
-              <tbody>
+              <tbody id="items-accent-2">
                 {{itemsRows}}
               </tbody>
             </table>
@@ -706,11 +731,52 @@ export const TEMPLATES = [
         <div style="font-weight:800; font-size:13px;">Signature</div>
       </div>
     </div>
+
+    <script>
+      (function normalizeItems(tbodyId){
+        function parseLine(line){
+          line = line.trim();
+          if(!line) return null;
+          var m = line.match(/^(\d+)\s*[x×]\s*(.+)$/i);
+          if(m) return {desc: m[2].trim(), qty: m[1].trim()};
+          m = line.match(/^(.+?)\s*[-–—]\s*(\d+)(?:\s*[-–—]\s*([\d,.]+))?$/);
+          if(m) return {desc: m[1].trim(), qty: m[2].trim(), unit: (m[3]||'').trim()};
+          var parts = line.split(/\s*\|\s*/);
+          if(parts.length >= 2) return {desc: parts[0].trim(), qty: parts[1].trim(), unit: (parts[2]||'').trim()};
+          parts = line.split(/\s*,\s*/);
+          if(parts.length >= 2) return {desc: parts[0].trim(), qty: parts[1].trim(), unit: (parts[2]||'').trim()};
+          m = line.match(/^(\d+)\s+(.+)$/);
+          if(m) return {desc: m[2].trim(), qty: m[1].trim()};
+          return {desc: line, qty: ''};
+        }
+
+        var tbody = document.getElementById(tbodyId);
+        if(!tbody) return;
+        if(tbody.querySelector('tr')) return;
+        var raw = tbody.textContent || '';
+        var lines = raw.split(/[\r\n]+|[,•·]+/).map(function(l){ return l.trim(); }).filter(Boolean);
+        if(lines.length === 0) return;
+        var frag = document.createDocumentFragment();
+        lines.forEach(function(line){
+          var item = parseLine(line);
+          if(!item) return;
+          var tr = document.createElement('tr');
+          var tdDesc = document.createElement('td'); tdDesc.textContent = item.desc || '';
+          var tdQty = document.createElement('td'); tdQty.className = 'right'; tdQty.textContent = item.qty || '';
+          var tdUnit = document.createElement('td'); tdUnit.className = 'right'; tdUnit.textContent = item.unit || '';
+          var tdTotal = document.createElement('td'); tdTotal.className = 'right'; tdTotal.textContent = '';
+          tr.appendChild(tdDesc); tr.appendChild(tdQty); tr.appendChild(tdUnit); tr.appendChild(tdTotal);
+          frag.appendChild(tr);
+        });
+        tbody.innerHTML = '';
+        tbody.appendChild(frag);
+      })('items-accent-2');
+    </script>
   </body>
   </html>`
   },
 
-  /* ---------- Accent 3: Grey card with red right totals ribbon (catalog / product-heavy) ---------- */
+  /* ---------- Accent 3: Right ribbon (fixed item placement) ---------- */
   {
     id: "accent-3",
     category: "accent",
@@ -748,15 +814,7 @@ export const TEMPLATES = [
   <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Invoice — Accent Right Ribbon</title>
   <style>
-    :root{
-      --w:780px;
-      --pad:18px;
-      --accent:#ef4444;
-      --muted:#6b7280;
-      --text:#07131a;
-      --cardbg:#f6f7f9;
-      --base: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-    }
+    :root{ --w:780px; --pad:18px; --accent:#ef4444; --muted:#6b7280; --text:#07131a; --cardbg:#f6f7f9; --base: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
     *{box-sizing:border-box}
     body{font-family:var(--base); background:#efeff2; padding:26px; display:flex; justify-content:center; -webkit-font-smoothing:antialiased;}
     .wrap{width:var(--w); display:flex; justify-content:center;}
@@ -772,6 +830,7 @@ export const TEMPLATES = [
     .items{width:100%; border-collapse:collapse; margin-top:16px; font-size:13px; background:white; border-radius:8px; overflow:hidden;}
     .items thead th{font-weight:700; color:var(--muted); text-align:left; padding:12px 10px; border-bottom:2px solid #eef2f7;}
     .items td{padding:12px 10px; border-bottom:1px solid #f3f5f8;}
+    .items td.right{text-align:right}
     .items tbody tr:last-child td{border-bottom:1px dashed #e8eaee;}
     .payment{margin-top:16px; display:flex; gap:12px; align-items:center; justify-content:space-between;}
     .payBtn{background:var(--accent); color:white; padding:10px 14px; border-radius:8px; font-weight:800; text-decoration:none;}
@@ -811,7 +870,7 @@ export const TEMPLATES = [
             <thead>
               <tr><th style="width:55%">Item</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Qty</th><th style="text-align:right">Total</th></tr>
             </thead>
-            <tbody>
+            <tbody id="items-accent-3">
               {{itemsRows}}
             </tbody>
           </table>
@@ -838,6 +897,47 @@ export const TEMPLATES = [
         </aside>
       </div>
     </div>
+
+    <script>
+      (function normalizeItems(tbodyId){
+        function parseLine(line){
+          line = line.trim();
+          if(!line) return null;
+          var m = line.match(/^(\d+)\s*[x×]\s*(.+)$/i);
+          if(m) return {desc: m[2].trim(), qty: m[1].trim()};
+          m = line.match(/^(.+?)\s*[-–—]\s*(\d+)(?:\s*[-–—]\s*([\d,.]+))?$/);
+          if(m) return {desc: m[1].trim(), qty: m[2].trim(), unit: (m[3]||'').trim()};
+          var parts = line.split(/\s*\|\s*/);
+          if(parts.length >= 2) return {desc: parts[0].trim(), qty: parts[1].trim(), unit: (parts[2]||'').trim()};
+          parts = line.split(/\s*,\s*/);
+          if(parts.length >= 2) return {desc: parts[0].trim(), qty: parts[1].trim(), unit: (parts[2]||'').trim()};
+          m = line.match(/^(\d+)\s+(.+)$/);
+          if(m) return {desc: m[2].trim(), qty: m[1].trim()};
+          return {desc: line, qty: ''};
+        }
+
+        var tbody = document.getElementById(tbodyId);
+        if(!tbody) return;
+        if(tbody.querySelector('tr')) return;
+        var raw = tbody.textContent || '';
+        var lines = raw.split(/[\r\n]+|[,•·]+/).map(function(l){ return l.trim(); }).filter(Boolean);
+        if(lines.length === 0) return;
+        var frag = document.createDocumentFragment();
+        lines.forEach(function(line){
+          var item = parseLine(line);
+          if(!item) return;
+          var tr = document.createElement('tr');
+          var tdDesc = document.createElement('td'); tdDesc.textContent = item.desc || '';
+          var tdUnitPrice = document.createElement('td'); tdUnitPrice.className = 'right'; tdUnitPrice.textContent = item.unit || '';
+          var tdQty = document.createElement('td'); tdQty.className = 'right'; tdQty.textContent = item.qty || '';
+          var tdTotal = document.createElement('td'); tdTotal.className = 'right'; tdTotal.textContent = '';
+          tr.appendChild(tdDesc); tr.appendChild(tdUnitPrice); tr.appendChild(tdQty); tr.appendChild(tdTotal);
+          frag.appendChild(tr);
+        });
+        tbody.innerHTML = '';
+        tbody.appendChild(frag);
+      })('items-accent-3');
+    </script>
   </body>
   </html>`
   },
