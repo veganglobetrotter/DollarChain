@@ -15,6 +15,7 @@ export default function Profile() {
   const { user, profile, wallet, transactions, loading, refreshWallet } = useUser();
 
   const fullName = (profile && profile.full_name) || (user && (user.user_metadata?.full_name || user.user_metadata?.name)) || user?.email || "Your account";
+  const storeName = (profile && profile.metadata && profile.metadata.sellerName) || "";
 
   return (
     <div className="page-container">
@@ -33,6 +34,21 @@ export default function Profile() {
               <strong>Phone:</strong> {(profile && profile.phone) || user?.user_metadata?.phone || "-"}
             </p>
 
+            {storeName ? (
+              <div style={{ marginTop: 8 }}>
+                <p style={{ margin: "6px 0" }}>
+                  <strong>Store/Shop:</strong> {storeName}
+                </p>
+                <p style={{ margin: "6px 0", color: "#6b7280" }}>
+                  Edit your store/shop details (logo, payment numbers, invoice defaults) in settings.
+                </p>
+              </div>
+            ) : (
+              <div style={{ marginTop: 8, color: "#6b7280" }}>
+                You haven't set up your Store/Shop details yet. Click Edit profile to add store details & invoice preferences.
+              </div>
+            )}
+
             <div style={{ marginTop: 12 }}>
               <button
                 className="btn-outline"
@@ -41,7 +57,7 @@ export default function Profile() {
                   window.location.href = "/settings";
                 }}
               >
-                Edit profile
+                Edit profile / store settings
               </button>
             </div>
           </section>
