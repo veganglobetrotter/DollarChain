@@ -15,6 +15,24 @@ export const TEMPLATES = [
     description: "Narrow receipt style, mobile-first, M-Pesa / Paybill friendly.",
     options: { width: 360, qr: true, showPaymentLabel: true, currency: "KES" },
     style: { accentColor: "#1a8917", headerBg: "#ffffff", textColor: "#0b1220", suggestedWidth: 360 },
+    sampleData: {
+      buyerName: "Grace Mwende",
+      buyerPhone: "+254 712 345 678",
+      items: "2x Cotton Shirt, 1x Leather Belt, 3x Socks",
+      subtotal: "KES 5,400",
+      total: "KES 5,400",
+      paymentNumber: "Paybill 123456",
+      paymentLabel: "M-Pesa Paybill",
+      paymentNote: "Use invoice #123456 as reference",
+      notesLine: "Thank you — please keep this receipt",
+      qrDataUrl: "", // optional
+      date: "2025-11-11",
+      dueDate: "2025-11-18",
+      vatPercent: "0",
+      vatAmount: "KES 0",
+      payLink: "#",
+      currency: "KES"
+    },
     html: `<!doctype html>
 <html>
 <head>
@@ -120,6 +138,24 @@ export const TEMPLATES = [
     description: "Balanced print-friendly layout, clear payment area and QR.",
     options: { width: 480, qr: true, showPaymentLabel: true, currency: "KES" },
     style: { accentColor: "#1a8917", headerBg: "#ffffff", textColor: "#0b1220", suggestedWidth: 480 },
+    sampleData: {
+      buyerName: "James Otieno",
+      buyerPhone: "+254 733 555 121",
+      items: "1x Handmade Bag, 2x Silk Scarf",
+      subtotal: "KES 3,200",
+      total: "KES 3,200",
+      paymentNumber: "Paybill 987654",
+      paymentLabel: "M-Pesa Paybill",
+      paymentNote: "Include invoice #987654 as reference",
+      notesLine: "Packed and ready — deliver within 48 hours",
+      qrDataUrl: "", // optional data URL
+      date: "2025-11-11",
+      dueDate: "2025-11-25",
+      vatPercent: "0",
+      vatAmount: "KES 0",
+      payLink: "#",
+      currency: "KES"
+    },
     html: `<!doctype html>
 <html>
 <head>
@@ -217,6 +253,24 @@ export const TEMPLATES = [
     description: "Very compact receipt for quick sales and WhatsApp sharing.",
     options: { width: 320, qr: false, showPaymentLabel: true, currency: "KES" },
     style: { accentColor: "#1a8917", headerBg: "#ffffff", textColor: "#07131a", suggestedWidth: 320 },
+    sampleData: {
+      buyerName: "Aisha Hassan",
+      buyerPhone: "+254 722 333 444",
+      items: "1x Coffee Mug, 2x Sticker Pack",
+      subtotal: "KES 500",
+      total: "KES 500",
+      paymentNumber: "Phone: +254 722 333 444",
+      paymentLabel: "Phone",
+      paymentNote: "",
+      notesLine: "Thanks for your purchase",
+      qrDataUrl: "",
+      date: "2025-11-11",
+      dueDate: "2025-11-11",
+      vatPercent: "0",
+      vatAmount: "KES 0",
+      payLink: "#",
+      currency: "KES"
+    },
     html: `<!doctype html>
 <html>
 <head>
@@ -275,6 +329,24 @@ export const TEMPLATES = [
     description: "Left sidebar in brand colour; modern and bold.",
     options: { width: 720, qr: false },
     style: { accentColor: "#0ea5a3", headerBg: "#0ea5a3", textColor: "#07131a", suggestedWidth: 720 },
+    sampleData: {
+      buyerName: "Pauline Njeri",
+      buyerPhone: "+254 700 111 222",
+      items: "1x Jacket, 2x T-Shirt, 1x Cap",
+      subtotal: "KES 9,800",
+      total: "KES 9,800",
+      paymentNumber: "Paybill 555444",
+      paymentLabel: "M-Pesa Paybill",
+      paymentNote: "Pay to Paybill 555444",
+      notesLine: "Order processed — please check sizes",
+      qrDataUrl: "",
+      date: "2025-11-11",
+      dueDate: "2025-11-18",
+      vatPercent: "0",
+      vatAmount: "KES 0",
+      payLink: "#",
+      currency: "KES"
+    },
     html: `<!doctype html>
 <html>
 <head>
@@ -357,6 +429,24 @@ export const TEMPLATES = [
     description: "Top band accent colour, large Totals area and CTAs.",
     options: { width: 720, qr: false },
     style: { accentColor: "#ef4444", headerBg: "#ef4444", textColor: "#07131a", suggestedWidth: 720 },
+    sampleData: {
+      buyerName: "Samuel Kimani",
+      buyerPhone: "+254 711 222 333",
+      items: "3x Dress Shirt, 1x Belt",
+      subtotal: "KES 6,500",
+      total: "KES 6,500",
+      paymentNumber: "Paybill 222333",
+      paymentLabel: "Paybill",
+      paymentNote: "Reference: invoice #222333",
+      notesLine: "Delivered to Nairobi CBD",
+      qrDataUrl: "",
+      date: "2025-11-11",
+      dueDate: "2025-11-20",
+      vatPercent: "0",
+      vatAmount: "KES 0",
+      payLink: "#",
+      currency: "KES"
+    },
     html: `<!doctype html>
 <html>
 <head>
@@ -432,6 +522,24 @@ export const TEMPLATES = [
     description: "Color blocks to segment invoice data and draw attention.",
     options: { width: 780, qr: false },
     style: { accentColor: "#6366f1", headerBg: "#ffffff", textColor: "#07131a", suggestedWidth: 780 },
+    sampleData: {
+      buyerName: "Mercy Wanjiru",
+      buyerPhone: "+254 734 999 000",
+      items: "2x Candle Set, 1x Diffuser",
+      subtotal: "KES 3,600",
+      total: "KES 3,600",
+      paymentNumber: "Paybill 444111",
+      paymentLabel: "Paybill",
+      paymentNote: "Include order reference",
+      notesLine: "Gift-wrapped on request",
+      qrDataUrl: "",
+      date: "2025-11-11",
+      dueDate: "2025-11-15",
+      vatPercent: "0",
+      vatAmount: "KES 0",
+      payLink: "#",
+      currency: "KES"
+    },
     html: `<!doctype html>
 <html>
 <head>
@@ -497,6 +605,24 @@ export const TEMPLATES = [
     description: "Whitespace, subtle typography, professional and clean.",
     options: { width: 820, qr: false },
     style: { accentColor: "#16a34a", headerBg: "#ffffff", textColor: "#07131a", suggestedWidth: 820 },
+    sampleData: {
+      buyerName: "Lilian Kariuki",
+      buyerPhone: "+254 701 444 555",
+      items: "1x Designer Scarf, 2x Earrings",
+      subtotal: "KES 4,200",
+      total: "KES 4,200",
+      paymentNumber: "Paybill 101010",
+      paymentLabel: "Paybill",
+      paymentNote: "Use invoice as reference",
+      notesLine: "Handmade items — no returns after 7 days",
+      qrDataUrl: "",
+      date: "2025-11-11",
+      dueDate: "2025-11-30",
+      vatPercent: "0",
+      vatAmount: "KES 0",
+      payLink: "#",
+      currency: "KES"
+    },
     html: `<!doctype html>
 <html>
 <head>
@@ -574,6 +700,24 @@ export const TEMPLATES = [
     description: "Wide layout, precise typographic scale — great for printing.",
     options: { width: 1000, qr: false },
     style: { accentColor: "#111827", headerBg: "#ffffff", textColor: "#07131a", suggestedWidth: 1000 },
+    sampleData: {
+      buyerName: "Daniel Mutua",
+      buyerPhone: "+254 709 888 777",
+      items: "1x Office Chair, 2x Cushion",
+      subtotal: "KES 18,400",
+      total: "KES 18,400",
+      paymentNumber: "Bank Acc: 123-456-789",
+      paymentLabel: "Bank Transfer",
+      paymentNote: "Use invoice reference on payment",
+      notesLine: "Large order — allow 3 business days",
+      qrDataUrl: "",
+      date: "2025-11-11",
+      dueDate: "2025-12-11",
+      vatPercent: "0",
+      vatAmount: "KES 0",
+      payLink: "#",
+      currency: "KES"
+    },
     html: `<!doctype html>
 <html>
 <head>
@@ -640,6 +784,24 @@ export const TEMPLATES = [
     description: "Tighter spacing, still minimal — for short receipts/invoices.",
     options: { width: 680, qr: false },
     style: { accentColor: "#16a34a", headerBg: "#ffffff", textColor: "#07131a", suggestedWidth: 680 },
+    sampleData: {
+      buyerName: "Ruth Achieng",
+      buyerPhone: "+254 726 111 222",
+      items: "1x Keychain, 1x Greeting Card",
+      subtotal: "KES 350",
+      total: "KES 350",
+      paymentNumber: "Phone: +254 726 111 222",
+      paymentLabel: "Phone",
+      paymentNote: "",
+      notesLine: "Small purchase — thank you",
+      qrDataUrl: "",
+      date: "2025-11-11",
+      dueDate: "2025-11-11",
+      vatPercent: "0",
+      vatAmount: "KES 0",
+      payLink: "#",
+      currency: "KES"
+    },
     html: `<!doctype html>
 <html>
 <head>

@@ -28,7 +28,11 @@ export default function TemplateGallery({ selectedTemplateId, onSelect }) {
           >
             {r.title}
           </div>
-          <div className="template-row" role={`template-row-${r.key}`} style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div
+            className="template-row"
+            role={`template-row-${r.key}`}
+            style={{ display: "flex", gap: 10, flexWrap: "wrap" }}
+          >
             {r.templates.map((t) => (
               <TemplateCard
                 key={t.id}

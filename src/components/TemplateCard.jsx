@@ -2,18 +2,43 @@
 import React, { useState } from "react";
 import { useUser } from "../context/UserContext";
 
-export default function TemplateCard({ template, onSelect }) {
+export default function TemplateCard({ template, onSelect, selected = false }) {
   const { profile, updateProfile } = useUser();
   const [settingDefault, setSettingDefault] = useState(false);
   const [hovered, setHovered] = useState(false);
 
+  const sellerFromProfile = () => {
+    const meta = (profile && profile.metadata) || {};
+    return {
+      sellerName: meta.sellerName || localStorage.getItem("sellerName") || "Seller Name",
+      sellerLogoUrl: meta.sellerLogoUrl || localStorage.getItem("sellerLogoUrl") || "/favicon.ico",
+      sellerPhone: meta.sellerPhone || localStorage.getItem("sellerPhone") || "",
+      sellerEmail: meta.sellerEmail || localStorage.getItem("sellerEmail") || "",
+      sellerAddress: meta.sellerAddress || localStorage.getItem("sellerAddress") || "",
+      sellerTagline: meta.sellerTagline || localStorage.getItem("sellerTagline") || "",
+    };
+  };
+
   const handlePreview = () => {
-    window.dispatchEvent(new CustomEvent("template-preview", { detail: template }));
+    const seller = sellerFromProfile();
+    const invoiceData = template.sampleData || {};
+    // Include mode so listeners can decide how to show the preview (modal vs inline)
+    window.dispatchEvent(
+      new CustomEvent("template-preview", {
+        detail: { template, mode: "preview", invoiceData, seller },
+      })
+    );
   };
 
   const handleUse = () => {
-    if (onSelect) onSelect(template);
-    window.dispatchEvent(new CustomEvent("template-selected", { detail: template }));
+    // call onSelect with template id (gallery/app expects id)
+    if (onSelect) onSelect(template.id);
+    // broadcast a concise selected event (other listeners can react)
+    window.dispatchEvent(
+      new CustomEvent("template-selected", {
+        detail: { templateId: template.id },
+      })
+    );
   };
 
   const handleSetDefault = async () => {
@@ -32,6 +57,13 @@ export default function TemplateCard({ template, onSelect }) {
     }
   };
 
+  const isSelected = !!selected;
+  const borderStyle = isSelected
+    ? "2px solid #16a34a"
+    : hovered
+    ? "2px solid #2563eb"
+    : "1px solid #e5e7eb";
+
   return (
     <div
       className="template-card"
@@ -40,15 +72,45 @@ export default function TemplateCard({ template, onSelect }) {
       tabIndex={0}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handlePreview();
+        }
+      }}
       style={{
-        border: hovered ? "2px solid #2563eb" : "1px solid #e5e7eb",
+        position: "relative",
+        border: borderStyle,
         borderRadius: 12,
         padding: 12,
         boxShadow: hovered ? "0 4px 10px rgba(37, 99, 235, 0.15)" : "0 1px 4px rgba(0,0,0,0.04)",
         transition: "all 0.25s ease-in-out",
         backgroundColor: "#fff",
+        minWidth: 200,
       }}
     >
+      {/* Selected check overlay */}
+      {isSelected && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            top: 10,
+            right: 10,
+            background: "#16a34a",
+            color: "white",
+            borderRadius: 18,
+            padding: "4px 8px",
+            fontSize: 12,
+            fontWeight: 700,
+            boxShadow: "0 4px 10px rgba(22,163,74,0.15)",
+            zIndex: 4,
+          }}
+        >
+          ✓ Selected
+        </div>
+      )}
+
       {template.thumbnail ? (
         <img
           className="template-thumb"
@@ -59,6 +121,8 @@ export default function TemplateCard({ template, onSelect }) {
             borderRadius: 8,
             marginBottom: 10,
             border: "1px solid #f1f5f9",
+            objectFit: "cover",
+            height: 120,
           }}
         />
       ) : (
@@ -86,9 +150,7 @@ export default function TemplateCard({ template, onSelect }) {
         <div style={{ fontSize: 12, color: "#6b7280", textTransform: "capitalize" }}>{template.category}</div>
       </div>
 
-      <div style={{ fontSize: 13, color: "#6b7280", marginTop: 6, minHeight: 40 }}>
-        {template.description}
-      </div>
+      <div style={{ fontSize: 13, color: "#6b7280", marginTop: 6, minHeight: 40 }}>{template.description}</div>
 
       <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
         <button
@@ -99,12 +161,7 @@ export default function TemplateCard({ template, onSelect }) {
         >
           Preview
         </button>
-        <button
-          className="btn-primary"
-          onClick={handleUse}
-          aria-label={`Use ${template.name}`}
-          style={{ flex: 1 }}
-        >
+        <button className="btn-primary" onClick={handleUse} aria-label={`Use ${template.name}`} style={{ flex: 1 }}>
           Use this
         </button>
       </div>
