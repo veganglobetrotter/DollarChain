@@ -8,39 +8,50 @@
 export const TEMPLATES = [
   /* Row 1: Localised / Print-Friendly */
   /* Local 1 — classic blue receipt (stronger ruled lines) */
-  {
-    id: "local-1",
-    category: "local",
-    name: "Local Compact",
-    thumbnail: "/templates/local-1.png",
-    description: "Narrow receipt style, mobile-first, M-Pesa / Paybill friendly.",
-    options: { width: 360, qr: true, showPaymentLabel: true, currency: "KES" },
-    style: { accentColor: "#123A8A", headerBg: "#ffffff", textColor: "#0b1220", suggestedWidth: 360 },
-    sampleData: {
-      sellerName: "DollarChain",
-      sellerLogoUrl: "/logos/dollarchain-logo.png",
-      sellerTagline: "Fast invoices via WhatsApp",
-      sellerAddress: "123 Nairobi Rd\nNairobi, Kenya",
-      sellerPhone: "+254 700 000 000",
-      sellerEmail: "hi@dollarchain.app",
-      buyerName: "Grace Mwende",
-      buyerPhone: "+254 712 345 678",
-      items: "2x Cotton Shirt, 1x Leather Belt, 3x Socks",
-      subtotal: "KES 5,400",
-      total: "KES 5,400",
-      paymentNumber: "Paybill 123456",
-      paymentLabel: "M-Pesa Paybill",
-      paymentNote: "Use invoice #123456 as reference",
-      notesLine: "Thank you — please keep this receipt",
-      qrDataUrl: "",
-      date: "2025-11-11",
-      dueDate: "2025-11-18",
-      vatPercent: "0",
-      vatAmount: "KES 0",
-      payLink: "#",
-      currency: "KES"
-    },
-    html: `<!doctype html>
+  // src/lib/templates.js
+  // Templates metadata + HTML fragments for DollarChain invoice templates.
+  // Each template includes an `html` property (template literal) with placeholders like {{sellerName}}, {{itemsRows}}, {{total}}.
+  // Keep placeholders consistent with InvoicePreview builder: {{sellerName}}, {{sellerLogoUrl}}, {{sellerPhone}}, {{sellerEmail}},
+  // {{sellerAddress}}, {{sellerTagline}}, {{invoiceNumber}}, {{date}}, {{buyerName}}, {{buyerPhone}}, {{itemsRows}},
+  // {{subtotal}}, {{total}}, {{paymentNumber}}, {{paymentLabel}}, {{paymentNote}}, {{notesLine}}, {{qrDataUrl}}, {{payLink}}, {{dueDate}}, {{vatPercent}}, {{vatAmount}}.
+
+  export const TEMPLATES = [
+    /* Row 1: Localised / Print-Friendly */
+    /* Local 1 — classic blue receipt (stronger ruled lines) */
+    {
+      id: "local-1",
+      category: "local",
+      name: "Local Compact",
+      thumbnail: "/templates/local-1.png",
+      description: "Narrow receipt style, mobile-first, M-Pesa / Paybill friendly.",
+      options: { width: 360, qr: true, showPaymentLabel: true, currency: "KES" },
+      style: { accentColor: "#123A8A", headerBg: "#ffffff", textColor: "#0b1220", suggestedWidth: 360 },
+      sampleData: {
+        sellerName: "DollarChain",
+        sellerLogoUrl: "/logos/dollarchain-logo.png",
+        sellerTagline: "Fast invoices via WhatsApp",
+        sellerAddress: "123 Nairobi Rd\nNairobi, Kenya",
+        sellerPhone: "+254 700 000 000",
+        sellerEmail: "hi@dollarchain.app",
+        buyerName: "Grace Mwende",
+        buyerPhone: "+254 712 345 678",
+        // include unit prices in sample data to show column mapping in preview
+        items: "2 x Cotton Shirt @ 1800, 1 x Leather Belt @ 1200, 3 x Socks @ 200",
+        subtotal: "KES 5,400",
+        total: "KES 5,400",
+        paymentNumber: "Paybill 123456",
+        paymentLabel: "M-Pesa Paybill",
+        paymentNote: "Use invoice #123456 as reference",
+        notesLine: "Thank you — please keep this receipt",
+        qrDataUrl: "",
+        date: "2025-11-11",
+        dueDate: "2025-11-18",
+        vatPercent: "0",
+        vatAmount: "KES 0",
+        payLink: "#",
+        currency: "KES"
+      },
+      html: `<!doctype html>
   <html>
   <head>
   <meta charset="utf-8" />
@@ -150,44 +161,111 @@ export const TEMPLATES = [
         {{notesLine}} · Issued: {{date}}<div style="margin-top:6px;">Sent via DollarChain</div>
       </div>
     </div>
+
+    <!-- Normalizer script: when itemsRows is not pre-rendered as <tr>s, parse plain-text items string
+         into structured rows (qty, description, unitPrice, total). This keeps templates backward-compatible
+         with older forms that submit a single items string like "2 x Cotton Shirt @ 1800, 1 x Belt @ 1200". -->
+    <script>
+      (function(){
+        function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+        function parseLine(line){
+          line = (line||'').trim();
+          if(!line) return null;
+          var qty='', desc='', unitPrice='', total='';
+          // pattern: "2 x Item @ 1800"
+          var m = line.match(/^(\d+)\s*[x×]\s*(.+?)(?:\s*@\s*([\d,\.]+))?$/i);
+          if(m){ qty = m[1]; desc = m[2].trim(); unitPrice = m[3] ? m[3].trim() : ''; if(unitPrice && qty){ total = ''; } return {qty, desc, unitPrice, total}; }
+          // pattern: "Item - 2 - 1800"
+          m = line.match(/^(.+?)\s*[-–—]\s*(\d+)(?:\s*[-–—]\s*([\d,\.]+))?/);
+          if(m){ desc = m[1].trim(); qty = m[2].trim(); unitPrice = m[3] ? m[3].trim() : ''; return {qty, desc, unitPrice, total}; }
+          // pipe or comma separated: desc | qty | unit
+          var parts = line.split(/\s*\|\s*/);
+          if(parts.length >= 2){ desc = parts[0].trim(); qty = parts[1].trim(); unitPrice = parts[2] ? parts[2].trim() : ''; return {qty, desc, unitPrice, total}; }
+          parts = line.split(/\s*,\s*/);
+          if(parts.length >= 2){ desc = parts[0].trim(); qty = parts[1].trim(); unitPrice = parts[2] ? parts[2].trim() : ''; return {qty, desc, unitPrice, total}; }
+          // leading qty
+          m = line.match(/^(\d+)\s+(.+)$/);
+          if(m){ qty = m[1]; desc = m[2].trim(); return {qty, desc, unitPrice, total}; }
+          // fallback: treat everything as description
+          desc = line; return {qty, desc, unitPrice, total};
+        }
+
+        function normalize(src){
+          if(!src) return [];
+          if(Array.isArray(src)) return src.map(it=>({qty:it.qty||'', desc:it.description||it.name||'', unitPrice:it.unitPrice||it.price||'', total:it.total||''}));
+          var raw = String(src||'');
+          var lines = raw.split(/[\r\n]+|[,•·]+/).map(function(l){return l.trim();}).filter(Boolean);
+          var out = [];
+          for(var i=0;i<lines.length;i++){ var item = parseLine(lines[i]); if(item) out.push(item); }
+          return out;
+        }
+
+        function renderRows(items){
+          return items.map(function(it){
+            return '<tr>' +
+              '<td class="qty">'+escapeHtml(it.qty)+'</td>' +
+              '<td>'+escapeHtml(it.desc)+'</td>' +
+              '<td class="price">'+escapeHtml(it.unitPrice||'')+'</td>' +
+              '<td class="price">'+escapeHtml(it.total||'')+'</td>' +
+              '<td class="price"></td>' +
+              '</tr>';
+          }).join('');
+        }
+
+        try{
+          var tbody = document.querySelector('table.items tbody');
+          if(!tbody) return;
+          // if tbody already has <tr> we assume server-side rendering populated it
+          if(tbody.querySelector('tr')) return;
+          // if placeholder replacement put a single plain-text items string here, normalize it
+          var raw = tbody.textContent || '';
+          // also support a data-items attribute on the table if present
+          var table = document.querySelector('table.items');
+          var dataItems = table && table.getAttribute('data-items');
+          var itemsSource = (dataItems && dataItems.trim()) || raw;
+          var items = normalize(itemsSource);
+          if(items.length) tbody.innerHTML = renderRows(items);
+        }catch(e){ console.error('items normalizer error', e); }
+      })();
+    </script>
   </body>
   </html>`
-  },
-
-  /* Local 2 — modern green invoice (bolder separators) */
-  {
-    id: "local-2",
-    category: "local",
-    name: "Local Classic",
-    thumbnail: "/templates/local-2.png",
-    description: "Balanced print-friendly layout, clear payment area and QR.",
-    options: { width: 480, qr: true, showPaymentLabel: true, currency: "KES" },
-    style: { accentColor: "#15803D", headerBg: "#ffffff", textColor: "#0b1220", suggestedWidth: 480 },
-    sampleData: {
-      sellerName: "DollarChain",
-      sellerLogoUrl: "/logos/dollarchain-logo.png",
-      sellerTagline: "Fast invoices via WhatsApp",
-      sellerAddress: "123 Nairobi Rd\nNairobi, Kenya",
-      sellerPhone: "+254 700 000 000",
-      sellerEmail: "hi@dollarchain.app",
-      buyerName: "James Otieno",
-      buyerPhone: "+254 733 555 121",
-      items: "1x Handmade Bag, 2x Silk Scarf",
-      subtotal: "KES 3,200",
-      total: "KES 3,200",
-      paymentNumber: "Paybill 987654",
-      paymentLabel: "M-Pesa Paybill",
-      paymentNote: "Include invoice #987654 as reference",
-      notesLine: "Packed and ready — deliver within 48 hours",
-      qrDataUrl: "",
-      date: "2025-11-11",
-      dueDate: "2025-11-25",
-      vatPercent: "0",
-      vatAmount: "KES 0",
-      payLink: "#",
-      currency: "KES"
     },
-    html: `<!doctype html>
+
+    /* Local 2 — modern green invoice (bolder separators) */
+    {
+      id: "local-2",
+      category: "local",
+      name: "Local Classic",
+      thumbnail: "/templates/local-2.png",
+      description: "Balanced print-friendly layout, clear payment area and QR.",
+      options: { width: 480, qr: true, showPaymentLabel: true, currency: "KES" },
+      style: { accentColor: "#15803D", headerBg: "#ffffff", textColor: "#0b1220", suggestedWidth: 480 },
+      sampleData: {
+        sellerName: "DollarChain",
+        sellerLogoUrl: "/logos/dollarchain-logo.png",
+        sellerTagline: "Fast invoices via WhatsApp",
+        sellerAddress: "123 Nairobi Rd\nNairobi, Kenya",
+        sellerPhone: "+254 700 000 000",
+        sellerEmail: "hi@dollarchain.app",
+        buyerName: "James Otieno",
+        buyerPhone: "+254 733 555 121",
+        items: "1 x Handmade Bag @ 1200, 2 x Silk Scarf @ 1000",
+        subtotal: "KES 3,200",
+        total: "KES 3,200",
+        paymentNumber: "Paybill 987654",
+        paymentLabel: "M-Pesa Paybill",
+        paymentNote: "Include invoice #987654 as reference",
+        notesLine: "Packed and ready — deliver within 48 hours",
+        qrDataUrl: "",
+        date: "2025-11-11",
+        dueDate: "2025-11-25",
+        vatPercent: "0",
+        vatAmount: "KES 0",
+        payLink: "#",
+        currency: "KES"
+      },
+      html: `<!doctype html>
   <html>
   <head>
   <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
@@ -296,43 +374,65 @@ export const TEMPLATES = [
 
       <div style="margin-top:12px; font-size:12px; color:var(--muted)">{{notesLine}}</div>
     </div>
+
+    <script>
+      (function(){
+        function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+        function parseLine(line){
+          line = (line||'').trim(); if(!line) return null;
+          var qty='', desc='', unitPrice='', total='';
+          var m = line.match(/^(\d+)\s*[x×]\s*(.+?)(?:\s*@\s*([\d,\.]+))?$/i);
+          if(m){ qty = m[1]; desc = m[2].trim(); unitPrice = m[3] ? m[3].trim() : ''; return {qty, desc, unitPrice, total}; }
+          m = line.match(/^(.+?)\s*[-–—]\s*(\d+)(?:\s*[-–—]\s*([\d,\.]+))?/);
+          if(m){ desc = m[1].trim(); qty = m[2].trim(); unitPrice = m[3] ? m[3].trim() : ''; return {qty, desc, unitPrice, total}; }
+          var parts = line.split(/\s*\|\s*/); if(parts.length >= 2){ desc = parts[0].trim(); qty = parts[1].trim(); unitPrice = parts[2] ? parts[2].trim() : ''; return {qty, desc, unitPrice, total}; }
+          parts = line.split(/\s*,\s*/); if(parts.length >= 2){ desc = parts[0].trim(); qty = parts[1].trim(); unitPrice = parts[2] ? parts[2].trim() : ''; return {qty, desc, unitPrice, total}; }
+          m = line.match(/^(\d+)\s+(.+)$/); if(m){ qty = m[1]; desc = m[2].trim(); return {qty, desc, unitPrice, total}; }
+          desc = line; return {qty, desc, unitPrice, total};
+        }
+        function normalize(src){ if(!src) return []; if(Array.isArray(src)) return src.map(it=>({qty:it.qty||'', desc:it.description||it.name||'', unitPrice:it.unitPrice||it.price||'', total:it.total||''}));
+          var raw = String(src||''); var lines = raw.split(/[\r\n]+|[,•·]+/).map(function(l){return l.trim();}).filter(Boolean); var out=[]; for(var i=0;i<lines.length;i++){ var item = parseLine(lines[i]); if(item) out.push(item); } return out; }
+        function renderRows(items){ return items.map(function(it){ return '<tr><td>'+escapeHtml(it.desc)+'</td><td class="price">'+escapeHtml(it.unitPrice||'')+'</td><td class="right">'+escapeHtml(it.qty||'')+'</td><td class="right">'+escapeHtml(it.total||'')+'</td></tr>'; }).join(''); }
+        try{ var tbody = document.querySelector('table.items tbody'); if(!tbody) return; if(tbody.querySelector('tr')) return; var raw = tbody.textContent || ''; var table = document.querySelector('table.items'); var dataItems = table && table.getAttribute('data-items'); var itemsSource = (dataItems && dataItems.trim()) || raw; var items = normalize(itemsSource); if(items.length) tbody.innerHTML = renderRows(items); }catch(e){ console.error('items normalizer error', e); }
+      })();
+    </script>
   </body>
   </html>`
-  },
-
-  /* Local 3 — corporate grey invoice (crisper grey separators) */
-  {
-    id: "local-3",
-    category: "local",
-    name: "Local Narrow",
-    thumbnail: "/templates/local-3.png",
-    description: "Very compact receipt for quick sales and WhatsApp sharing.",
-    options: { width: 320, qr: false, showPaymentLabel: true, currency: "KES" },
-    style: { accentColor: "#111827", headerBg: "#ffffff", textColor: "#07131a", suggestedWidth: 320 },
-    sampleData: {
-      sellerName: "DollarChain",
-      sellerLogoUrl: "/logos/dollarchain-logo.png",
-      sellerTagline: "Fast invoices via WhatsApp",
-      sellerAddress: "123 Nairobi Rd\nNairobi, Kenya",
-      sellerPhone: "+254 700 000 000",
-      buyerName: "Aisha Hassan",
-      buyerPhone: "+254 722 333 444",
-      items: "1x Coffee Mug, 2x Sticker Pack",
-      subtotal: "KES 500",
-      total: "KES 500",
-      paymentNumber: "Phone: +254 722 333 444",
-      paymentLabel: "Phone",
-      paymentNote: "",
-      notesLine: "Thanks for your purchase",
-      qrDataUrl: "",
-      date: "2025-11-11",
-      dueDate: "2025-11-11",
-      vatPercent: "0",
-      vatAmount: "KES 0",
-      payLink: "#",
-      currency: "KES"
     },
-    html: `<!doctype html>
+
+    /* Local 3 — corporate grey invoice (crisper grey separators) */
+    {
+      id: "local-3",
+      category: "local",
+      name: "Local Narrow",
+      thumbnail: "/templates/local-3.png",
+      description: "Very compact receipt for quick sales and WhatsApp sharing.",
+      options: { width: 320, qr: false, showPaymentLabel: true, currency: "KES" },
+      style: { accentColor: "#111827", headerBg: "#ffffff", textColor: "#07131a", suggestedWidth: 320 },
+      sampleData: {
+        sellerName: "DollarChain",
+        sellerLogoUrl: "/logos/dollarchain-logo.png",
+        sellerTagline: "Fast invoices via WhatsApp",
+        sellerAddress: "123 Nairobi Rd\nNairobi, Kenya",
+        sellerPhone: "+254 700 000 000",
+        buyerName: "Aisha Hassan",
+        buyerPhone: "+254 722 333 444",
+        items: "1 x Coffee Mug @ 200, 2 x Sticker Pack @ 150",
+        subtotal: "KES 500",
+        total: "KES 500",
+        paymentNumber: "Phone: +254 722 333 444",
+        paymentLabel: "Phone",
+        paymentNote: "",
+        notesLine: "Thanks for your purchase",
+        qrDataUrl: "",
+        date: "2025-11-11",
+        dueDate: "2025-11-11",
+        vatPercent: "0",
+        vatAmount: "KES 0",
+        payLink: "#",
+        currency: "KES"
+      },
+      html: `<!doctype html>
   <html>
   <head>
   <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
@@ -405,9 +505,36 @@ export const TEMPLATES = [
 
       <div class="foot">Thank you for your business · Sent via DollarChain</div>
     </div>
+
+    <script>
+      (function(){
+        function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+        function parseLine(line){
+          line = (line||'').trim(); if(!line) return null;
+          var qty='', desc='', unitPrice='', total='';
+          var m = line.match(/^(\d+)\s*[x×]\s*(.+?)(?:\s*@\s*([\d,\.]+))?$/i);
+          if(m){ qty = m[1]; desc = m[2].trim(); unitPrice = m[3] ? m[3].trim() : ''; return {qty, desc, unitPrice, total}; }
+          m = line.match(/^(.+?)\s*[-–—]\s*(\d+)(?:\s*[-–—]\s*([\d,\.]+))?/);
+          if(m){ desc = m[1].trim(); qty = m[2].trim(); unitPrice = m[3] ? m[3].trim() : ''; return {qty, desc, unitPrice, total}; }
+          var parts = line.split(/\s*\|\s*/); if(parts.length >= 2){ desc = parts[0].trim(); qty = parts[1].trim(); unitPrice = parts[2] ? parts[2].trim() : ''; return {qty, desc, unitPrice, total}; }
+          parts = line.split(/\s*,\s*/); if(parts.length >= 2){ desc = parts[0].trim(); qty = parts[1].trim(); unitPrice = parts[2] ? parts[2].trim() : ''; return {qty, desc, unitPrice, total}; }
+          m = line.match(/^(\d+)\s+(.+)$/); if(m){ qty = m[1]; desc = m[2].trim(); return {qty, desc, unitPrice, total}; }
+          desc = line; return {qty, desc, unitPrice, total};
+        }
+        function normalize(src){ if(!src) return []; if(Array.isArray(src)) return src.map(it=>({qty:it.qty||'', desc:it.description||it.name||'', unitPrice:it.unitPrice||it.price||'', total:it.total||''}));
+          var raw = String(src||''); var lines = raw.split(/[\r\n]+|[,•·]+/).map(function(l){return l.trim();}).filter(Boolean); var out=[]; for(var i=0;i<lines.length;i++){ var item = parseLine(lines[i]); if(item) out.push(item); } return out; }
+        function renderRows(items){ return items.map(function(it){ return '<tr><td>'+escapeHtml(it.desc)+'</td><td class="price">'+escapeHtml(it.unitPrice||'')+'</td><td class="price">'+escapeHtml(it.qty||'')+'</td></tr>'; }).join(''); }
+        try{ var tbody = document.querySelector('table.items tbody'); if(!tbody) return; if(tbody.querySelector('tr')) return; var raw = tbody.textContent || ''; var table = document.querySelector('table.items'); var dataItems = table && table.getAttribute('data-items'); var itemsSource = (dataItems && dataItems.trim()) || raw; var items = normalize(itemsSource); if(items.length) tbody.innerHTML = renderRows(items); }catch(e){ console.error('items normalizer error', e); }
+      })();
+    </script>
   </body>
   </html>`
-  },
+    }
+  ];
+
+  export function getTemplateById(id) {
+    return TEMPLATES.find((t) => t.id === id) || null;
+  }
 
   /* Row 2: Colour Accent */
   /* ---------- Accent 1: Diagonal / red banner (fixed item placement) ---------- */
