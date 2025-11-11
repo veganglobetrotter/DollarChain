@@ -18,6 +18,16 @@ export const TEMPLATES = [
   export const TEMPLATES = [
     /* Row 1: Localised / Print-Friendly */
     /* Local 1 — classic blue receipt (stronger ruled lines) */
+  // src/lib/templates.js
+  // Templates metadata + HTML fragments for DollarChain invoice templates.
+  // Each template includes an `html` property (template literal) with placeholders like {{sellerName}}, {{itemsRows}}, {{total}}.
+  // Keep placeholders consistent with InvoicePreview builder: {{sellerName}}, {{sellerLogoUrl}}, {{sellerPhone}}, {{sellerEmail}},
+  // {{sellerAddress}}, {{sellerTagline}}, {{invoiceNumber}}, {{date}}, {{buyerName}}, {{buyerPhone}}, {{itemsRows}},
+  // {{subtotal}}, {{total}}, {{paymentNumber}}, {{paymentLabel}}, {{paymentNote}}, {{notesLine}}, {{qrDataUrl}}, {{payLink}}, {{dueDate}}, {{vatPercent}}, {{vatAmount}}.
+
+  export const TEMPLATES = [
+    /* Row 1: Localised / Print-Friendly */
+    /* Local 1 — classic blue receipt (stronger ruled lines) */
     {
       id: "local-1",
       category: "local",
@@ -84,7 +94,7 @@ export const TEMPLATES = [
     table.items td{padding:10px 4px; border-bottom:2px solid rgba(18,58,138,0.08); vertical-align:middle;}
     table.items tbody tr:last-child td{border-bottom:2px dashed rgba(18,58,138,0.12);}
     .qty{width:52px; color:var(--muted); font-size:12px;}
-    .price{width:86px; text-align:right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace; font-size:12px;}
+    .price{width:86px; text-align:right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Roboto Mono, monospace; font-size:12px;}
     .bottomRow{display:flex; justify-content:space-between; align-items:center; margin-top:8px;}
     .noBox{font-size:12px; color:#b91c1c; font-weight:800;}
     .totalBox{background:var(--blue); color:white; padding:6px 8px; border-radius:6px; font-weight:900; min-width:84px; text-align:center; font-size:13px;}
@@ -147,7 +157,7 @@ export const TEMPLATES = [
       <div class="paybox" role="region" aria-label="Payment details">
         <div>
           <div style="font-size:12px;color:var(--muted)">Pay via</div>
-          <div style="font-weight:800;font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;">{{paymentLabel}} · {{paymentNumber}}</div>
+          <div style="font-weight:800;font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Roboto Mono, monospace;">{{paymentLabel}} · {{paymentNumber}}</div>
           <div style="font-size:12px;color:var(--muted); margin-top:6px;">{{paymentNote}}</div>
         </div>
         <div>
@@ -278,7 +288,7 @@ export const TEMPLATES = [
       --muted:#6b7280;
       --text:#0b1220;
       --base-sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      --base-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace;
+      --base-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Roboto Mono, monospace;
     }
     *{box-sizing:border-box}
     body{font-family:var(--base-sans); background:#f6f7f8; display:flex; justify-content:center; padding:18px; -webkit-font-smoothing:antialiased;}
