@@ -6,7 +6,7 @@ export default function AuthModal({ open, onClose, onAuthSuccess }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState("login"); // "login" or "signup" or "magic"
+  const [mode, setMode] = useState("login"); // "login" | "signup" | "magic"
   const [message, setMessage] = useState("");
 
   if (!open) return null;
@@ -15,23 +15,40 @@ export default function AuthModal({ open, onClose, onAuthSuccess }) {
     setLoading(true);
     setMessage("");
     try {
+      if (!email || (mode !== "magic" && !password)) {
+        setMessage("Please provide required fields.");
+        return;
+      }
+
       if (mode === "signup") {
+        // Create account (does not guarantee immediate sign-in depending on Supabase settings)
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        setMessage("Account created — check your email for confirmation.");
-        onAuthSuccess && onAuthSuccess();
+        // If supabase returns a session (rare depending on confirmation settings), call onAuthSuccess
+        if (data?.session) {
+          onAuthSuccess && onAuthSuccess(data.session);
+        } else {
+          setMessage("Account created — check your email to confirm and sign in.");
+        }
       } else if (mode === "magic") {
-        const { data, error } = await supabase.auth.signInWithOtp({ email });
+        // Send magic link (OTP)
+        const { error } = await supabase.auth.signInWithOtp({ email });
         if (error) throw error;
-        setMessage("Check your email — we sent a sign-in link.");
+        setMessage("Check your email — we've sent a sign-in link. After clicking it you'll return signed in.");
       } else {
+        // Password sign-in
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        if (data?.session) onAuthSuccess && onAuthSuccess(data.session);
+        // signInWithPassword returns a session immediately on success
+        if (data?.session) {
+          onAuthSuccess && onAuthSuccess(data.session);
+        } else {
+          setMessage("Signed in (no session returned). Please refresh if UI did not update.");
+        }
       }
     } catch (err) {
-      console.error(err);
-      setMessage(err.message || "Authentication error");
+      console.error("Auth submit error:", err);
+      setMessage(err?.message || "Authentication error");
     } finally {
       setLoading(false);
     }
@@ -39,12 +56,17 @@ export default function AuthModal({ open, onClose, onAuthSuccess }) {
 
   const signInWithGoogle = async () => {
     setLoading(true);
+    setMessage("");
     try {
-      await supabase.auth.signInWithOAuth({ provider: "google" });
+      // Ask Supabase to redirect back to current origin after OAuth flow
+      await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: window.location.origin },
+      });
+      // After this call the browser will redirect to the provider; nothing more to do here.
     } catch (err) {
-      console.error(err);
-      setMessage(err.message || "OAuth error");
-    } finally {
+      console.error("OAuth error:", err);
+      setMessage(err?.message || "OAuth error");
       setLoading(false);
     }
   };
@@ -53,43 +75,72 @@ export default function AuthModal({ open, onClose, onAuthSuccess }) {
     setEmail("");
     setPassword("");
     setMessage("");
+    setLoading(false);
     onClose && onClose();
   };
 
   return (
     <div style={styles.backdrop}>
       <div style={styles.modal} role="dialog" aria-modal="true" aria-label="Sign in">
-        <h3 style={{ marginTop: 0 }}>{mode === "signup" ? "Create an account" : mode === "magic" ? "Sign in with email" : "Sign in"}</h3>
+        <h3 style={{ marginTop: 0 }}>
+          {mode === "signup" ? "Create an account" : mode === "magic" ? "Sign in with email" : "Sign in"}
+        </h3>
 
         <label style={styles.label}>Email</label>
-        <input style={styles.input} value={email} onChange={(e) => setEmail(e.target.value)} />
+        <input
+          style={styles.input}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@company.com"
+          type="email"
+          autoComplete="email"
+        />
 
         {mode !== "magic" && (
           <>
             <label style={styles.label}>Password</label>
-            <input style={styles.input} type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <input
+              style={styles.input}
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Choose a strong password"
+              autoComplete={mode === "signup" ? "new-password" : "current-password"}
+            />
           </>
         )}
 
         <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-          <button style={styles.btnOutline} onClick={handleClose}>Cancel</button>
-          <button style={styles.btnPrimary} onClick={submit} disabled={loading}>
+          <button style={styles.btnOutline} onClick={handleClose} disabled={loading}>
+            Cancel
+          </button>
+          <button
+            style={styles.btnPrimary}
+            onClick={submit}
+            disabled={loading || !email || (mode !== "magic" && !password)}
+          >
             {loading ? "Please wait…" : mode === "signup" ? "Create account" : mode === "magic" ? "Send sign-in link" : "Sign in"}
           </button>
         </div>
 
         <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-          <button style={styles.oauthBtn} onClick={signInWithGoogle}>Sign in with Google</button>
+          <button style={styles.oauthBtn} onClick={signInWithGoogle} disabled={loading}>
+            Sign in with Google
+          </button>
         </div>
 
         <div style={{ marginTop: 12, color: "#6b7280", fontSize: 13 }}>
           {message && <div style={{ marginBottom: 8 }}>{message}</div>}
           {mode === "signup" ? "Already have an account?" : "No account?"}{" "}
-          <button style={styles.toggle} onClick={() => setMode(mode === "signup" ? "login" : "signup")}>
+          <button
+            style={styles.toggle}
+            onClick={() => setMode(mode === "signup" ? "login" : "signup")}
+            disabled={loading}
+          >
             {mode === "signup" ? "Sign in" : "Create one"}
           </button>
           {" | "}
-          <button style={styles.toggle} onClick={() => setMode(mode === "magic" ? "login" : "magic")}>
+          <button style={styles.toggle} onClick={() => setMode(mode === "magic" ? "login" : "magic")} disabled={loading}>
             {mode === "magic" ? "Use password" : "Use magic link"}
           </button>
         </div>

@@ -106,35 +106,78 @@ export function UserProvider({ children }) {
 
   useEffect(() => {
     let mounted = true;
+    let cleanupListener = null;
 
     (async () => {
       setLoading(true);
+
+      // 1) Read current session synchronously
       const u = await refreshUser();
       if (!mounted) return;
-      await refreshProfile(u);
-      if (!mounted) return;
-      await refreshWallet(u);
-      if (!mounted) return;
-      setLoading(false);
-    })();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      const u = session?.user ?? null;
-      setUser(u);
-      if (!u) {
-        setProfile(null);
-        setWallet({ credits_bigint: 0 });
-        setTransactions([]);
-        return;
+      // 2) If signed in, fetch profile and wallet
+      if (u?.id) {
+        await refreshProfile(u);
+        if (!mounted) return;
+        await refreshWallet(u);
+        if (!mounted) return;
       }
-      refreshProfile(u).catch((e) => console.warn("refreshProfile after auth change failed:", e));
-      refreshWallet(u).catch((e) => console.warn("refreshWallet after auth change failed:", e));
-    });
+
+      setLoading(false);
+
+      // 3) If this page load looks like an OAuth/magic-link redirect (contains access_token or type query),
+      // re-check session once more to ensure we capture the post-redirect session.
+      try {
+        if (typeof window !== "undefined") {
+          const url = new URL(window.location.href);
+          const hasAuthFragment = window.location.hash.includes("access_token") || url.searchParams.has("type") || url.searchParams.has("provider");
+          if (hasAuthFragment) {
+            const { data } = await supabase.auth.getSession();
+            const postUser = data?.session?.user ?? null;
+            if (postUser) {
+              setUser(postUser);
+              await refreshProfile(postUser);
+              await refreshWallet(postUser);
+
+              // Clean the URL to remove auth fragments so future refreshes are clean
+              try {
+                const cleanUrl = window.location.origin + window.location.pathname;
+                window.history.replaceState({}, document.title, cleanUrl);
+              } catch (e) {
+                // ignore
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("post-redirect session check failed:", e);
+      }
+
+      // 4) Subscribe to auth changes
+      try {
+        const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+          const u = session?.user ?? null;
+          setUser(u);
+          if (!u) {
+            setProfile(null);
+            setWallet({ credits_bigint: 0 });
+            setTransactions([]);
+            return;
+          }
+          refreshProfile(u).catch((e) => console.warn("refreshProfile after auth change failed:", e));
+          refreshWallet(u).catch((e) => console.warn("refreshWallet after auth change failed:", e));
+        });
+
+        cleanupListener = listener;
+      } catch (e) {
+        console.warn("failed to attach auth listener:", e);
+      }
+    })();
 
     return () => {
       mounted = false;
-      if (authListener && typeof authListener.subscription?.unsubscribe === "function") {
-        authListener.subscription.unsubscribe();
+      if (cleanupListener && typeof cleanupListener.subscription?.unsubscribe === "function") {
+        cleanupListener.subscription.unsubscribe();
       }
     };
   }, []);
