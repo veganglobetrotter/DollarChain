@@ -30,6 +30,9 @@ import Settings from "./components/Settings";
 import TemplateGallery from "./components/TemplateGallery";
 import { getTemplateById } from "./lib/templates";
 
+// --- NEW: Landing page (public)
+import Landing from "./pages/landing";
+
 function App() {
   const [parsedData, setParsedData] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -504,6 +507,21 @@ function App() {
       })
     );
   };
+
+  // -------------------------
+  // EARLY ROUTE: Landing path
+  // -------------------------
+  // If the user is visiting /landing, render the public landing page only.
+  // This keeps the public surface separate from the protected SPA shell.
+  if (typeof window !== "undefined" && window.location.pathname === "/landing") {
+    return (
+      <ToastProvider>
+        <UserProvider>
+          <Landing />
+        </UserProvider>
+      </ToastProvider>
+    );
+  }
 
   return (
     <ToastProvider>
