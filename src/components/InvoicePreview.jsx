@@ -166,28 +166,178 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
     }
   }, [templateId]);
 
+  // ------------------------
+  // Parsing helpers & robust row builder
+  // ------------------------
+
+  // parse numeric string like "KES 1,200" => 1200
+  function parseNumber(s) {
+    if (s === null || s === undefined) return NaN;
+    const cleaned = String(s).replace(/[^\d.-]/g, "").replace(/,+/g, "");
+    return cleaned === "" ? NaN : Number(cleaned);
+  }
+
+  function formatMoneyParts(n) {
+    if (isNaN(n)) return { whole: "", cents: "00" };
+    const rounded = Math.round(Math.abs(n) * 100) / 100;
+    const whole = Math.floor(rounded);
+    const cents = Math.round((rounded - whole) * 100).toString().padStart(2, "0");
+    return { whole: whole.toLocaleString("en-GB"), cents };
+  }
+
+  // Improved rows builder: outputs column-aware <tr> markup for known templates (local-1, local-2)
   const buildItemsRowsHtml = (rows) => {
     if (!rows || rows.length === 0) return "<tr><td colspan='2' style='color:#6b7280;padding:8px 6px'>No items</td></tr>";
-    // produce simple rows where each row shows "qty x name" in first column and blank second column
-    return rows
-      .map((r) => {
-        // parse qty and name from "2x Item" or "Item x2"
-        let qty = "1";
-        let name = r;
-        const m1 = r.match(/^(\d+)\s*x\s*(.+)$/i);
-        if (m1) {
-          qty = m1[1];
-          name = m1[2];
-        } else {
-          const m2 = r.match(/^(.+?)\s*x\s*(\d+)$/i);
-          if (m2) {
-            name = m2[1].trim();
-            qty = m2[2];
-          }
+
+    const tplId = selectedTemplate?.id || "";
+
+    const lines = rows.map(r => (typeof r === "string" ? r.trim() : String(r))).filter(Boolean);
+
+    const out = lines.map((line) => {
+      // 1) "2x Cotton Shirt @ 1800"
+      let m = line.match(/^(\d+)\s*[x×]\s*(.+?)\s*@\s*([KkEeSs\s]*[\d,\.]+)$/i);
+      if (m) {
+        const qty = m[1];
+        const desc = m[2].trim();
+        const unitNum = parseNumber(m[3]);
+        const totalNum = isNaN(unitNum) ? NaN : qty * unitNum;
+
+        if (tplId === "local-1") {
+          const mp = formatMoneyParts(totalNum);
+          return `<tr>
+            <td class="qtyCol">${qty}x</td>
+            <td class="descCol">${escapeHtml(desc)}</td>
+            <td class="unitCol" style="text-align:right">${isNaN(unitNum) ? "" : Math.round(unitNum).toLocaleString("en-GB")}</td>
+            <td class="kshCol" style="text-align:right">${mp.whole}</td>
+            <td class="ctsCol" style="text-align:right">${mp.cents}</td>
+          </tr>`;
+        } else if (tplId === "local-2") {
+          const amount = isNaN(totalNum) ? "" : Math.round(totalNum).toLocaleString("en-GB");
+          return `<tr>
+            <td>${escapeHtml(desc)}</td>
+            <td class="right">${isNaN(unitNum) ? "" : Math.round(unitNum).toLocaleString("en-GB")}</td>
+            <td class="right">${qty}x</td>
+            <td class="right">${amount}</td>
+          </tr>`;
         }
-        return `<tr style="border-top:1px solid #f1f5f9"><td style="padding:8px 6px">${qty}x ${escapeHtml(name)}</td><td style="padding:8px 6px; text-align:right">${""}</td></tr>`;
-      })
-      .join("");
+      }
+
+      // 2) pipe-delimited "desc | qty | unit | total"
+      let parts = line.split(/\s*\|\s*/);
+      if (parts.length >= 2) {
+        const desc = parts[0].trim();
+        const p1 = parts[1] || "";
+        const p2 = parts[2] || "";
+        const p3 = parts[3] || "";
+        const p1Num = parseNumber(p1);
+        const p2Num = parseNumber(p2);
+        const p3Num = parseNumber(p3);
+
+        if (tplId === "local-1") {
+          const qty = p1;
+          const unit = !isNaN(p2Num) ? p2Num : p2;
+          const total = !isNaN(p3Num) ? p3Num : (!isNaN(p2Num) && !isNaN(Number(qty)) ? p2Num * Number(qty) : NaN);
+          const mp = formatMoneyParts(total);
+          return `<tr>
+            <td class="qtyCol">${escapeHtml(qty ? String(qty).replace(/\s*$/,'') : '')}</td>
+            <td class="descCol">${escapeHtml(desc)}</td>
+            <td class="unitCol" style="text-align:right">${isNaN(unit) ? escapeHtml(unit) : Math.round(unit).toLocaleString("en-GB")}</td>
+            <td class="kshCol" style="text-align:right">${mp.whole}</td>
+            <td class="ctsCol" style="text-align:right">${mp.cents}</td>
+          </tr>`;
+        } else if (tplId === "local-2") {
+          // interpret as desc | rate | qty | amount
+          const rate = !isNaN(p1Num) && parts.length === 4 ? p1Num : (!isNaN(p2Num) && parts.length >= 3 ? p2Num : NaN);
+          const qty = parts.length === 4 ? parts[2] : (parts[1] && isNaN(p1Num) ? parts[1] : "");
+          const amount = !isNaN(p3Num) ? p3Num : (!isNaN(rate) && qty ? rate * Number(String(qty).replace(/[^\d]/g,'')) : NaN);
+          return `<tr>
+            <td>${escapeHtml(desc)}</td>
+            <td class="right">${isNaN(rate) ? "" : Math.round(rate).toLocaleString("en-GB")}</td>
+            <td class="right">${escapeHtml(qty)}</td>
+            <td class="right">${isNaN(amount) ? "" : Math.round(amount).toLocaleString("en-GB")}</td>
+          </tr>`;
+        }
+      }
+
+      // 3) comma-separated: desc, qty, unit, total
+      parts = line.split(/\s*,\s*/);
+      if (parts.length >= 2) {
+        if (tplId === "local-1") {
+          const desc = parts[0].trim();
+          const qty = parts[1].trim();
+          const unit = parts[2] ? parts[2].trim() : "";
+          const total = parts[3] ? parseNumber(parts[3]) : ((!isNaN(parseNumber(unit)) && !isNaN(Number(qty))) ? parseNumber(unit) * Number(qty) : NaN);
+          const mp = formatMoneyParts(total);
+          return `<tr>
+            <td class="qtyCol">${escapeHtml(qty ? (qty+'') : '')}</td>
+            <td class="descCol">${escapeHtml(desc)}</td>
+            <td class="unitCol" style="text-align:right">${isNaN(parseNumber(unit)) ? escapeHtml(unit) : Math.round(parseNumber(unit)).toLocaleString("en-GB")}</td>
+            <td class="kshCol" style="text-align:right">${mp.whole}</td>
+            <td class="ctsCol" style="text-align:right">${mp.cents}</td>
+          </tr>`;
+        } else if (tplId === "local-2") {
+          const desc = parts[0].trim();
+          const qty = parts[1].trim();
+          const rate = parts[2] ? parseNumber(parts[2]) : NaN;
+          const amount = parts[3] ? parseNumber(parts[3]) : (!isNaN(rate) ? rate * Number(String(qty).replace(/[^\d]/g,'')) : NaN);
+          return `<tr>
+            <td>${escapeHtml(desc)}</td>
+            <td class="right">${isNaN(rate) ? "" : Math.round(rate).toLocaleString("en-GB")}</td>
+            <td class="right">${escapeHtml(qty)}</td>
+            <td class="right">${isNaN(amount) ? "" : Math.round(amount).toLocaleString("en-GB")}</td>
+          </tr>`;
+        }
+      }
+
+      // 4) "2 Cotton Shirt" fallback
+      m = line.match(/^(\d+)\s+[x×]?\s*(.+)$/i);
+      if (m) {
+        const qty = m[1];
+        const desc = m[2].trim();
+        if (tplId === "local-1") {
+          return `<tr>
+            <td class="qtyCol">${qty}x</td>
+            <td class="descCol">${escapeHtml(desc)}</td>
+            <td class="unitCol" style="text-align:right"></td>
+            <td class="kshCol" style="text-align:right"></td>
+            <td class="ctsCol" style="text-align:right">00</td>
+          </tr>`;
+        } else if (tplId === "local-2") {
+          return `<tr>
+            <td>${escapeHtml(desc)}</td>
+            <td class="right"></td>
+            <td class="right">${qty}x</td>
+            <td class="right"></td>
+          </tr>`;
+        }
+      }
+
+      // fallback: put content into description cell for known templates
+      if (tplId === "local-1") {
+        return `<tr>
+          <td class="qtyCol"></td>
+          <td class="descCol">${escapeHtml(line)}</td>
+          <td class="unitCol" style="text-align:right"></td>
+          <td class="kshCol" style="text-align:right"></td>
+          <td class="ctsCol" style="text-align:right">00</td>
+        </tr>`;
+      } else if (tplId === "local-2") {
+        return `<tr>
+          <td>${escapeHtml(line)}</td>
+          <td class="right"></td>
+          <td class="right"></td>
+          <td class="right"></td>
+        </tr>`;
+      } else {
+        // safe generic fallback (keeps previous behaviour)
+        const idx = line.indexOf(" ");
+        const first = idx === -1 ? line : line.slice(0, idx);
+        const rest = idx === -1 ? "" : line.slice(idx + 1);
+        return `<tr style="border-top:1px solid #f1f5f9"><td style="padding:8px 6px">${escapeHtml(first)}</td><td style="padding:8px 6px; text-align:right">${escapeHtml(rest)}</td></tr>`;
+      }
+    });
+
+    return out.join("");
   };
 
   const escapeHtml = (str) => {
@@ -272,10 +422,10 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
               title="invoice-template-preview"
               srcDoc={renderedTemplateHtml}
               style={{ width: "100%", minHeight: 420, border: 0 }}
-              /* IMPORTANT: allow-scripts is required so template-included parsing scripts can run.
-                 Without it, the iframe is sandboxed and inline <script> inside srcdoc is blocked,
-                 which is why item rows remained bundled earlier. Only enable for trusted template HTML. */
-              sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+              /* SECURITY: Removed allow-scripts so srcdoc cannot run arbitrary JS.
+                 We now generate full table rows on the React side (buildItemsRowsHtml),
+                 so the preview no longer needs to execute template scripts. */
+              sandbox="allow-same-origin allow-popups allow-forms"
             />
           </div>
         </div>
