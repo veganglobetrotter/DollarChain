@@ -31,8 +31,11 @@ export default function AuthModal({ open, onClose, onAuthSuccess }) {
           setMessage("Account created — check your email to confirm and sign in.");
         }
       } else if (mode === "magic") {
-        // Send magic link (OTP)
-        const { error } = await supabase.auth.signInWithOtp({ email });
+        // Send magic link (OTP) and force redirect to production origin
+        const { error } = await supabase.auth.signInWithOtp({
+          email,
+          options: { emailRedirectTo: "https://www.dollarchain.store" },
+        });
         if (error) throw error;
         setMessage("Check your email — we've sent a sign-in link. After clicking it you'll return signed in.");
       } else {
