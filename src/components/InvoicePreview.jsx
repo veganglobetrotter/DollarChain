@@ -1,4 +1,3 @@
-// src/components/InvoicePreview.jsx
 import React, { useState, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import generateInvoicePdfBlob from "../lib/pdf";
@@ -273,7 +272,10 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
               title="invoice-template-preview"
               srcDoc={renderedTemplateHtml}
               style={{ width: "100%", minHeight: 420, border: 0 }}
-              sandbox="allow-same-origin allow-popups allow-forms"
+              /* IMPORTANT: allow-scripts is required so template-included parsing scripts can run.
+                 Without it, the iframe is sandboxed and inline <script> inside srcdoc is blocked,
+                 which is why item rows remained bundled earlier. Only enable for trusted template HTML. */
+              sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
             />
           </div>
         </div>
