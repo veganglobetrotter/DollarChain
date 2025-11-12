@@ -152,50 +152,65 @@ export const TEMPLATES = [
 
     <script>
       (function normalizeItems(tbodyId){
+        // Robust extraction of raw items text from many renderers:
+        function extractRaw(tbody){
+          // 1) explicit data attribute (preferred if you use it in server render)
+          if(tbody.dataset && tbody.dataset.items) return tbody.dataset.items;
+          // 2) prefer innerText (gives visible text), fall back to textContent
+          var text = (tbody.innerText || tbody.textContent || '').trim();
+          if(text) return text;
+          // 3) if innerHTML contains <br> / divs, replace with comma separators and strip tags
+          var html = tbody.innerHTML || '';
+          if(!html) return '';
+          // normalize common separators to comma
+          html = html.replace(/<br\s*\/?>/gi, ', ')
+                     .replace(/<\/(div|p|span|li)>/gi, ', ')
+                     .replace(/<li[^>]*>/gi, ', ')
+                     .replace(/<[^>]+>/g, '');
+          return html.replace(/\\s{2,}/g,' ').trim();
+        }
+
         function toNumber(s){ if(s == null || s === '') return null; return Number(String(s).replace(/[,\\s]+/g,'').replace(/[^0-9.\\-]/g,'')); }
-        function fmt(n){ if(n==null || isNaN(n)) return ''; return n.toLocaleString(undefined, {maximumFractionDigits:2}); }
+        function fmt(n){ if(n==null || isNaN(n)) return ''; return Math.round(n).toLocaleString(); }
+
         var tbody = document.getElementById(tbodyId);
         if(!tbody) return;
-        // if already has rows, assume structured content was provided
+        // if already has <tr> rows, assume structured content was provided — don't touch
         if(tbody.querySelector('tr')) return;
-        var raw = tbody.textContent || '';
+
+        var raw = extractRaw(tbody);
+        if(!raw) return;
+
         var lines = raw.split(/[,•·\\n]+/).map(function(l){ return l.trim(); }).filter(Boolean);
         if(lines.length === 0) return;
+
         var frag = document.createDocumentFragment();
         lines.forEach(function(line){
-          // Expect formats like:
+          // Normalise several common forms:
           // "2x Cotton Shirt @ 1800"
+          // "2 x Cotton Shirt @ 1,800"
           // "Cotton Shirt - 2 - 1800"
           // "Cotton Shirt | 2 | 1800"
+          // "Cotton Shirt,2,1800"
           var qty='', desc='', unit='';
+          // Attempt: qty at start with optional 'x', with optional @unit at end
           var m = line.match(/^\\s*(\\d+)\\s*[x×]?\\s+(.+?)\\s*(?:@\\s*([\\d,\\.]+))?\\s*$/i)
-                 || line.match(/^\\s*(.+?)\\s*[-–—]\\s*(\\d+)\\s*(?:[-–—]\\s*([\\d,.]+))?\\s*$/);
+                 || line.match(/^\\s*(.+?)\\s*[-–—|]\\s*(\\d+)\\s*(?:[-–—|]\\s*([\\d,.]+))?\\s*$/);
           if(m){
             if(m.length === 4 && /^\d+$/.test(m[1]) && line.indexOf('@') !== -1){
-              qty = m[1];
-              desc = m[2];
-              unit = m[3] || '';
+              qty = m[1]; desc = m[2]; unit = m[3] || '';
             } else if(m.length === 4 && /^\d+$/.test(m[1]) && line.indexOf('@') === -1 && m[3]==null){
-              // matched first form without @ but with qty at start
-              qty = m[1];
-              desc = m[2];
-              unit = '';
+              qty = m[1]; desc = m[2]; unit = '';
             } else {
-              // desc - qty - unit style (m[1]=desc)
-              desc = m[1];
-              qty = m[2] || '';
-              unit = m[3] || '';
+              desc = m[1]; qty = m[2] || ''; unit = m[3] || '';
             }
           } else {
             var parts = line.split(/\\s*\\|\\s*|\\s*,\\s*/);
             if(parts.length >= 2 && parts[1].match(/^\\d+$/)){
-              desc = parts[0];
-              qty = parts[1];
-              unit = parts[2] || '';
+              desc = parts[0]; qty = parts[1]; unit = parts[2] || '';
             } else {
               var m2 = line.match(/^(\\d+)\\s+(.+)$/);
-              if(m2){ qty = m2[1]; desc = m2[2]; }
-              else { desc = line; }
+              if(m2){ qty = m2[1]; desc = m2[2]; } else { desc = line; }
             }
           }
 
@@ -211,23 +226,19 @@ export const TEMPLATES = [
           var cents = '';
           if(lineTotal !== '' && !isNaN(lineTotal)){
             var parts = String(lineTotal).split('.');
-            cents = parts[1] ? parts[1].padEnd(2,'0').slice(0,2) : '00';
+            cents = parts[1] ? (parts[1].padEnd(2,'0').slice(0,2)) : '00';
           }
 
-          // build row: QTY | Description | @ (unit) | KSHS (line total) | CTS
           var tr = document.createElement('tr');
           var tdQty = document.createElement('td'); tdQty.className = 'qty'; tdQty.textContent = qty ? (String(qty) + 'x') : '';
           var tdDesc = document.createElement('td'); tdDesc.textContent = desc || '';
           var tdUnit = document.createElement('td'); tdUnit.className = 'price'; tdUnit.textContent = unitVal != null ? fmt(unitVal) : (unit || '');
           var tdKsh = document.createElement('td'); tdKsh.className = 'price'; tdKsh.textContent = (lineTotal !== '' && !isNaN(lineTotal)) ? fmt(Math.trunc(lineTotal)) : '';
           var tdCts = document.createElement('td'); tdCts.className = 'price'; tdCts.textContent = cents || '';
-          tr.appendChild(tdQty);
-          tr.appendChild(tdDesc);
-          tr.appendChild(tdUnit);
-          tr.appendChild(tdKsh);
-          tr.appendChild(tdCts);
+          tr.appendChild(tdQty); tr.appendChild(tdDesc); tr.appendChild(tdUnit); tr.appendChild(tdKsh); tr.appendChild(tdCts);
           frag.appendChild(tr);
         });
+
         tbody.innerHTML = '';
         tbody.appendChild(frag);
       })('items-local-1');
@@ -378,38 +389,41 @@ export const TEMPLATES = [
 
     <script>
       (function normalizeItems(tbodyId){
+        function extractRaw(tbody){
+          if(tbody.dataset && tbody.dataset.items) return tbody.dataset.items;
+          var text = (tbody.innerText || tbody.textContent || '').trim();
+          if(text) return text;
+          var html = tbody.innerHTML || '';
+          if(!html) return '';
+          html = html.replace(/<br\s*\/?>/gi, ', ')
+                     .replace(/<\/(div|p|span|li)>/gi, ', ')
+                     .replace(/<li[^>]*>/gi, ', ')
+                     .replace(/<[^>]+>/g, '');
+          return html.replace(/\\s{2,}/g,' ').trim();
+        }
         function toNumber(s){ if(s == null || s === '') return null; return Number(String(s).replace(/[,\\s]+/g,'').replace(/[^0-9.\\-]/g,'')); }
-        function fmt(n){ if(n==null || isNaN(n)) return ''; return n.toLocaleString(undefined, {maximumFractionDigits:2}); }
+        function fmt(n){ if(n==null || isNaN(n)) return ''; return Math.round(n).toLocaleString(); }
+
         var tbody = document.getElementById(tbodyId);
         if(!tbody) return;
         if(tbody.querySelector('tr')) return;
-        var raw = tbody.textContent || '';
+        var raw = extractRaw(tbody);
+        if(!raw) return;
         var lines = raw.split(/[,•·\\n]+/).map(function(l){ return l.trim(); }).filter(Boolean);
         if(lines.length === 0) return;
         var frag = document.createDocumentFragment();
         lines.forEach(function(line){
-          // Accept forms like:
-          // "Handmade Bag @ 1200 x1"
-          // "Handmade Bag @ 1200, 1" or "Handmade Bag - 1 - 1200"
           var desc='', qty='', rate='';
           var m = line.match(/^\\s*(.+?)\\s*@\\s*([\\d,\\.]+)\\s*[x×]?\\s*(\\d+)?\\s*$/i)
                   || line.match(/^\\s*(\\d+)\\s*[x×]\\s*(.+?)\\s*(?:@\\s*([\\d,.]+))?\\s*$/i)
-                  || line.match(/^\\s*(.+?)\\s*[-–—]\\s*(\\d+)\\s*(?:[-–—]\\s*([\\d,.]+))?\\s*$/);
+                  || line.match(/^\\s*(.+?)\\s*[-–—|]\\s*(\\d+)\\s*(?:[-–—|]\\s*([\\d,.]+))?\\s*$/);
           if(m){
-            if(m.length===4 && /^[\\d,.]+$/.test(m[2]) && (m[3] || m[1])){
-              // form: desc @ rate [qty]
-              desc = m[1];
-              rate = m[2] || '';
-              qty = m[3] || '1';
-            } else if(m.length===4 && /^\d+$/.test(m[1])){
-              // form: qty x desc [@ rate]
-              qty = m[1];
-              desc = m[2];
-              rate = m[3] || '';
+            if(m.length===4 && /^[\\d,.]+$/.test(String(m[2])) && (m[3] || m[1])){
+              desc = m[1]; rate = m[2] || ''; qty = m[3] || '1';
+            } else if(m.length===4 && /^\\d+$/.test(m[1])){
+              qty = m[1]; desc = m[2]; rate = m[3] || '';
             } else {
-              desc = m[1];
-              qty = m[2] || '';
-              rate = m[3] || '';
+              desc = m[1]; qty = m[2] || ''; rate = m[3] || '';
             }
           } else {
             var parts = line.split(/\\s*\\|\\s*|\\s*,\\s*/);
@@ -417,18 +431,13 @@ export const TEMPLATES = [
               desc = parts[0]; qty = parts[1]; rate = parts[2] || '';
             } else {
               var m2 = line.match(/^(\\d+)\\s+(.+)$/);
-              if(m2){ qty = m2[1]; desc = m2[2]; }
-              else { desc = line; qty = ''; rate = ''; }
+              if(m2){ qty = m2[1]; desc = m2[2]; } else { desc = line; qty=''; rate=''; }
             }
           }
 
           var qtyVal = toNumber(qty) || (qty?Number(qty):null);
           var rateVal = toNumber(rate);
-          if(qtyVal == null && rateVal != null){
-            // If qty not provided but rate present, assume qty 1
-            qtyVal = 1;
-            qty = '1';
-          }
+          if(qtyVal == null && rateVal != null){ qtyVal = 1; qty = '1'; }
           var amount = (rateVal != null && qtyVal != null) ? (rateVal * qtyVal) : (rateVal != null ? rateVal : '');
 
           var tr = document.createElement('tr');
@@ -561,12 +570,12 @@ export const TEMPLATES = [
         var tbody = document.getElementById(tbodyId);
         if(!tbody) return;
         if(tbody.querySelector('tr')) return;
-        var raw = tbody.textContent || '';
+        var raw = (tbody.dataset && tbody.dataset.items) ? tbody.dataset.items : (tbody.innerText || tbody.textContent || tbody.innerHTML.replace(/<br\\s*\\/?/gi,', '));
+        if(!raw) return;
         var lines = raw.split(/[,•·\\n]+/).map(function(l){ return l.trim(); }).filter(Boolean);
         if(lines.length === 0) return;
         var frag = document.createDocumentFragment();
         lines.forEach(function(line){
-          // Parse "2x Item @ 350" or similar, keep compact layout (desc + qty suffix)
           var qty='', desc='', unit='';
           var m = line.match(/^\\s*(\\d+)\\s*[x×]?\\s+(.+?)\\s*(?:@\\s*([\\d,\\.]+))?\\s*$/i)
                   || line.match(/^\\s*(.+?)\\s*[-–—]\\s*(\\d+)\\s*(?:[-–—]\\s*([\\d,.]+))?\\s*$/);
@@ -588,8 +597,7 @@ export const TEMPLATES = [
           var qtyVal = toNumber(qty) || (qty?Number(qty):null);
           var amount = (rateVal != null && qtyVal != null) ? (rateVal * qtyVal) : (rateVal != null ? rateVal : '');
           var tr = document.createElement('tr');
-          var tdDesc = document.createElement('td'); tdDesc.className='descCol';
-          tdDesc.textContent = desc + (qty ? ('  ×' + qty) : '');
+          var tdDesc = document.createElement('td'); tdDesc.textContent = desc + (qty ? ('  ×' + qty) : '');
           var tdAmt = document.createElement('td'); tdAmt.className='amtCol'; tdAmt.textContent = amount!==''? fmt(amount) : '';
           tr.appendChild(tdDesc); tr.appendChild(tdAmt);
           frag.appendChild(tr);
