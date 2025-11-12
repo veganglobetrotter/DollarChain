@@ -6,7 +6,7 @@
 // {{subtotal}}, {{total}}, {{paymentNumber}}, {{paymentLabel}}, {{paymentNote}}, {{notesLine}}, {{qrDataUrl}}, {{payLink}}, {{dueDate}}, {{vatPercent}}, {{vatAmount}}.
 
 export const TEMPLATES = [
-  /* Row 1: Localised / Print-Friendly */
+  /* Local 1 — classic blue receipt (stronger ruled lines) */
   {
     id: "local-1",
     category: "local",
@@ -14,7 +14,7 @@ export const TEMPLATES = [
     thumbnail: "/templates/local-1.png",
     description: "Narrow receipt style, mobile-first, M-Pesa / Paybill friendly.",
     options: { width: 360, qr: true, showPaymentLabel: true, currency: "KES" },
-    style: { accentColor: "#1a8917", headerBg: "#ffffff", textColor: "#0b1220", suggestedWidth: 360 },
+    style: { accentColor: "#123A8A", headerBg: "#ffffff", textColor: "#0b1220", suggestedWidth: 360 },
     sampleData: {
       sellerName: "DollarChain",
       sellerLogoUrl: "/logos/dollarchain-logo.png",
@@ -31,7 +31,7 @@ export const TEMPLATES = [
       paymentLabel: "M-Pesa Paybill",
       paymentNote: "Use invoice #123456 as reference",
       notesLine: "Thank you — please keep this receipt",
-      qrDataUrl: "", // optional
+      qrDataUrl: "",
       date: "2025-11-11",
       dueDate: "2025-11-18",
       vatPercent: "0",
@@ -40,108 +40,120 @@ export const TEMPLATES = [
       currency: "KES"
     },
     html: `<!doctype html>
-<html>
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Invoice — Local Compact</title>
-<style>
-  :root{
-    --page-bg: #ffffff;
-    --text: #0b1220;
-    --muted: #6b7280;
-    --accent: #1a8917;
-    --paper-width: 360px;
-    --pad: 14px;
-    --radius: 10px;
-    --base-font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-  }
-  * { box-sizing: border-box; }
-  body{font-family:var(--base-font); color:var(--text); background: #f6f7f8; padding: 18px; display:flex; justify-content:center; -webkit-font-smoothing:antialiased;}
-  .paper{width:var(--paper-width); background:var(--page-bg); padding:var(--pad); border-radius:var(--radius); box-shadow: 0 8px 30px rgba(10,10,10,0.04);}
-  .hdr{display:flex; gap:10px; align-items:center; margin-bottom:8px;}
-  .logo{width:56px; height:56px; border-radius:8px; background:#f3f4f6; object-fit:contain;}
-  .seller{font-weight:800; font-size:14px; letter-spacing:0.2px;}
-  .meta{font-size:12px; color:var(--muted); white-space:pre-line;}
-  .divider{height:1px; background:#eef2f6; margin:10px 0;}
-  .items{width:100%; border-collapse:collapse; font-size:13px;}
-  .items th{font-weight:700; font-size:12px; text-align:left; padding:8px 0; color:var(--muted);}
-  .items td{padding:8px 0; border-bottom:1px dashed #eef2f6; vertical-align:middle;}
-  .item-name{font-weight:500;}
-  .item-qty{color:var(--muted); font-size:12px; padding-left:6px;}
-  .right{text-align:right;}
-  .subtotalRow{display:flex; justify-content:space-between; margin-top:10px; color:var(--muted); font-size:13px;}
-  .total{font-weight:900; font-size:16px; margin-top:6px; text-align:right;}
-  .paybox{background:#f9faf9; border:1px solid #eef6ee; padding:10px; border-radius:8px; margin-top:12px; font-size:13px; display:flex; justify-content:space-between; align-items:center;}
-  .paybox .label{font-size:12px; color:var(--muted);}
-  .paybox .number{font-weight:800; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace;}
-  .qr{width:78px; height:78px; background:#fff; border-radius:6px; display:inline-block; object-fit:contain;}
-  .foot{font-size:11px; color:var(--muted); margin-top:12px; text-align:center; white-space:pre-line;}
-  @media print{ body{background:transparent} .paper{box-shadow:none; border: none;} }
-</style>
-</head>
-<body>
-  <div class="paper" role="article" aria-label="Invoice receipt">
-    <div class="hdr">
-      <img src="{{sellerLogoUrl}}" alt="{{sellerName}} logo" class="logo" onerror="this.style.display='none'"/>
-      <div style="flex:1;">
-        <div class="seller">{{sellerName}}</div>
-        <div class="meta">{{sellerAddress}} · {{sellerPhone}}</div>
+  <html>
+  <head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Invoice — Local Compact</title>
+  <style>
+    :root{
+      --paper-w:360px;
+      --pad:10px;
+      --blue:#123A8A;
+      --muted:#6b7280;
+      --text:#0b1220;
+      --base-serif: "Merriweather", Georgia, "Times New Roman", serif;
+      --base-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{font-family:var(--base-sans); background:#f7f8fb; padding:18px; display:flex; justify-content:center; -webkit-font-smoothing:antialiased;}
+    .paper{width:var(--paper-w); background:#fff; padding:var(--pad); border-radius:6px; box-shadow:0 8px 22px rgba(8,12,16,0.05); border:1px solid #e6eef9; line-height:1.18;}
+    .topPill{display:block; width:86px; margin:6px auto 4px; text-align:center; background:var(--blue); color:white; font-weight:900; padding:4px 6px; border-radius:6px; letter-spacing:1px; font-size:11px; font-family:var(--base-serif)}
+    .company{font-weight:900; color:var(--blue); text-align:center; font-size:14px; margin-bottom:4px; font-family:var(--base-serif)}
+    .meta{font-size:11px; color:var(--muted); text-align:center; white-space:pre-line; margin-bottom:8px;}
+    .formRow{display:flex; gap:8px; font-size:12px; margin:6px 0; align-items:center;}
+    .formRow .label{min-width:48px; color:var(--muted); font-size:11px;}
+    .formLine{flex:1; border-bottom:2px solid #eef4ff; padding:6px 4px; font-weight:700; font-size:13px;}
+    .divider{height:1px; background:#eef2f6; margin:10px 0;}
+    /* ===== stronger, visible item lines ===== */
+    table.items{width:100%; border-collapse:collapse; font-size:13px; margin-top:6px; background:linear-gradient(180deg,transparent 0, transparent calc(100% - 1px), rgba(19,58,138,0.06) 100%);}
+    table.items thead td{font-weight:800; color:var(--blue); padding:8px 4px; border-bottom:3px solid rgba(18,58,138,0.18); font-size:12px;}
+    table.items tbody tr{background:transparent;}
+    table.items td{padding:10px 4px; border-bottom:2px solid rgba(18,58,138,0.08); vertical-align:middle;}
+    table.items tbody tr:last-child td{border-bottom:2px dashed rgba(18,58,138,0.12);}
+    .qty{width:52px; color:var(--muted); font-size:12px;}
+    .price{width:86px; text-align:right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace; font-size:12px;}
+    .bottomRow{display:flex; justify-content:space-between; align-items:center; margin-top:8px;}
+    .noBox{font-size:12px; color:#b91c1c; font-weight:800;}
+    .totalBox{background:var(--blue); color:white; padding:6px 8px; border-radius:6px; font-weight:900; min-width:84px; text-align:center; font-size:13px;}
+    .paybox{background:#fbfff9; border:1px solid #eef8ee; padding:10px; border-radius:8px; margin-top:10px; font-size:13px; display:flex; justify-content:space-between; align-items:center;}
+    .qr{width:72px; height:72px; background:#fff; border-radius:6px; display:inline-block; object-fit:contain;}
+    .foot{font-size:11px; color:var(--muted); margin-top:10px; text-align:center; white-space:pre-line;}
+    @media print{body{background:transparent} .paper{box-shadow:none; border:none}}
+  </style>
+  </head>
+  <body>
+    <div class="paper" role="article" aria-label="Invoice receipt">
+      <span class="topPill">INVOICE</span>
+      <div class="company">{{sellerName}}</div>
+      <div class="meta">{{sellerAddress}} · {{sellerPhone}}</div>
+
+      <div class="formRow" aria-hidden="true">
+        <div style="flex:1">
+          <div class="label">To:</div>
+          <div class="formLine">{{buyerName}}</div>
+        </div>
+        <div style="width:110px;">
+          <div class="label">Date:</div>
+          <div class="formLine">{{date}}</div>
+        </div>
       </div>
-      <div style="text-align:right;">
-        <div style="font-weight:700;">Receipt</div>
-        <div class="meta">#{{invoiceNumber}}</div>
+
+      <div class="formRow" aria-hidden="true" style="margin-bottom:6px;">
+        <div style="flex:1">
+          <div class="label">Order No:</div>
+          <div class="formLine">__________</div>
+        </div>
+        <div style="width:110px;">
+          <div class="label">Delivery No:</div>
+          <div class="formLine">__________</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <table class="items" aria-label="Invoice items">
+        <thead>
+          <tr>
+            <td class="qty">QTY</td>
+            <td>Description</td>
+            <td class="price">@</td>
+            <td class="price">KSHS</td>
+            <td class="price">CTS</td>
+          </tr>
+        </thead>
+        <tbody>
+          {{itemsRows}}
+        </tbody>
+      </table>
+
+      <div class="bottomRow">
+        <div class="noBox">No. 43672</div>
+        <div class="totalBox">TOTAL<br/>{{total}}</div>
+      </div>
+
+      <div class="paybox" role="region" aria-label="Payment details">
+        <div>
+          <div style="font-size:12px;color:var(--muted)">Pay via</div>
+          <div style="font-weight:800;font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;">{{paymentLabel}} · {{paymentNumber}}</div>
+          <div style="font-size:12px;color:var(--muted); margin-top:6px;">{{paymentNote}}</div>
+        </div>
+        <div>
+          {{#if qrDataUrl}}
+            <img src="{{qrDataUrl}}" alt="Scan to pay" class="qr"/>
+          {{/if}}
+        </div>
+      </div>
+
+      <div class="foot">
+        {{notesLine}} · Issued: {{date}}<div style="margin-top:6px;">Sent via DollarChain</div>
       </div>
     </div>
-
-    <div class="divider"></div>
-
-    <div style="font-size:13px; margin-bottom:6px;">
-      <div style="font-weight:700;">Bill to</div>
-      <div class="meta">{{buyerName}} · {{buyerPhone}}</div>
-    </div>
-
-    <table class="items" aria-label="Invoice items">
-      <thead>
-        <tr><th>Item</th><th class="right">Total</th></tr>
-      </thead>
-      <tbody>
-        {{itemsRows}}
-      </tbody>
-    </table>
-
-    <div class="subtotalRow">
-      <div>Subtotal</div>
-      <div>{{subtotal}}</div>
-    </div>
-
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-      <div style="font-size:13px; color:var(--muted)">Total</div>
-      <div class="total">{{total}}</div>
-    </div>
-
-    <div class="paybox" role="region" aria-label="Payment details">
-      <div>
-        <div class="label">Pay via</div>
-        <div class="number">{{paymentLabel}} · {{paymentNumber}}</div>
-        <div style="font-size:12px; color:var(--muted)">{{paymentNote}}</div>
-      </div>
-      <div>
-        {{#if qrDataUrl}}
-          <img src="{{qrDataUrl}}" alt="Scan to pay" class="qr"/>
-        {{/if}}
-      </div>
-    </div>
-
-    <div class="foot">
-      {{notesLine}} · Issued: {{date}}
-      <div style="margin-top:6px;">Sent via DollarChain</div>
-    </div>
-  </div>
-</body>
-</html>`
+  </body>
+  </html>`
   },
 
+  /* Local 2 — modern green invoice (bolder separators) */
   {
     id: "local-2",
     category: "local",
@@ -149,7 +161,7 @@ export const TEMPLATES = [
     thumbnail: "/templates/local-2.png",
     description: "Balanced print-friendly layout, clear payment area and QR.",
     options: { width: 480, qr: true, showPaymentLabel: true, currency: "KES" },
-    style: { accentColor: "#1a8917", headerBg: "#ffffff", textColor: "#0b1220", suggestedWidth: 480 },
+    style: { accentColor: "#15803D", headerBg: "#ffffff", textColor: "#0b1220", suggestedWidth: 480 },
     sampleData: {
       sellerName: "DollarChain",
       sellerLogoUrl: "/logos/dollarchain-logo.png",
@@ -166,7 +178,7 @@ export const TEMPLATES = [
       paymentLabel: "M-Pesa Paybill",
       paymentNote: "Include invoice #987654 as reference",
       notesLine: "Packed and ready — deliver within 48 hours",
-      qrDataUrl: "", // optional data URL
+      qrDataUrl: "",
       date: "2025-11-11",
       dueDate: "2025-11-25",
       vatPercent: "0",
@@ -175,95 +187,119 @@ export const TEMPLATES = [
       currency: "KES"
     },
     html: `<!doctype html>
-<html>
-<head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Invoice — Local Classic</title>
-<style>
-  :root{ --bg:#ffffff; --text:#0b1220; --muted:#6b7280; --accent:#1a8917; --w:480px; --pad:18px; --radius:12px; --base-font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial; }
-  *{box-sizing:border-box}
-  body{font-family:var(--base-font); background:#f3f4f6; display:flex; justify-content:center; padding:18px; -webkit-font-smoothing:antialiased;}
-  .card{width:var(--w); background:var(--bg); padding:var(--pad); border-radius:var(--radius); box-shadow:0 10px 30px rgba(6,10,15,0.06);}
-  header{display:flex; justify-content:space-between; align-items:center; gap:12px;}
-  .logo{height:56px; width:56px; object-fit:contain; border-radius:8px; background:#fafafa;}
-  .company{font-weight:800; font-size:16px;}
-  .meta{font-size:12px; color:var(--muted); white-space:pre-line;}
-  .grid{display:grid; grid-template-columns:1fr auto; gap:8px; margin-top:14px;}
-  .items{width:100%; border-collapse:collapse; margin-top:12px; font-size:13px;}
-  .items th{font-size:12px; text-align:left; color:var(--muted); padding:8px 0;}
-  .items td{padding:10px 0; border-bottom:1px solid #f1f5f9;}
-  .totalRow{display:flex; justify-content:space-between; margin-top:10px; font-weight:800; font-size:15px;}
-  .paymentCard{margin-top:12px; border-radius:8px; padding:12px; background:linear-gradient(180deg,#f8fff8,#f0fbf0); border:1px solid #e6f4e8;}
-  .footer{margin-top:14px; font-size:12px; color:var(--muted); display:flex; justify-content:space-between; align-items:center;}
-  @media print{ .card{box-shadow:none} }
-</style>
-</head>
-<body>
-  <div class="card" role="article" aria-label="Invoice">
-    <header>
-      <div style="display:flex; align-items:center; gap:14px;">
-        <img src="{{sellerLogoUrl}}" alt="{{sellerName}} logo" class="logo" onerror="this.style.display='none'"/>
+  <html>
+  <head>
+  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Invoice — Local Classic</title>
+  <style>
+    :root{
+      --w:480px;
+      --pad:18px;
+      --green:#15803D;
+      --muted:#6b7280;
+      --text:#0b1220;
+      --base-sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --base-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace;
+    }
+    *{box-sizing:border-box}
+    body{font-family:var(--base-sans); background:#f6f7f8; display:flex; justify-content:center; padding:18px; -webkit-font-smoothing:antialiased;}
+    .card{width:var(--w); background:white; border-radius:10px; padding:var(--pad); box-shadow:0 10px 30px rgba(8,12,16,0.04); border:1px solid #eef7ef; line-height:1.24;}
+    .header{display:flex; justify-content:space-between; align-items:center; gap:12px;}
+    .logo{height:56px; width:56px; object-fit:contain; border-radius:8px; background:#f7faf7; padding:6px;}
+    .company{font-weight:800; font-size:16px; color:var(--green); letter-spacing:0.2px;}
+    .meta{font-size:12px; color:var(--muted); white-space:pre-line; margin-top:4px;}
+    .grid{display:grid; grid-template-columns:1fr auto; gap:12px; margin-top:14px;}
+    .bill{font-size:13px}
+    /* ===== make the item separators stronger ===== */
+    .items{width:100%; border-collapse:collapse; margin-top:12px; font-size:13px; box-shadow:inset 0 -1px 0 rgba(21,128,61,0.03);}
+    .items thead th{font-size:12px; text-align:left; color:var(--muted); padding:10px 6px; border-bottom:3px solid rgba(21,128,61,0.14);}
+    .items td{padding:12px 6px; border-bottom:2px solid rgba(21,128,61,0.06); vertical-align:middle;}
+    .items tbody tr:hover td{background:rgba(21,128,61,0.02);}
+    .items tbody tr:last-child td{border-bottom:2px dashed rgba(21,128,61,0.08);}
+    .right{text-align:right}
+    .totals{margin-top:12px; display:flex; justify-content:flex-end; gap:18px; align-items:end;}
+    .totalVal{font-weight:900; font-size:18px; color:var(--text);}
+    .paymentCard{margin-top:12px; border-radius:8px; padding:12px; background:linear-gradient(180deg,#f6fff6,#f1fbef); border:1px solid #e6f6ea;}
+    .payLink{display:inline-block; padding:8px 12px; background:var(--green); color:white; border-radius:8px; text-decoration:none; font-weight:700;}
+    .qr{width:86px;height:86px;border-radius:6px;object-fit:contain}
+    .mutedSmall{font-size:12px;color:var(--muted)}
+    @media print{ .card{box-shadow:none; border:none} }
+  </style>
+  </head>
+  <body>
+    <div class="card" role="article" aria-label="Invoice">
+      <header class="header">
+        <div style="display:flex; gap:12px; align-items:center;">
+          <div>
+            <div class="company">{{sellerName}}</div>
+            <div class="meta">{{sellerAddress}}</div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <img src="{{sellerLogoUrl}}" alt="{{sellerName}} logo" class="logo" onerror="this.style.display='none'"/>
+          <div style="font-weight:900; font-size:18px; margin-top:6px;">Invoice</div>
+          <div style="font-size:12px; color:var(--muted);">#{{invoiceNumber}} • {{date}}</div>
+        </div>
+      </header>
+
+      <div class="grid" aria-hidden="false">
         <div>
-          <div class="company">{{sellerName}}</div>
-          <div class="meta">{{sellerAddress}}</div>
+          <div style="font-weight:700; margin-bottom:6px;">Bill to</div>
+          <div class="bill">{{buyerName}} • {{buyerPhone}}</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="mutedSmall">Due</div>
+          <div style="font-weight:700;">{{dueDate}}</div>
         </div>
       </div>
-      <div style="text-align:right;">
-        <div style="font-weight:900; font-size:16px;">Invoice</div>
-        <div class="meta">#{{invoiceNumber}} • {{date}}</div>
-      </div>
-    </header>
 
-    <div class="grid" aria-hidden="false">
-      <div>
-        <div style="font-weight:700; margin-bottom:6px;">Bill to</div>
-        <div class="meta">{{buyerName}} • {{buyerPhone}}</div>
-      </div>
-      <div style="text-align:right;">
-        <div style="font-size:13px; color:var(--muted)">Due</div>
-        <div style="font-weight:700;">{{dueDate}}</div>
-      </div>
-    </div>
+      <table class="items" aria-label="Line items">
+        <thead>
+          <tr><th>Description</th><th class="right">Rate, KSH</th><th class="right">Qty</th><th class="right">Amount</th></tr>
+        </thead>
+        <tbody>
+          {{itemsRows}}
+        </tbody>
+      </table>
 
-    <table class="items" aria-label="Line items">
-      <thead><tr><th>Description</th><th class="right">Amount</th></tr></thead>
-      <tbody>
-        {{itemsRows}}
-      </tbody>
-    </table>
-
-    <div style="margin-top:10px;">
-      <div style="display:flex; justify-content:space-between; color:var(--muted); font-size:13px;">
-        <div>Subtotal</div><div>{{subtotal}}</div>
-      </div>
-      <div style="display:flex; justify-content:space-between; color:var(--muted); font-size:13px;">
-        <div>VAT ({{vatPercent}}%)</div><div>{{vatAmount}}</div>
-      </div>
-      <div class="totalRow"><div>Total</div><div>{{total}}</div></div>
-    </div>
-
-    <div class="paymentCard" role="region" aria-label="Payment details">
-      <div style="display:flex; justify-content:space-between; gap:12px; align-items:center;">
-        <div>
-          <div style="font-size:12px;color:var(--muted)">Payment method</div>
-          <div style="font-weight:800;">{{paymentLabel}} • {{paymentNumber}}</div>
-          <div style="font-size:12px;color:var(--muted); margin-top:6px;">Please use invoice #{{invoiceNumber}} as reference.</div>
+      <div style="margin-top:10px;">
+        <div style="display:flex; justify-content:space-between; color:var(--muted); font-size:13px;">
+          <div>Subtotal</div><div>{{subtotal}}</div>
         </div>
-        <div>
-          {{#if qrDataUrl}}<img src="{{qrDataUrl}}" alt="QR to pay" style="width:86px;height:86px;border-radius:6px;object-fit:contain"/>{{/if}}
+        <div style="display:flex; justify-content:space-between; color:var(--muted); font-size:13px;">
+          <div>VAT ({{vatPercent}}%)</div><div>{{vatAmount}}</div>
+        </div>
+        <div class="totals">
+          <div style="text-align:right;">
+            <div style="font-size:13px; color:var(--muted)">Total</div>
+            <div class="totalVal">{{total}}</div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="footer">
-      <div>Notes: <span style="color:var(--muted)">{{notesLine}}</span></div>
-      <div style="text-align:right;">Sent via DollarChain</div>
+      <div class="paymentCard" role="region" aria-label="Payment details">
+        <div style="display:flex; justify-content:space-between; gap:12px; align-items:center;">
+          <div>
+            <div class="mutedSmall">Payment method</div>
+            <div style="font-weight:800;">{{paymentLabel}} • {{paymentNumber}}</div>
+            <div style="font-size:12px;color:var(--muted); margin-top:6px;">{{paymentNote}}</div>
+          </div>
+          <div style="text-align:right;">
+            <a class="payLink" href="{{payLink}}">Pay now</a>
+            <div style="margin-top:8px;">
+              {{#if qrDataUrl}}<img src="{{qrDataUrl}}" alt="QR to pay" class="qr"/>{{/if}}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px; font-size:12px; color:var(--muted)">{{notesLine}}</div>
     </div>
-  </div>
-</body>
-</html>`
+  </body>
+  </html>`
   },
 
+  /* Local 3 — corporate grey invoice (crisper grey separators) */
   {
     id: "local-3",
     category: "local",
@@ -271,7 +307,7 @@ export const TEMPLATES = [
     thumbnail: "/templates/local-3.png",
     description: "Very compact receipt for quick sales and WhatsApp sharing.",
     options: { width: 320, qr: false, showPaymentLabel: true, currency: "KES" },
-    style: { accentColor: "#1a8917", headerBg: "#ffffff", textColor: "#07131a", suggestedWidth: 320 },
+    style: { accentColor: "#111827", headerBg: "#ffffff", textColor: "#07131a", suggestedWidth: 320 },
     sampleData: {
       sellerName: "DollarChain",
       sellerLogoUrl: "/logos/dollarchain-logo.png",
@@ -296,53 +332,80 @@ export const TEMPLATES = [
       currency: "KES"
     },
     html: `<!doctype html>
-<html>
-<head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Receipt — Local Narrow</title>
-<style>
-  :root{ --w:320px; --pad:12px; --text:#07131a; --muted:#6b7280; --accent:#1a8917; --base-font: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace; }
-  *{box-sizing:border-box}
-  body{font-family:var(--base-font); background:#fafafa; padding:18px; display:flex; justify-content:center; -webkit-font-smoothing:antialiased;}
-  .paper{width:var(--w); background:#fff; padding:var(--pad); border-radius:8px; box-shadow:0 8px 20px rgba(0,0,0,0.04);}
-  .center{text-align:center;}
-  .logo{height:48px; object-fit:contain; margin:0 auto; display:block;}
-  .items{width:100%; font-size:13px; border-top:1px dashed #eee; border-bottom:1px dashed #eee; margin:10px 0;}
-  .items tr td{padding:6px 0;}
-  .total{font-weight:800; font-size:15px; margin-top:8px; text-align:right;}
-  .pay{margin-top:8px; padding:8px; background:#fbfff9; border:1px solid #eef8ee; border-radius:8px; font-size:12px;}
-  .foot{font-size:11px; color:var(--muted); margin-top:10px; text-align:center; white-space:pre-line;}
-</style>
-</head>
-<body>
-  <div class="paper" role="article" aria-label="Receipt">
-    <img src="{{sellerLogoUrl}}" alt="{{sellerName}}" class="logo" onerror="this.style.display='none'"/>
-    <div class="center" style="font-weight:800;">{{sellerName}}</div>
-    <div class="center" style="font-size:12px;color:var(--muted);">{{sellerPhone}}</div>
+  <html>
+  <head>
+  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Receipt — Local Narrow</title>
+  <style>
+    :root{
+      --w:320px;
+      --pad:12px;
+      --muted:#6b7280;
+      --text:#07131a;
+      --accent:#111827;
+      --base-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{font-family:var(--base-sans); background:#fafafa; padding:18px; display:flex; justify-content:center; -webkit-font-smoothing:antialiased;}
+    .paper{width:var(--w); background:#fff; padding:var(--pad); border-radius:8px; box-shadow:0 8px 20px rgba(0,0,0,0.04); border:1px solid #eef0f3; line-height:1.18;}
+    .hdr{display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px;}
+    .logo{height:44px; width:44px; object-fit:contain; border-radius:6px; background:#f3f4f6; padding:6px;}
+    .brand{font-weight:900; font-size:15px; color:var(--accent); letter-spacing:0.2px;}
+    .invoiceLabel{font-weight:900; font-size:16px; color:#111827; letter-spacing:0.6px;}
+    .meta{font-size:12px; color:var(--muted); white-space:pre-line;}
+    hr.sep{border:none; border-top:1px solid #f1f3f5; margin:10px 0;}
+    .to{font-size:13px; margin-bottom:6px;}
+    /* ===== crisp grey lines for the receipt book look ===== */
+    .items{width:100%; font-size:13px; border-top:2px solid #e6e9ee; border-bottom:2px solid #e6e9ee; margin:10px 0; border-collapse:collapse;}
+    .items td{padding:10px 0; border-bottom:1.5px solid #e9edf2;}
+    .items tbody tr:last-child td{border-bottom:1.5px dashed #dfe4ea;}
+    .total{font-weight:800; font-size:15px; text-align:right; margin-top:8px;}
+    .pay{margin-top:8px; padding:8px; background:#fafafa; border:1px solid #eef0f2; border-radius:6px; font-size:12px;}
+    .foot{font-size:11px; color:var(--muted); margin-top:10px; text-align:center; white-space:pre-line;}
+    @media print{ .paper{box-shadow:none; border:none} }
+  </style>
+  </head>
+  <body>
+    <div class="paper" role="article" aria-label="Receipt">
+      <div class="hdr">
+        <div style="display:flex; gap:10px; align-items:center;">
+          <img src="{{sellerLogoUrl}}" alt="{{sellerName}}" class="logo" onerror="this.style.display='none'"/>
+          <div>
+            <div class="brand">{{sellerName}}</div>
+            <div class="meta">{{sellerPhone}}</div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div class="invoiceLabel">INVOICE</div>
+          <div class="meta">#{{invoiceNumber}} • {{date}}</div>
+        </div>
+      </div>
 
-    <hr style="border:none;border-top:1px dashed #eee;margin:10px 0"/>
+      <hr class="sep"/>
 
-    <div style="font-size:13px;"><strong>To:</strong> {{buyerName}}</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">#{{invoiceNumber}} • {{date}}</div>
+      <div class="to">
+        <div style="font-weight:700;">To</div>
+        <div class="meta">{{buyerName}} · {{buyerPhone}}</div>
+      </div>
 
-    <table class="items" aria-hidden="false">
-      <tbody>
-        {{itemsRows}}
-      </tbody>
-    </table>
+      <table class="items" aria-hidden="false">
+        <tbody>
+          {{itemsRows}}
+        </tbody>
+      </table>
 
-    <div class="total">TOTAL: {{total}}</div>
+      <div class="total">TOTAL: {{total}}</div>
 
-    <div class="pay">
-      <div style="font-weight:700;">Pay: {{paymentLabel}}</div>
-      <div style="font-size:12px;color:var(--muted)">{{paymentNumber}}</div>
-      {{#if qrDataUrl}}<div style="margin-top:8px;text-align:center;"><img src="{{qrDataUrl}}" alt="QR" style="width:80px;height:80px;object-fit:contain"/></div>{{/if}}
+      <div class="pay">
+        <div style="font-weight:700;">Pay: {{paymentLabel}}</div>
+        <div style="font-size:12px;color:var(--muted)">{{paymentNumber}}</div>
+        {{#if qrDataUrl}}<div style="margin-top:8px;text-align:center;"><img src="{{qrDataUrl}}" alt="QR" style="width:86px;height:86px;object-fit:contain; border-radius:6px;"/></div>{{/if}}
+      </div>
+
+      <div class="foot">Thank you for your business · Sent via DollarChain</div>
     </div>
-
-    <div class="foot">Thank you for your business · Sent via DollarChain</div>
-  </div>
-</body>
-</html>`
+  </body>
+  </html>`
   },
 
   /* Row 2: Colour Accent */
