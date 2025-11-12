@@ -696,7 +696,7 @@ function App() {
                 padding: 20,
               }}
               onClick={(e) => {
-                // close when clicking backdrop only
+                // close when clicking backdrop only yes
                 if (e.target === e.currentTarget) closeTplModal();
               }}
             >
