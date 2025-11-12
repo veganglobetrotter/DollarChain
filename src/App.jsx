@@ -30,8 +30,8 @@ import Settings from "./components/Settings";
 import TemplateGallery from "./components/TemplateGallery";
 import { getTemplateById } from "./lib/templates";
 
-// --- NEW: Landing page (public)
-import Landing from "./pages/landing";
+// NOTE: Landing is now dynamically imported at runtime to avoid server-side build issues.
+// import Landing from "./pages/landing";
 
 function App() {
   const [parsedData, setParsedData] = useState(null);
@@ -54,6 +54,9 @@ function App() {
   const [tplModalInvoiceData, setTplModalInvoiceData] = useState(null);
   const [tplModalSeller, setTplModalSeller] = useState(null);
   const [tplModalRenderedHtml, setTplModalRenderedHtml] = useState("");
+
+  // Client-side loaded landing component (null until loaded)
+  const [LandingComp, setLandingComp] = useState(null);
 
   // Dummy invoice used when previewing a template (will be replaced after parsing)
   const DUMMY_INVOICE = {
@@ -509,20 +512,34 @@ function App() {
   };
 
   // -------------------------
-  // EARLY ROUTE: Landing path
+  // CLIENT-ONLY: dynamic load Landing when path === /landing
   // -------------------------
-  // If the user is visiting /landing, render the public landing page only.
-  // This keeps the public surface separate from the protected SPA shell.
-  if (typeof window !== "undefined" && window.location.pathname === "/landing") {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.pathname === "/landing") {
+      // dynamic-import landing only on the client
+      import("./pages/landing")
+        .then((m) => {
+          setLandingComp(() => m.default || m);
+        })
+        .catch((err) => {
+          console.error("Failed to load landing page dynamically:", err);
+        });
+    }
+  }, []);
+
+  // If landing component loaded, render it (client-side)
+  if (LandingComp) {
     return (
       <ToastProvider>
         <UserProvider>
-          <Landing />
+          <LandingComp />
         </UserProvider>
       </ToastProvider>
     );
   }
 
+  // ...rest of your original SPA rendering (unchanged)...
   return (
     <ToastProvider>
       <UserProvider>
