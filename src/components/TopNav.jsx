@@ -10,34 +10,34 @@ export default function TopNav() {
 
   return (
     <>
-      <nav style={styles.nav}>
-        <div style={styles.left}>
-          <a href="/" style={styles.logoLink}>
-            <div style={styles.logo}>DollarChain</div>
+      <nav style={navStyles.nav}>
+        <div style={navStyles.left}>
+          <a href="/" style={navStyles.logoLink}>
+            <div style={navStyles.logo}>DollarChain</div>
           </a>
         </div>
 
-        <div style={styles.center}>
-          <a href="#features" style={styles.link}>Features</a>
-          <a href="#pricing" style={styles.link}>Pricing</a>
-          <a href="#faq" style={styles.link}>FAQ</a>
+        <div style={navStyles.center}>
+          <a href="#features" style={navStyles.link}>Features</a>
+          <a href="#pricing" style={navStyles.link}>Pricing</a>
+          <a href="#faq" style={navStyles.link}>FAQ</a>
         </div>
 
-        <div style={styles.right}>
+        <div style={navStyles.right}>
           {user ? (
-            <div style={styles.account}>
+            <div style={navStyles.account}>
               <span style={{ fontSize: 14 }}>{profile?.full_name || user.email}</span>
             </div>
           ) : (
             <>
-              <button style={styles.textBtn} onClick={() => setOpen(true)}>Sign in</button>
-              <button style={styles.primary} onClick={() => setOpen(true)}>Get started — Free</button>
+              <button style={navStyles.textBtn} onClick={() => setOpen(true)}>Sign in</button>
+              <button style={navStyles.primary} onClick={() => setOpen(true)}>Get started — Free</button>
             </>
           )}
 
           <button
             aria-label="Toggle menu"
-            style={styles.hamburger}
+            style={navStyles.hamburger}
             onClick={() => setMobileOpen((v) => !v)}
           >
             ☰
@@ -45,18 +45,17 @@ export default function TopNav() {
         </div>
       </nav>
 
-      {/* Mobile menu */}
       {mobileOpen && (
-        <div style={styles.mobileMenu}>
-          <a href="#features" style={styles.mobileLink} onClick={() => setMobileOpen(false)}>Features</a>
-          <a href="#pricing" style={styles.mobileLink} onClick={() => setMobileOpen(false)}>Pricing</a>
-          <a href="#faq" style={styles.mobileLink} onClick={() => setMobileOpen(false)}>FAQ</a>
+        <div style={navStyles.mobileMenu}>
+          <a href="#features" style={navStyles.mobileLink} onClick={() => setMobileOpen(false)}>Features</a>
+          <a href="#pricing" style={navStyles.mobileLink} onClick={() => setMobileOpen(false)}>Pricing</a>
+          <a href="#faq" style={navStyles.mobileLink} onClick={() => setMobileOpen(false)}>FAQ</a>
           {!user && (
             <>
-              <button style={{ ...styles.mobileAction, marginTop: 8 }} onClick={() => { setOpen(true); setMobileOpen(false); }}>
+              <button style={{ ...navStyles.mobileAction, marginTop: 8 }} onClick={() => { setOpen(true); setMobileOpen(false); }}>
                 Sign in
               </button>
-              <button style={styles.mobilePrimary} onClick={() => { setOpen(true); setMobileOpen(false); }}>
+              <button style={navStyles.mobilePrimary} onClick={() => { setOpen(true); setMobileOpen(false); }}>
                 Get started — Free
               </button>
             </>
@@ -69,7 +68,7 @@ export default function TopNav() {
   );
 }
 
-const styles = {
+const navStyles = {
   nav: {
     position: "sticky",
     top: 0,
