@@ -24,7 +24,7 @@ export const TEMPLATES = [
       sellerEmail: "hi@dollarchain.app",
       buyerName: "Grace Mwende",
       buyerPhone: "+254 712 345 678",
-      items: "2x Cotton Shirt @ 1800, 1x Leather Belt @ 1200, 3x Socks @ 200",
+      items: "2x Cotton Shirt, 1x Leather Belt, 3x Socks",
       subtotal: "KES 5,400",
       total: "KES 5,400",
       paymentNumber: "Paybill 123456",
@@ -47,11 +47,7 @@ export const TEMPLATES = [
   <title>Invoice — Local Compact</title>
   <style>
     :root{
-      --paper-w:360px;
-      --pad:10px;
-      --blue:#123A8A;
-      --muted:#6b7280;
-      --text:#0b1220;
+      --paper-w:360px; --pad:10px; --blue:#123A8A; --muted:#6b7280; --text:#0b1220;
       --base-serif: "Merriweather", Georgia, "Times New Roman", serif;
       --base-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
@@ -65,14 +61,15 @@ export const TEMPLATES = [
     .formRow .label{min-width:48px; color:var(--muted); font-size:11px;}
     .formLine{flex:1; border-bottom:2px solid #eef4ff; padding:6px 4px; font-weight:700; font-size:13px;}
     .divider{height:1px; background:#eef2f6; margin:10px 0;}
-    /* ===== stronger, visible item lines ===== */
-    table.items{width:100%; border-collapse:collapse; font-size:13px; margin-top:6px; background:linear-gradient(180deg,transparent 0, transparent calc(100% - 1px), rgba(19,58,138,0.06) 100%);}
+    /* items table */
+    table.items{width:100%; border-collapse:collapse; font-size:13px; margin-top:6px;}
     table.items thead td{font-weight:800; color:var(--blue); padding:8px 4px; border-bottom:3px solid rgba(18,58,138,0.18); font-size:12px;}
-    table.items tbody tr{background:transparent;}
-    table.items td{padding:10px 4px; border-bottom:2px solid rgba(18,58,138,0.08); vertical-align:middle;}
-    table.items tbody tr:last-child td{border-bottom:2px dashed rgba(18,58,138,0.12);}
-    .qty{width:52px; color:var(--muted); font-size:12px; text-align:left}
-    .price{width:86px; text-align:right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace; font-size:12px;}
+    table.items td{padding:8px 4px; vertical-align:middle;}
+    td.qtyCol{width:44px; color:var(--muted); font-size:12px; text-align:left;}
+    td.descCol{width:1%; white-space:nowrap; font-weight:500;}
+    td.unitCol{width:72px; text-align:right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace; font-size:12px;}
+    td.kshCol{width:72px; text-align:right; font-weight:700;}
+    td.ctsCol{width:36px; text-align:right; color:var(--muted); font-size:12px;}
     .bottomRow{display:flex; justify-content:space-between; align-items:center; margin-top:8px;}
     .noBox{font-size:12px; color:#b91c1c; font-weight:800;}
     .totalBox{background:var(--blue); color:white; padding:6px 8px; border-radius:6px; font-weight:900; min-width:84px; text-align:center; font-size:13px;}
@@ -115,11 +112,11 @@ export const TEMPLATES = [
       <table class="items" aria-label="Invoice items">
         <thead>
           <tr>
-            <td class="qty">QTY</td>
-            <td>Description</td>
-            <td class="price">@</td>
-            <td class="price">KSHS</td>
-            <td class="price">CTS</td>
+            <td class="qtyCol">QTY</td>
+            <td class="descCol">Description</td>
+            <td class="unitCol">@</td>
+            <td class="kshCol">KSHS</td>
+            <td class="ctsCol">CTS</td>
           </tr>
         </thead>
         <tbody id="items-local-1">
@@ -135,7 +132,7 @@ export const TEMPLATES = [
       <div class="paybox" role="region" aria-label="Payment details">
         <div>
           <div style="font-size:12px;color:var(--muted)">Pay via</div>
-          <div style="font-weight:800;font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', monospace;">{{paymentLabel}} · {{paymentNumber}}</div>
+          <div style="font-weight:800;font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, &quot;Roboto Mono&quot;, monospace;">{{paymentLabel}} · {{paymentNumber}}</div>
           <div style="font-size:12px;color:var(--muted); margin-top:6px;">{{paymentNote}}</div>
         </div>
         <div>
@@ -151,90 +148,101 @@ export const TEMPLATES = [
     </div>
 
     <script>
-      (function normalizeItems(tbodyId){
-        // Robust extraction of raw items text from many renderers:
-        function extractRaw(tbody){
-          // 1) explicit data attribute (preferred if you use it in server render)
-          if(tbody.dataset && tbody.dataset.items) return tbody.dataset.items;
-          // 2) prefer innerText (gives visible text), fall back to textContent
-          var text = (tbody.innerText || tbody.textContent || '').trim();
-          if(text) return text;
-          // 3) if innerHTML contains <br> / divs, replace with comma separators and strip tags
-          var html = tbody.innerHTML || '';
-          if(!html) return '';
-          // normalize common separators to comma
-          html = html.replace(/<br\s*\/?>/gi, ', ')
-                     .replace(/<\/(div|p|span|li)>/gi, ', ')
-                     .replace(/<li[^>]*>/gi, ', ')
-                     .replace(/<[^>]+>/g, '');
-          return html.replace(/\\s{2,}/g,' ').trim();
+      // Normalize items into columns: qty, desc, unitPrice, total, cents
+      (function normalizeLocal1(tbodyId){
+        function toNumber(s){
+          if(!s) return NaN;
+          s = String(s).replace(/[^\d.-]/g,'').replace(/,+/g,'');
+          return s === '' ? NaN : parseFloat(s);
         }
-
-        function toNumber(s){ if(s == null || s === '') return null; return Number(String(s).replace(/[,\\s]+/g,'').replace(/[^0-9.\\-]/g,'')); }
-        function fmt(n){ if(n==null || isNaN(n)) return ''; return Math.round(n).toLocaleString(); }
+        function fmtAmount(n){
+          if(isNaN(n)) return '';
+          var rounded = Math.round(Math.abs(n) * 100) / 100;
+          var whole = Math.floor(rounded);
+          var cents = Math.round((rounded - whole) * 100);
+          return {whole: whole.toLocaleString('en-GB'), cents: cents.toString().padStart(2,'0')};
+        }
 
         var tbody = document.getElementById(tbodyId);
         if(!tbody) return;
-        // if already has <tr> rows, assume structured content was provided — don't touch
-        if(tbody.querySelector('tr')) return;
+        // if tbody already has proper <tr> with >1 td, assume it's correct
+        var tr = tbody.querySelector('tr');
+        if(tr && tr.querySelectorAll('td').length > 1) return;
 
-        var raw = extractRaw(tbody);
-        if(!raw) return;
-
-        var lines = raw.split(/[,•·\\n]+/).map(function(l){ return l.trim(); }).filter(Boolean);
+        var raw = tbody.textContent || '';
+        // split on newlines, comma separators, bullets
+        var lines = raw.split(/[\r\n]+|[,•·]+/).map(function(l){ return l.trim(); }).filter(Boolean);
         if(lines.length === 0) return;
+
+        function parseLine(line){
+          line = line.trim();
+          if(!line) return null;
+
+          // If pipe-delimited or pipe-like: desc | qty | unit | total
+          var parts = line.split(/\s*\|\s*/);
+          if(parts.length >= 2){
+            var desc = parts[0].trim();
+            var qty = parts[1].trim();
+            var unit = parts[2] ? parts[2].trim() : '';
+            var total = parts[3] ? parts[3].trim() : '';
+            return {desc: desc, qty: qty, unit: unit, total: total};
+          }
+
+          // Comma-separated: desc, qty, unit, total
+          parts = line.split(/\s*,\s*/);
+          if(parts.length >= 2){
+            var desc = parts[0].trim();
+            var qty = parts[1].trim();
+            var unit = parts[2] ? parts[2].trim() : '';
+            var total = parts[3] ? parts[3].trim() : '';
+            return {desc: desc, qty: qty, unit: unit, total: total};
+          }
+
+          // formats like "2x Cotton Shirt @ 1800" or "2 x Cotton Shirt @KES 1,800"
+          var m = line.match(/^(\d+)\s*[x×]\s*(.+?)\s*@\s*([KkEeSs\s]*[\d,\.]+)$/i);
+          if(m) return {qty: m[1], desc: m[2].trim(), unit: (m[3]||'').trim(), total: ''};
+
+          // "Cotton Shirt @ 1800 x2" or "Cotton Shirt @ 1800, 2"
+          m = line.match(/^(.+?)\s*@\s*([KkEeSs\s]*[\d,\.]+)\s*[,\s]+(\d+)$/i);
+          if(m) return {desc: m[1].trim(), unit: (m[2]||'').trim(), qty: m[3].trim(), total: ''};
+
+          // "Cotton Shirt - 2 - 1800"
+          m = line.match(/^(.+?)\s*[-–—]\s*(\d+)\s*[-–—]\s*([KkEeSs\s]*[\d,\.]+)$/i);
+          if(m) return {desc: m[1].trim(), qty: m[2].trim(), unit: (m[3]||'').trim(), total: ''};
+
+          // "2 Cotton Shirt" (leading number)
+          m = line.match(/^(\d+)\s+(.+)$/i);
+          if(m) return {qty: m[1], desc: m[2].trim(), unit: '', total: ''};
+
+          // fallback: everything as description
+          return {desc: line, qty: '', unit: '', total: ''};
+        }
 
         var frag = document.createDocumentFragment();
         lines.forEach(function(line){
-          // Normalise several common forms:
-          // "2x Cotton Shirt @ 1800"
-          // "2 x Cotton Shirt @ 1,800"
-          // "Cotton Shirt - 2 - 1800"
-          // "Cotton Shirt | 2 | 1800"
-          // "Cotton Shirt,2,1800"
-          var qty='', desc='', unit='';
-          // Attempt: qty at start with optional 'x', with optional @unit at end
-          var m = line.match(/^\\s*(\\d+)\\s*[x×]?\\s+(.+?)\\s*(?:@\\s*([\\d,\\.]+))?\\s*$/i)
-                 || line.match(/^\\s*(.+?)\\s*[-–—|]\\s*(\\d+)\\s*(?:[-–—|]\\s*([\\d,.]+))?\\s*$/);
-          if(m){
-            if(m.length === 4 && /^\d+$/.test(m[1]) && line.indexOf('@') !== -1){
-              qty = m[1]; desc = m[2]; unit = m[3] || '';
-            } else if(m.length === 4 && /^\d+$/.test(m[1]) && line.indexOf('@') === -1 && m[3]==null){
-              qty = m[1]; desc = m[2]; unit = '';
-            } else {
-              desc = m[1]; qty = m[2] || ''; unit = m[3] || '';
-            }
-          } else {
-            var parts = line.split(/\\s*\\|\\s*|\\s*,\\s*/);
-            if(parts.length >= 2 && parts[1].match(/^\\d+$/)){
-              desc = parts[0]; qty = parts[1]; unit = parts[2] || '';
-            } else {
-              var m2 = line.match(/^(\\d+)\\s+(.+)$/);
-              if(m2){ qty = m2[1]; desc = m2[2]; } else { desc = line; }
-            }
+          var item = parseLine(line);
+          if(!item) return;
+          // Normalize numbers
+          var qtyNum = !item.qty ? NaN : Number(item.qty.toString().replace(/[^\d]/g,''));
+          var unitNum = NaN;
+          if(item.unit){
+            unitNum = toNumber(item.unit);
+          } else if(item.total && !isNaN(Number(item.total.toString().replace(/[^\d]/g,''))) && !isNaN(qtyNum) && qtyNum>0){
+            // if total present and qty present, infer unit price
+            unitNum = toNumber(item.total) / qtyNum;
           }
+          var totalNum = toNumber(item.total);
+          if(isNaN(totalNum) && !isNaN(qtyNum) && !isNaN(unitNum)) totalNum = qtyNum * unitNum;
 
-          var qtyVal = toNumber(qty) || (qty?Number(qty):null);
-          var unitVal = toNumber(unit);
-          var lineTotal = '';
-          if(unitVal != null && qtyVal != null){
-            lineTotal = unitVal * qtyVal;
-          } else if(unitVal != null){
-            lineTotal = unitVal;
-          }
-
-          var cents = '';
-          if(lineTotal !== '' && !isNaN(lineTotal)){
-            var parts = String(lineTotal).split('.');
-            cents = parts[1] ? (parts[1].padEnd(2,'0').slice(0,2)) : '00';
-          }
+          var amounts = fmtAmount(isNaN(totalNum) ? 0 : totalNum);
 
           var tr = document.createElement('tr');
-          var tdQty = document.createElement('td'); tdQty.className = 'qty'; tdQty.textContent = qty ? (String(qty) + 'x') : '';
-          var tdDesc = document.createElement('td'); tdDesc.textContent = desc || '';
-          var tdUnit = document.createElement('td'); tdUnit.className = 'price'; tdUnit.textContent = unitVal != null ? fmt(unitVal) : (unit || '');
-          var tdKsh = document.createElement('td'); tdKsh.className = 'price'; tdKsh.textContent = (lineTotal !== '' && !isNaN(lineTotal)) ? fmt(Math.trunc(lineTotal)) : '';
-          var tdCts = document.createElement('td'); tdCts.className = 'price'; tdCts.textContent = cents || '';
+          var tdQty = document.createElement('td'); tdQty.className = 'qtyCol'; tdQty.textContent = item.qty ? (String(item.qty).replace(/\s*$/,'') + '') : '';
+          var tdDesc = document.createElement('td'); tdDesc.className = 'descCol'; tdDesc.textContent = item.desc || '';
+          var tdUnit = document.createElement('td'); tdUnit.className = 'unitCol right'; tdUnit.textContent = !isNaN(unitNum) ? (Number(unitNum).toLocaleString('en-GB')) : (item.unit || '');
+          var tdKsh = document.createElement('td'); tdKsh.className = 'kshCol right'; tdKsh.textContent = (amounts.whole ? amounts.whole : (item.total ? item.total : ''));
+          var tdCts = document.createElement('td'); tdCts.className = 'ctsCol right'; tdCts.textContent = (amounts.cents ? amounts.cents : '00');
+
           tr.appendChild(tdQty); tr.appendChild(tdDesc); tr.appendChild(tdUnit); tr.appendChild(tdKsh); tr.appendChild(tdCts);
           frag.appendChild(tr);
         });
@@ -264,7 +272,7 @@ export const TEMPLATES = [
       sellerEmail: "hi@dollarchain.app",
       buyerName: "James Otieno",
       buyerPhone: "+254 733 555 121",
-      items: "Handmade Bag @ 1200 x1, Silk Scarf @ 1000 x2",
+      items: "1x Handmade Bag, 2x Silk Scarf",
       subtotal: "KES 3,200",
       total: "KES 3,200",
       paymentNumber: "Paybill 987654",
@@ -285,15 +293,7 @@ export const TEMPLATES = [
   <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Invoice — Local Classic</title>
   <style>
-    :root{
-      --w:480px;
-      --pad:18px;
-      --green:#15803D;
-      --muted:#6b7280;
-      --text:#0b1220;
-      --base-sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      --base-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace;
-    }
+    :root{ --w:480px; --pad:18px; --green:#15803D; --muted:#6b7280; --text:#0b1220; --base-sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; --base-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace; }
     *{box-sizing:border-box}
     body{font-family:var(--base-sans); background:#f6f7f8; display:flex; justify-content:center; padding:18px; -webkit-font-smoothing:antialiased;}
     .card{width:var(--w); background:white; border-radius:10px; padding:var(--pad); box-shadow:0 10px 30px rgba(8,12,16,0.04); border:1px solid #eef7ef; line-height:1.24;}
@@ -303,17 +303,16 @@ export const TEMPLATES = [
     .meta{font-size:12px; color:var(--muted); white-space:pre-line; margin-top:4px;}
     .grid{display:grid; grid-template-columns:1fr auto; gap:12px; margin-top:14px;}
     .bill{font-size:13px}
-    /* ===== make the item separators stronger ===== */
+    /* items */
     .items{width:100%; border-collapse:collapse; margin-top:12px; font-size:13px; box-shadow:inset 0 -1px 0 rgba(21,128,61,0.03);}
     .items thead th{font-size:12px; text-align:left; color:var(--muted); padding:10px 6px; border-bottom:3px solid rgba(21,128,61,0.14);}
-    .items td{padding:12px 6px; border-bottom:2px solid rgba(21,128,61,0.06); vertical-align:middle;}
-    .items tbody tr:hover td{background:rgba(21,128,61,0.02);}
-    .items tbody tr:last-child td{border-bottom:2px dashed rgba(21,128,61,0.08);}
-    .right{text-align:right}
+    .items td{padding:10px 6px; border-bottom:2px solid rgba(21,128,61,0.06); vertical-align:middle;}
+    .items td.right{text-align:right}
+    .rightCol{width:110px; text-align:right; font-family:var(--base-mono);}
     .totals{margin-top:12px; display:flex; justify-content:flex-end; gap:18px; align-items:end;}
     .totalVal{font-weight:900; font-size:18px; color:var(--text);}
     .paymentCard{margin-top:12px; border-radius:8px; padding:12px; background:linear-gradient(180deg,#f6fff6,#f1fbef); border:1px solid #e6f6ea;}
-    .qr{width:86px;height:86px;border-radius:6px;object-fit:contain}
+    .payLink{display:inline-block; padding:8px 12px; background:var(--green); color:white; border-radius:8px; text-decoration:none; font-weight:700;}
     .mutedSmall{font-size:12px;color:var(--muted)}
     @media print{ .card{box-shadow:none; border:none} }
   </style>
@@ -347,7 +346,7 @@ export const TEMPLATES = [
 
       <table class="items" aria-label="Line items">
         <thead>
-          <tr><th>Description</th><th class="right">Rate, KSH</th><th class="right">Qty</th><th class="right">Amount</th></tr>
+          <tr><th>Description</th><th class="right">Rate (KSH)</th><th class="right">Qty</th><th class="right">Amount (KSH)</th></tr>
         </thead>
         <tbody id="items-local-2">
           {{itemsRows}}
@@ -377,6 +376,7 @@ export const TEMPLATES = [
             <div style="font-size:12px;color:var(--muted); margin-top:6px;">{{paymentNote}}</div>
           </div>
           <div style="text-align:right;">
+            <a class="payLink" href="{{payLink}}">Pay now</a>
             <div style="margin-top:8px;">
               {{#if qrDataUrl}}<img src="{{qrDataUrl}}" alt="QR to pay" class="qr"/>{{/if}}
             </div>
@@ -388,66 +388,85 @@ export const TEMPLATES = [
     </div>
 
     <script>
-      (function normalizeItems(tbodyId){
-        function extractRaw(tbody){
-          if(tbody.dataset && tbody.dataset.items) return tbody.dataset.items;
-          var text = (tbody.innerText || tbody.textContent || '').trim();
-          if(text) return text;
-          var html = tbody.innerHTML || '';
-          if(!html) return '';
-          html = html.replace(/<br\s*\/?>/gi, ', ')
-                     .replace(/<\/(div|p|span|li)>/gi, ', ')
-                     .replace(/<li[^>]*>/gi, ', ')
-                     .replace(/<[^>]+>/g, '');
-          return html.replace(/\\s{2,}/g,' ').trim();
+      // Normalize items into columns: desc, rate, qty, amount
+      (function normalizeLocal2(tbodyId){
+        function toNumber(s){
+          if(!s) return NaN;
+          s = String(s).replace(/[^\d.-]/g,'').replace(/,+/g,'');
+          return s === '' ? NaN : parseFloat(s);
         }
-        function toNumber(s){ if(s == null || s === '') return null; return Number(String(s).replace(/[,\\s]+/g,'').replace(/[^0-9.\\-]/g,'')); }
-        function fmt(n){ if(n==null || isNaN(n)) return ''; return Math.round(n).toLocaleString(); }
+        function fmt(n){ if(isNaN(n)) return ''; return Math.round(n*100)/100; }
 
         var tbody = document.getElementById(tbodyId);
         if(!tbody) return;
-        if(tbody.querySelector('tr')) return;
-        var raw = extractRaw(tbody);
-        if(!raw) return;
-        var lines = raw.split(/[,•·\\n]+/).map(function(l){ return l.trim(); }).filter(Boolean);
+        var tr = tbody.querySelector('tr');
+        if(tr && tr.querySelectorAll('td').length > 1) return;
+
+        var raw = tbody.textContent || '';
+        var lines = raw.split(/[\r\n]+|[,•·]+/).map(function(l){ return l.trim(); }).filter(Boolean);
         if(lines.length === 0) return;
-        var frag = document.createDocumentFragment();
-        lines.forEach(function(line){
-          var desc='', qty='', rate='';
-          var m = line.match(/^\\s*(.+?)\\s*@\\s*([\\d,\\.]+)\\s*[x×]?\\s*(\\d+)?\\s*$/i)
-                  || line.match(/^\\s*(\\d+)\\s*[x×]\\s*(.+?)\\s*(?:@\\s*([\\d,.]+))?\\s*$/i)
-                  || line.match(/^\\s*(.+?)\\s*[-–—|]\\s*(\\d+)\\s*(?:[-–—|]\\s*([\\d,.]+))?\\s*$/);
-          if(m){
-            if(m.length===4 && /^[\\d,.]+$/.test(String(m[2])) && (m[3] || m[1])){
-              desc = m[1]; rate = m[2] || ''; qty = m[3] || '1';
-            } else if(m.length===4 && /^\\d+$/.test(m[1])){
-              qty = m[1]; desc = m[2]; rate = m[3] || '';
-            } else {
-              desc = m[1]; qty = m[2] || ''; rate = m[3] || '';
-            }
-          } else {
-            var parts = line.split(/\\s*\\|\\s*|\\s*,\\s*/);
-            if(parts.length >= 2 && parts[1].match(/^\\d+$/)){
-              desc = parts[0]; qty = parts[1]; rate = parts[2] || '';
-            } else {
-              var m2 = line.match(/^(\\d+)\\s+(.+)$/);
-              if(m2){ qty = m2[1]; desc = m2[2]; } else { desc = line; qty=''; rate=''; }
+
+        function parseLine(line){
+          line = line.trim();
+          if(!line) return null;
+          // pipe-delimited: desc | rate | qty | amount
+          var parts = line.split(/\s*\|\s*/);
+          if(parts.length >= 2){
+            return {desc: parts[0].trim(), rate: parts[1].trim(), qty: parts[2] ? parts[2].trim() : '', amount: parts[3] ? parts[3].trim() : ''};
+          }
+          // comma-separated: desc, qty, rate
+          parts = line.split(/\s*,\s*/);
+          if(parts.length >= 2){
+            // try detect which is rate/qty by numeric content
+            if(/\d/.test(parts[1]) && parts[1].match(/\d/)){
+              // assume parts = [desc, qty, rate] or [desc, qty]
+              return {desc: parts[0].trim(), rate: parts[2] ? parts[2].trim() : '', qty: parts[1].trim(), amount: parts[3] ? parts[3].trim() : ''};
             }
           }
+          // "2x Silk Scarf @ 1000"
+          var m = line.match(/^(\d+)\s*[x×]\s*(.+?)\s*@\s*([KkEeSs\s]*[\d,\.]+)$/i);
+          if(m) return {desc: m[2].trim(), qty: m[1].trim(), rate: (m[3]||'').trim(), amount: ''};
+          // "Silk Scarf @ 1000 x2" or "Silk Scarf - 2 - 1000"
+          m = line.match(/^(.+?)\s*[-–—]\s*(\d+)\s*[-–—]\s*([KkEeSs\s]*[\d,\.]+)$/i);
+          if(m) return {desc: m[1].trim(), qty: m[2].trim(), rate: (m[3]||'').trim(), amount: ''};
+          // "Silk Scarf 2 1000"
+          m = line.match(/^(.+?)\s+(\d+)\s+([KkEeSs\s]*[\d,\.]+)$/i);
+          if(m) return {desc: m[1].trim(), qty: m[2].trim(), rate: (m[3]||'').trim(), amount: ''};
+          // "Silk Scarf 2x" or "2 Silk Scarf"
+          m = line.match(/^(\d+)\s+(.+)$/i);
+          if(m) return {desc: m[2].trim(), qty: m[1].trim(), rate: '', amount: ''};
+          // fallback
+          return {desc: line, rate: '', qty: '', amount: ''};
+        }
 
-          var qtyVal = toNumber(qty) || (qty?Number(qty):null);
-          var rateVal = toNumber(rate);
-          if(qtyVal == null && rateVal != null){ qtyVal = 1; qty = '1'; }
-          var amount = (rateVal != null && qtyVal != null) ? (rateVal * qtyVal) : (rateVal != null ? rateVal : '');
+        var frag = document.createDocumentFragment();
+        lines.forEach(function(line){
+          var item = parseLine(line);
+          if(!item) return;
+
+          var qtyNum = Number(String(item.qty||'').replace(/[^\d]/g,''));
+          var rateNum = toNumber(item.rate || item.amount || '');
+          // if amount missing but qty & rate present, compute amount
+          var amountNum = toNumber(item.amount);
+          if(isNaN(amountNum) && !isNaN(qtyNum) && !isNaN(rateNum)) amountNum = qtyNum * rateNum;
+          // format
+          var amountDisplay = isNaN(amountNum) ? (item.amount || '') : (Math.round(amountNum).toLocaleString('en-GB'));
+          var rateDisplay = isNaN(rateNum) ? (item.rate || '') : (Math.round(rateNum).toLocaleString('en-GB'));
+
+          // Qty normalized to "1x" or "2x"
+          var qtyDisplay = item.qty ? String(item.qty).replace(/\s*$/,'') : '';
+          if(qtyDisplay && !qtyDisplay.match(/[x×]/)) qtyDisplay = qtyDisplay + (qtyDisplay ? 'x' : '');
 
           var tr = document.createElement('tr');
-          var tdDesc = document.createElement('td'); tdDesc.textContent = desc || '';
-          var tdRate = document.createElement('td'); tdRate.className='right'; tdRate.textContent = rateVal!=null? fmt(rateVal) : (rate || '');
-          var tdQty = document.createElement('td'); tdQty.className='right'; tdQty.textContent = qty ? (String(qty) + 'x') : '';
-          var tdAmt = document.createElement('td'); tdAmt.className='right'; tdAmt.textContent = (amount !== '' && !isNaN(amount)) ? fmt(Math.trunc(amount)) : '';
-          tr.appendChild(tdDesc); tr.appendChild(tdRate); tr.appendChild(tdQty); tr.appendChild(tdAmt);
+          var tdDesc = document.createElement('td'); tdDesc.textContent = item.desc || '';
+          var tdRate = document.createElement('td'); tdRate.className = 'right'; tdRate.textContent = rateDisplay;
+          var tdQty = document.createElement('td'); tdQty.className = 'right'; tdQty.textContent = qtyDisplay;
+          var tdAmount = document.createElement('td'); tdAmount.className = 'right'; tdAmount.textContent = amountDisplay;
+
+          tr.appendChild(tdDesc); tr.appendChild(tdRate); tr.appendChild(tdQty); tr.appendChild(tdAmount);
           frag.appendChild(tr);
         });
+
         tbody.innerHTML = '';
         tbody.appendChild(frag);
       })('items-local-2');
