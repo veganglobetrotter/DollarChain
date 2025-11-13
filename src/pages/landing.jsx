@@ -142,29 +142,141 @@ export default function Landing() {
 }
 
 const styles = {
-  page: { fontFamily: "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial", color: "#0f1720" },
-  hero: { background: "linear-gradient(180deg, #ffffff, #f7fff7)", padding: "48px 20px 80px" },
-  heroInner: { maxWidth: 1100, margin: "0 auto", display: "flex", gap: 24, alignItems: "center" },
-  heroCopy: { flex: 1, maxWidth: 640 },
-  h1: { fontSize: 40, lineHeight: 1.05, margin: "0 0 12px", color: "#0b4f2b" },
-  lead: { fontSize: 18, color: "#374151", marginBottom: 18 },
-  ctaRow: { display: "flex", gap: 12, alignItems: "center", marginBottom: 12 },
-  primaryBtn: { background: "#0FAF5A", color: "#fff", padding: "10px 16px", borderRadius: 8, textDecoration: "none", fontWeight: 700 },
-  linkBtn: { color: "#0FAF5A", padding: "8px 12px", textDecoration: "none", fontWeight: 700 },
+  // keep horizontal overflow off so small-screen nav/items don't get partially hidden
+  page: {
+    fontFamily: "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial",
+    color: "#0f1720",
+    overflowX: "hidden",
+    WebkitFontSmoothing: "antialiased",
+  },
+
+  // hero with slightly reduced horizontal padding for narrow screens
+  hero: {
+    background: "linear-gradient(180deg, #ffffff, #f7fff7)",
+    padding: "48px 16px 80px",
+  },
+
+  // allow wrapping so on small screens the visual stacks under the copy
+  heroInner: {
+    maxWidth: 1100,
+    margin: "0 auto",
+    display: "flex",
+    gap: 24,
+    alignItems: "center",
+    flexWrap: "wrap",
+    padding: "0 16px",
+    boxSizing: "border-box",
+  },
+
+  // hero copy is flexible and can shrink on small screens
+  heroCopy: {
+    flex: "1 1 320px",
+    minWidth: 220,
+    maxWidth: 640,
+    boxSizing: "border-box",
+  },
+
+  // responsive heading
+  h1: {
+    fontSize: "clamp(20px, 6vw, 40px)",
+    lineHeight: 1.05,
+    margin: "0 0 12px",
+    color: "#0b4f2b",
+  },
+
+  // responsive lead text
+  lead: {
+    fontSize: "clamp(14px, 3.2vw, 18px)",
+    color: "#374151",
+    marginBottom: 18,
+  },
+
+  // CTA row wraps on narrow screens so buttons don't overflow
+  ctaRow: {
+    display: "flex",
+    gap: 12,
+    alignItems: "center",
+    marginBottom: 12,
+    flexWrap: "wrap",
+  },
+
+  primaryBtn: {
+    background: "#0FAF5A",
+    color: "#fff",
+    padding: "10px 16px",
+    borderRadius: 8,
+    textDecoration: "none",
+    fontWeight: 700,
+    display: "inline-block",
+    whiteSpace: "nowrap",
+  },
+
+  linkBtn: {
+    color: "#0FAF5A",
+    padding: "8px 12px",
+    textDecoration: "none",
+    fontWeight: 700,
+    display: "inline-block",
+  },
+
   microTrust: { marginTop: 12, color: "#6b7280", fontSize: 13 },
+
   signedInBanner: { marginTop: 12, padding: 8, background: "#ecfdf3", borderRadius: 8, color: "#065f46" },
-  heroVisual: { width: 380, display: "flex", justifyContent: "center" },
-  mockupBox: { width: 320, height: 220, borderRadius: 12, background: "#fff", boxShadow: "0 12px 30px rgba(15,23,42,0.08)", padding: 18 },
+
+  // visual section becomes fluid: allow it to shrink and sit below copy on small screens
+  heroVisual: {
+    flex: "0 0 380px",
+    minWidth: 240,
+    display: "flex",
+    justifyContent: "center",
+    maxWidth: "100%",
+    boxSizing: "border-box",
+  },
+
+  // make mockup box fluid (will shrink on small screens)
+  mockupBox: {
+    width: "100%",
+    maxWidth: 320,
+    height: 220,
+    borderRadius: 12,
+    background: "#fff",
+    boxShadow: "0 12px 30px rgba(15,23,42,0.08)",
+    padding: 18,
+    boxSizing: "border-box",
+  },
+
   mockupLine: { height: 8, width: "80%", background: "#f3f4f6", borderRadius: 8, marginBottom: 10 },
   mockupInvoice: { marginTop: 10 },
-  main: { maxWidth: 1100, margin: "40px auto", padding: "0 20px" },
+
+  main: { maxWidth: 1100, margin: "40px auto", padding: "0 16px", boxSizing: "border-box" },
   section: { marginBottom: 36 },
   h2: { fontSize: 22, color: "#0b4f2b", marginBottom: 12 },
-  cardRow: { display: "flex", gap: 12 },
-  card: { flex: 1, padding: 18, borderRadius: 10, background: "#ffffff", boxShadow: "0 6px 18px rgba(15,23,42,0.04)" },
+
+  // cards: allow wrapping and set sensible min-width so each card stacks on small screens
+  cardRow: { display: "flex", gap: 12, flexWrap: "wrap" },
+  card: {
+    flex: "1 1 220px",
+    minWidth: 220,
+    padding: 18,
+    borderRadius: 10,
+    background: "#ffffff",
+    boxShadow: "0 6px 18px rgba(15,23,42,0.04)",
+    boxSizing: "border-box",
+  },
+
   steps: { listStyle: "decimal", paddingLeft: 18, display: "grid", gap: 12 },
-  pricingRow: { display: "flex", gap: 12 },
-  pricingCard: { flex: 1, padding: 18, borderRadius: 10, border: "1px solid #e6f4ea" },
+
+  pricingRow: { display: "flex", gap: 12, flexWrap: "wrap" },
+  pricingCard: {
+    flex: "1 1 220px",
+    minWidth: 220,
+    padding: 18,
+    borderRadius: 10,
+    border: "1px solid #e6f4ea",
+    boxSizing: "border-box",
+  },
+
   faqItem: { marginBottom: 8 },
-  footer: { maxWidth: 1100, margin: "40px auto", padding: "20px", color: "#6b7280" },
+
+  footer: { maxWidth: 1100, margin: "40px auto", padding: "20px", color: "#6b7280", boxSizing: "border-box" },
 };
