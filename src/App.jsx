@@ -58,6 +58,9 @@ function App() {
   // Client-side loaded landing component (null until loaded)
   const [LandingComp, setLandingComp] = useState(null);
 
+  // Tracks whether initial session check completed (prevents premature redirect)
+  const [sessionChecked, setSessionChecked] = useState(false);
+
   // Dummy invoice used when previewing a template (will be replaced after parsing)
   const DUMMY_INVOICE = {
     buyerName: "Buyer Name",
@@ -251,14 +254,21 @@ function App() {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!mounted) return;
-      const sessionUser = data?.session?.user ?? null;
-      setUser(sessionUser);
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!mounted) return;
+        const sessionUser = data?.session?.user ?? null;
+        setUser(sessionUser);
 
-      // if signed in, attempt to load default template from profile metadata
-      if (sessionUser?.id) {
-        fetchAndSetDefaultTemplate(sessionUser.id);
+        // if signed in, attempt to load default template from profile metadata
+        if (sessionUser?.id) {
+          fetchAndSetDefaultTemplate(sessionUser.id);
+        }
+      } catch (err) {
+        console.warn("initial session check failed:", err);
+      } finally {
+        // Mark that we've completed the initial session lookup to avoid premature redirects
+        if (mounted) setSessionChecked(true);
       }
     })();
 
@@ -292,6 +302,22 @@ function App() {
       listener.subscription.unsubscribe();
     };
   }, [pendingFormData]);
+
+  // If initial session check completed and the user is NOT signed in,
+  // redirect root visits to /landing so signed-out visitors see the public page.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const pathname = window.location.pathname || "/";
+      if (sessionChecked && !user && (pathname === "/" || pathname === "")) {
+        // Use replace so back-button doesn't return user to landing after redirect
+        window.location.replace("/landing");
+      }
+    } catch (e) {
+      // fallback
+      window.location.href = "/landing";
+    }
+  }, [sessionChecked, user]);
 
   // close sidebar on Escape for better UX
   useEffect(() => {
