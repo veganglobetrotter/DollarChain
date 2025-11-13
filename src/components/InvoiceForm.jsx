@@ -1,175 +1,201 @@
+// src/components/InvoiceForm.jsx
 import { useState, useEffect } from "react";
-import axios from "axios"; // added for calling credit APIs
-import { supabase } from "../lib/supabase"; // canonical client
+import axios from "axios"; // for credit APIs
+import { supabase } from "../lib/supabase";
 
 export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGenerate }) {
   const [formData, setFormData] = useState({
     buyerName: "",
     phone: "",
-    items: "",
+    items: [], // structured rows: { description, qty, unitPrice, amount, cents }
     total: "",
     paymentNumber: "",
   });
 
-  const [walletMessage, setWalletMessage] = useState(""); // state for wallet feedback
+  const [walletMessage, setWalletMessage] = useState("");
 
   useEffect(() => {
-    setFormData({
+    // initialise basic fields
+    setFormData((prev) => ({
+      ...prev,
       buyerName: parsedData.buyerName || "",
       phone: parsedData.phone || "",
-      items: parsedData.items || "",
-      total: parsedData.total || "",
       paymentNumber: parsedData.paymentNumber || "",
-    });
+    }));
+
+    // Normalise parsedData.items into structured rows
+    const rawItems = parsedData.items ?? parsedData.lines ?? parsedData.itemsText ?? "";
+    const structured = normalizeIncomingItems(rawItems);
+    if (structured.length) {
+      const total = sumAmounts(structured);
+      setFormData((prev) => ({ ...prev, items: structured, total }));
+    }
   }, [parsedData]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  // ---------------------
-  // Helpers: parsing utils
-  // ---------------------
-  const parseNumber = (s) => {
+  // ---------- helpers ----------
+  function parseNumber(s) {
     if (s === null || s === undefined) return NaN;
     const cleaned = String(s).replace(/[^\d.-]/g, "").replace(/,+/g, "");
     return cleaned === "" ? NaN : Number(cleaned);
-  };
+  }
 
-  // convert a numeric value into { whole, cents } or return empty parts for display
-  const formatMoneyParts = (n) => {
+  function moneyParts(n) {
     if (isNaN(n)) return { whole: "", cents: "00" };
     const rounded = Math.round(Math.abs(n) * 100) / 100;
     const whole = Math.floor(rounded);
     const cents = Math.round((rounded - whole) * 100).toString().padStart(2, "0");
     return { whole: whole.toLocaleString("en-GB"), cents };
-  };
+  }
 
-  // Accepts:
-  // - array of structured objects -> pass through
-  // - array of strings or single string -> try to parse useful patterns
-  // Patterns supported: "2x Cotton Shirt @ 1800", "Cotton Shirt | 2 | 1800", "Cotton Shirt,2,1800", "2 Cotton Shirt"
-  const buildStructuredItems = (rawItems) => {
-    if (!rawItems && rawItems !== 0) return [];
+  function toFixedAmount(n) {
+    if (isNaN(n)) return "";
+    return Math.round(n).toString();
+  }
 
-    // if items is already an array of objects with description/qty keys, return normalized objects
-    if (Array.isArray(rawItems) && rawItems.length > 0 && typeof rawItems[0] === "object") {
-      return rawItems.map((r) => {
+  function safeNum(v) {
+    const n = parseNumber(v);
+    return isNaN(n) ? null : n;
+  }
+
+  function sumAmounts(rows) {
+    return rows.reduce((acc, r) => {
+      const a = safeNum(r.amount);
+      return acc + (a === null ? 0 : a);
+    }, 0);
+  }
+
+  // Try to parse many common textual item formats into structured rows
+  function parseItemLine(line) {
+    line = String(line || "").trim();
+    if (!line) return null;
+
+    // 1) "2x Cotton Shirt @ 1800"
+    let m = line.match(/^(\d+)\s*[x×]\s*(.+?)\s*@\s*([KkEeSs\s]*[\d,\.]+)$/i);
+    if (m) {
+      const qty = Number(m[1]);
+      const desc = m[2].trim();
+      const unit = parseNumber(m[3]);
+      const amount = !isNaN(unit) && !isNaN(qty) ? unit * qty : "";
+      const cents = amount !== "" ? moneyParts(amount).cents : "00";
+      return { description: desc, qty, unitPrice: unit || "", amount: amount || "", cents };
+    }
+
+    // 2) "Desc | qty | unit | total" or comma-separated "Desc, qty, unit, total"
+    m = line.split(/\s*\|\s*/);
+    if (m.length >= 2) {
+      const desc = m[0].trim();
+      const qty = Number(String(m[1] || "").replace(/[^\d]/g, "")) || "";
+      const unit = parseNumber(m[2] || "") || "";
+      const amount = parseNumber(m[3] || "") || (unit && qty ? unit * qty : "");
+      const cents = amount ? moneyParts(amount).cents : "00";
+      return { description: desc, qty: qty || "", unitPrice: unit || "", amount: amount || "", cents };
+    }
+    // comma separated fallback
+    m = line.split(/\s*,\s*/);
+    if (m.length >= 2) {
+      const desc = m[0].trim();
+      const qty = Number(String(m[1] || "").replace(/[^\d]/g, "")) || "";
+      const unit = parseNumber(m[2] || "") || "";
+      const amount = parseNumber(m[3] || "") || (unit && qty ? unit * qty : "");
+      const cents = amount ? moneyParts(amount).cents : "00";
+      return { description: desc, qty: qty || "", unitPrice: unit || "", amount: amount || "", cents };
+    }
+
+    // 3) "Desc 2 1800" (desc qty unit)
+    m = line.match(/^(.+?)\s+(\d+)\s+([KkEeSs\s]*[\d,\.]+)$/i);
+    if (m) {
+      const desc = m[1].trim();
+      const qty = Number(m[2]);
+      const unit = parseNumber(m[3]);
+      const amount = !isNaN(unit) && !isNaN(qty) ? unit * qty : "";
+      const cents = amount ? moneyParts(amount).cents : "00";
+      return { description: desc, qty, unitPrice: unit || "", amount: amount || "", cents };
+    }
+
+    // 4) "2 Cotton Shirt" -> qty + desc
+    m = line.match(/^(\d+)\s+[x×]?\s*(.+)$/i);
+    if (m) {
+      const qty = Number(m[1]);
+      const desc = m[2].trim();
+      return { description: desc, qty, unitPrice: "", amount: "", cents: "00" };
+    }
+
+    // fallback: everything as description
+    return { description: line, qty: "", unitPrice: "", amount: "", cents: "00" };
+  }
+
+  function normalizeIncomingItems(raw) {
+    // Accept structured array
+    if (Array.isArray(raw) && raw.length && typeof raw[0] === "object") {
+      // Ensure each row has expected fields
+      return raw.map((r) => {
         const description = r.description || r.name || r.desc || "";
-        const qty = Number(String(r.qty ?? r.quantity ?? r.q ?? 1).replace(/[^\d]/g, "")) || 1;
-        const unitPrice = parseNumber(r.unitPrice ?? r.unit ?? r.rate ?? r.price ?? r.priceRaw ?? "");
-        const amount = parseNumber(r.amount ?? r.total ?? (isNaN(unitPrice) ? "" : unitPrice * qty));
-        const cents = formatMoneyParts(amount).cents;
-        return { description, qty, unitPrice: isNaN(unitPrice) ? null : unitPrice, amount: isNaN(amount) ? null : amount, cents };
+        const qty = r.qty ?? r.quantity ?? r.q ?? "";
+        const unitPrice = r.unitPrice ?? r.unit ?? r.rate ?? r.price ?? "";
+        const amount = r.amount ?? r.total ?? (unitPrice && qty ? parseNumber(unitPrice) * Number(qty) : "");
+        const cents = amount ? moneyParts(amount).cents : "00";
+        return { description: String(description), qty: qty === "" ? "" : Number(qty), unitPrice: unitPrice || "", amount: amount || "", cents };
       });
     }
 
-    // If it's a single string, split into lines by newline or comma separators
-    const lines =
-      Array.isArray(rawItems) && rawItems.length > 0
-        ? rawItems.map((it) => String(it).trim()).filter(Boolean)
-        : String(rawItems)
-            .split(/[\r\n]+|[,•·]+/)
-            .map((it) => String(it).trim())
-            .filter(Boolean);
+    // Accept string: split by commas/newlines
+    const str = Array.isArray(raw) ? raw.join(", ") : String(raw || "");
+    if (!str.trim()) return [];
 
-    const out = lines.map((line) => {
-      line = String(line).trim();
-
-      // 1) "2x Cotton Shirt @ 1800" -> qty, desc, unitPrice
-      let m = line.match(/^(\d+)\s*[x×]\s*(.+?)\s*@\s*([KkEeSs\s]*[\d,\.]+)$/i);
-      if (m) {
-        const qty = Number(m[1]);
-        const description = m[2].trim();
-        const unitPrice = parseNumber(m[3]);
-        const amount = !isNaN(unitPrice) ? qty * unitPrice : null;
-        return { description, qty, unitPrice: isNaN(unitPrice) ? null : unitPrice, amount: isNaN(amount) ? null : amount, cents: formatMoneyParts(amount).cents };
-      }
-
-      // 2) "Cotton Shirt @ 1800 x2" or "Cotton Shirt @ 1800, 2"
-      m = line.match(/^(.+?)\s*@\s*([KkEeSs\s]*[\d,\.]+)\s*[,\s]+(\d+)$/i);
-      if (m) {
-        const description = m[1].trim();
-        const unitPrice = parseNumber(m[2]);
-        const qty = Number(m[3]);
-        const amount = !isNaN(unitPrice) ? qty * unitPrice : null;
-        return { description, qty, unitPrice: isNaN(unitPrice) ? null : unitPrice, amount: isNaN(amount) ? null : amount, cents: formatMoneyParts(amount).cents };
-      }
-
-      // 3) pipe-delimited or pipe-like: desc | qty | unit | total
-      let parts = line.split(/\s*\|\s*/);
-      if (parts.length >= 2) {
-        const description = parts[0].trim();
-        const qty = Number(String(parts[1] || "").replace(/[^\d]/g, "")) || 1;
-        const unitPrice = parseNumber(parts[2] || "");
-        const amount = parseNumber(parts[3] || "") || (!isNaN(unitPrice) && !isNaN(qty) ? unitPrice * qty : null);
-        return { description, qty, unitPrice: isNaN(unitPrice) ? null : unitPrice, amount: isNaN(amount) ? null : amount, cents: formatMoneyParts(amount).cents };
-      }
-
-      // 4) comma-separated: desc, qty, unit, total
-      parts = line.split(/\s*,\s*/);
-      if (parts.length >= 2) {
-        const description = parts[0].trim();
-        const qty = Number(String(parts[1] || "").replace(/[^\d]/g, "")) || 1;
-        const unitPrice = parseNumber(parts[2] || "");
-        const amount = parseNumber(parts[3] || "") || (!isNaN(unitPrice) && !isNaN(qty) ? unitPrice * qty : null);
-        return { description, qty, unitPrice: isNaN(unitPrice) ? null : unitPrice, amount: isNaN(amount) ? null : amount, cents: formatMoneyParts(amount).cents };
-      }
-
-      // 5) "2 Cotton Shirt" or "2 Item" fallback
-      m = line.match(/^(\d+)\s+[x×]?\s*(.+)$/i);
-      if (m) {
-        const qty = Number(m[1]);
-        const description = m[2].trim();
-        return { description, qty, unitPrice: null, amount: null, cents: "00" };
-      }
-
-      // final fallback: treat whole line as description, qty=1
-      return { description: line, qty: 1, unitPrice: null, amount: null, cents: "00" };
-    });
-
+    const lines = str.split(/[\r\n]+|[,•·]+/).map((l) => l.trim()).filter(Boolean);
+    const out = lines.map((line) => parseItemLine(line)).filter(Boolean);
     return out;
-  };
+  }
 
-  // Confidence badge
-  const ConfidenceBadge = ({ score }) => {
-    if (score === undefined || score === null) return null;
-    const s = Number(score);
-    const base = {
-      display: "inline-block",
-      padding: "4px 8px",
-      borderRadius: 999,
-      fontSize: 12,
-      fontWeight: 700,
-      color: "#fff",
-      marginLeft: 8,
-    };
-    if (s >= 0.8) return <span style={{ ...base, background: "#16a34a" }}>✓ {Math.round(s * 100)}%</span>;
-    else if (s >= 0.5) return <span style={{ ...base, background: "#f59e0b" }}>~ {Math.round(s * 100)}%</span>;
-    else return <span style={{ ...base, background: "#ef4444" }}>! {Math.round(s * 100)}%</span>;
-  };
+  // ---------- row manipulation ----------
+  function addRow() {
+    setFormData((prev) => {
+      const items = [...prev.items, { description: "", qty: "", unitPrice: "", amount: "", cents: "00" }];
+      return { ...prev, items, total: sumAmounts(items) };
+    });
+  }
 
-  const confidence = parsedData?.confidence || {};
+  function removeRow(idx) {
+    setFormData((prev) => {
+      const items = prev.items.slice();
+      items.splice(idx, 1);
+      return { ...prev, items, total: sumAmounts(items) };
+    });
+  }
 
-  const safeCopyToClipboard = async (text) => {
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-        alert("Form copied to clipboard for easy testing.");
-      } else {
-        window.prompt("Copy the form data (Ctrl+C / Cmd+C, Enter):", text);
+  function updateRow(idx, key, value) {
+    setFormData((prev) => {
+      const items = prev.items.slice();
+      const row = { ...(items[idx] || {}) };
+      row[key] = value;
+
+      // auto-calc amount when qty or unitPrice changes
+      const qtyNum = safeNum(row.qty);
+      const unitNum = safeNum(row.unitPrice);
+      if (!isNaN(qtyNum) && !isNaN(unitNum)) {
+        const amount = Number(qtyNum) * Number(unitNum);
+        row.amount = Math.round(amount);
+        row.cents = moneyParts(amount).cents;
+      } else if (key === "amount") {
+        // if user typed amount directly, try to fill cents
+        const amt = safeNum(row.amount);
+        row.cents = amt === null ? "00" : moneyParts(amt).cents;
       }
-    } catch (err) {
-      console.warn("Clipboard write failed, falling back to prompt:", err);
-      window.prompt("Copy the form data:", text);
-    }
-  };
 
+      items[idx] = row;
+      return { ...prev, items, total: sumAmounts(items) };
+    });
+  }
+
+  // ---------- wallet / credits and submit ----------
   const handleSubmit = async (e) => {
     e && e.preventDefault();
 
     const creditsPerInvoice = 10;
+
+    // ensure formData.total based on rows
+    const totalValue = sumAmounts(formData.items);
+    const normalizedForm = { ...formData, total: totalValue };
 
     // 1) Resolve user ID properly
     let userId;
@@ -200,10 +226,7 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
       console.error("Reserve credits failed:", err);
       let serverMsg = "Unknown error";
       if (err?.response?.data) {
-        serverMsg =
-          typeof err.response.data === "string"
-            ? err.response.data
-            : JSON.stringify(err.response.data);
+        serverMsg = typeof err.response.data === "string" ? err.response.data : JSON.stringify(err.response.data);
       } else if (err?.message) {
         serverMsg = err.message;
       } else {
@@ -215,21 +238,11 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
 
     // 3) Attempt invoice generation
     try {
-      // Build structured items and final payload BEFORE calling onGenerate
-      const structuredItems = buildStructuredItems(formData.items);
-      const payload = {
-        buyerName: formData.buyerName,
-        phone: formData.phone,
-        items: structuredItems,
-        total: formData.total,
-        paymentNumber: formData.paymentNumber,
-      };
-
       if (typeof onGenerate === "function") {
-        await onGenerate(payload);
+        await onGenerate(normalizedForm);
       } else {
-        alert(`Invoice ready for ${payload.buyerName}!\n\n(We will show a preview next step.)`);
-        console.log("Final invoice data:", payload);
+        alert(`Invoice ready for ${normalizedForm.buyerName}!`);
+        console.log("Final invoice data:", normalizedForm);
       }
 
       // 4) Consume credits after successful generation
@@ -245,14 +258,11 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
       } catch (consumeErr) {
         console.error("Consume credits failed:", consumeErr);
         let msg = "Invoice generated, but failed to consume credits. Admin may need to adjust.";
-        if (consumeErr?.response?.data) {
-          msg += ` (${JSON.stringify(consumeErr.response.data)})`;
-        }
+        if (consumeErr?.response?.data) msg += ` (${JSON.stringify(consumeErr.response.data)})`;
         setWalletMessage(msg);
       }
     } catch (generateErr) {
       console.error("Invoice generation failed:", generateErr);
-
       // 5) Release reserved credits if generation fails
       try {
         await axios.post("/api/releaseCredits", {
@@ -263,14 +273,28 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
       } catch (releaseErr) {
         console.error("Release credits failed:", releaseErr);
         let msg = "Invoice failed and credits may be stuck. Admin check required.";
-        if (releaseErr?.response?.data) {
-          msg += ` (${JSON.stringify(releaseErr.response.data)})`;
-        }
+        if (releaseErr?.response?.data) msg += ` (${JSON.stringify(releaseErr.response.data)})`;
         setWalletMessage(msg);
       }
     }
   };
 
+  // Copy structured form to clipboard
+  const safeCopyToClipboard = async (text) => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        alert("Form copied to clipboard for easy testing.");
+      } else {
+        window.prompt("Copy the form data (Ctrl+C / Cmd+C, Enter):", text);
+      }
+    } catch (err) {
+      console.warn("Clipboard write failed, falling back to prompt:", err);
+      window.prompt("Copy the form data:", text);
+    }
+  };
+
+  // ---------- UI ----------
   return (
     <div className="formBox fade-in invoice-form" role="region" aria-labelledby="invoice-heading">
       <h2 id="invoice-heading" style={{ marginTop: 0, marginBottom: 12 }}>
@@ -286,102 +310,118 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
       <form onSubmit={handleSubmit}>
         <label style={{ ...labelStyle, color: "var(--text)" }} htmlFor="buyerName">
           Buyer Name
-          <ConfidenceBadge score={confidence.name} />
         </label>
-        <input
-          id="buyerName"
-          name="buyerName"
-          value={formData.buyerName}
-          onChange={handleChange}
-          style={inputStyle}
-          placeholder="Buyer full name"
-          required
-        />
+        <input id="buyerName" name="buyerName" value={formData.buyerName} onChange={(e) => setFormData((p) => ({ ...p, buyerName: e.target.value }))} style={inputStyle} placeholder="Buyer full name" required />
 
         <label style={{ ...labelStyle, color: "var(--text)" }} htmlFor="phone">
           Phone Number
-          <ConfidenceBadge score={confidence.phone} />
         </label>
-        <input
-          id="phone"
-          name="phone"
-          value={formData.phone}
-          onChange={handleChange}
-          style={inputStyle}
-          placeholder="+254712345678"
-        />
+        <input id="phone" name="phone" value={formData.phone} onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))} style={inputStyle} placeholder="+254712345678" />
 
         <label style={{ ...labelStyle, color: "var(--text)" }} htmlFor="items">
-          Items (comma separated or one per line). You can also use structured lines like:
-          <br />
-          <small style={{ color: "#6b7280" }}>2x Cotton Shirt @ 1800  — or — Cotton Shirt | 2 | 1800</small>
-          <ConfidenceBadge score={confidence.items} />
+          Items
+          <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>Add rows; qty and unit price will auto-calc amount.</div>
         </label>
-        <textarea
-          id="items"
-          name="items"
-          value={formData.items}
-          onChange={handleChange}
-          rows="3"
-          style={textareaStyle}
-          placeholder="e.g. 2x T-Shirt @ 1200, 1x Cap @ 300"
-        />
 
-        <label style={{ ...labelStyle, color: "var(--text)" }} htmlFor="total">
-          Total Amount
-          <ConfidenceBadge score={confidence.total} />
-        </label>
-        <input
-          id="total"
-          name="total"
-          value={formData.total}
-          onChange={handleChange}
-          style={inputStyle}
-          placeholder="KES 2,300"
-        />
-
-        <label style={{ ...labelStyle, color: "var(--text)" }} htmlFor="paymentNumber">
-          Payment Number (Account / Paybill / Phone)
-        </label>
-        <input
-          id="paymentNumber"
-          name="paymentNumber"
-          value={formData.paymentNumber}
-          onChange={handleChange}
-          style={inputStyle}
-          placeholder="e.g. 254712345678 or 123456 (Paybill)"
-        />
-
-        {parsedData?.notes?.length > 0 && (
-          <div style={{ marginTop: 12, padding: 10, background: "#fffaf0", borderRadius: 8, border: "1px solid #fae6c1" }}>
-            <strong style={{ color: "#92400e" }}>Parser notes:</strong>
-            <ul style={{ margin: "8px 0 0 16px", color: "#92400e" }}>
-              {parsedData.notes.map((n, i) => (
-                <li key={i}>{n}</li>
-              ))}
-            </ul>
+        <div style={{ border: "1px solid #eef2f6", borderRadius: 8, padding: 8, marginBottom: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 110px 90px 36px 40px", gap: 8, alignItems: "center", marginBottom: 6 }}>
+            <div style={{ fontWeight: 700 }}>Description</div>
+            <div style={{ fontWeight: 700 }}>Qty</div>
+            <div style={{ fontWeight: 700 }}>Unit (KSH)</div>
+            <div style={{ fontWeight: 700 }}>Amount</div>
+            <div style={{ fontWeight: 700 }}>Cts</div>
+            <div />
           </div>
-        )}
 
-        <div className="form-controls" style={{ display: "flex", justifyContent: "space-between", marginTop: 14 }}>
-          <button type="button" className="btn-outline" onClick={() => onBack?.()} aria-label="Back to paste">
-            ⬅ Back
-          </button>
+          {formData.items.map((row, idx) => (
+            <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 80px 110px 90px 36px 40px", gap: 8, alignItems: "center", marginBottom: 8 }}>
+              <input
+                type="text"
+                value={row.description || ""}
+                onChange={(e) => updateRow(idx, "description", e.target.value)}
+                placeholder="Item description"
+                style={{ padding: 8, borderRadius: 8, border: "1px solid #e6e9ef" }}
+              />
+              <input
+                type="number"
+                value={row.qty ?? ""}
+                min="0"
+                onChange={(e) => updateRow(idx, "qty", e.target.value)}
+                style={{ padding: 8, borderRadius: 8, border: "1px solid #e6e9ef" }}
+              />
+              <input
+                type="text"
+                value={row.unitPrice ?? ""}
+                onChange={(e) => updateRow(idx, "unitPrice", e.target.value)}
+                placeholder="e.g. 1,800"
+                style={{ padding: 8, borderRadius: 8, border: "1px solid #e6e9ef", textAlign: "right" }}
+              />
+              <input
+                type="text"
+                value={row.amount ?? ""}
+                onChange={(e) => updateRow(idx, "amount", e.target.value)}
+                placeholder=""
+                style={{ padding: 8, borderRadius: 8, border: "1px solid #e6e9ef", textAlign: "right" }}
+              />
+              <input type="text" value={row.cents ?? ""} onChange={(e) => updateRow(idx, "cents", e.target.value)} style={{ padding: 8, borderRadius: 8, border: "1px solid #e6e9ef", textAlign: "right" }} />
+              <div>
+                <button type="button" onClick={() => removeRow(idx)} className="btn-outline" aria-label="Remove row" style={{ padding: "6px 8px" }}>
+                  ✕
+                </button>
+              </div>
+            </div>
+          ))}
 
-          <div className="form-actions" style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <button type="button" className="btn-outline" onClick={addRow}>
+              + Add row
+            </button>
             <button
               type="button"
               className="btn-outline"
               onClick={() => {
-                // copy the structured payload to clipboard for easy testing
-                const structured = { ...formData, items: buildStructuredItems(formData.items) };
-                safeCopyToClipboard(JSON.stringify(structured, null, 2));
+                // quick parse from plain textarea-like examples in parsedData.items if any
+                const examples = parsedData.items || parsedData.itemsText || "";
+                const parsed = normalizeIncomingItems(examples);
+                if (parsed.length) {
+                  setFormData((prev) => ({ ...prev, items: parsed, total: sumAmounts(parsed) }));
+                  return;
+                }
+                addRow();
               }}
-              aria-label="Copy form to clipboard"
             >
+              Try parse sample
+            </button>
+          </div>
+        </div>
+
+        <label style={{ ...labelStyle, color: "var(--text)" }} htmlFor="total">
+          Total Amount
+        </label>
+        <input id="total" name="total" value={formData.total || ""} onChange={(e) => setFormData((p) => ({ ...p, total: e.target.value }))} style={inputStyle} placeholder="KES 2,300" />
+
+        <label style={{ ...labelStyle, color: "var(--text)" }} htmlFor="paymentNumber">
+          Payment Number (Account / Paybill / Phone)
+        </label>
+        <input id="paymentNumber" name="paymentNumber" value={formData.paymentNumber} onChange={(e) => setFormData((p) => ({ ...p, paymentNumber: e.target.value }))} style={inputStyle} placeholder="e.g. 254712345678 or 123456 (Paybill)" />
+
+        {parsedData?.notes?.length > 0 && (
+          <div style={{ marginTop: 12, padding: 10, background: "#fffaf0", borderRadius: 8, border: "1px solid #fae6c1" }}>
+            <strong style={{ color: "#92400e" }}>Parser notes:</strong>
+            <ul style={{ margin: "8px 0 0 16px", color: "#92400e" }}>{parsedData.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
+          </div>
+        )}
+
+        <div className="form-controls" style={{ display: "flex", justifyContent: "space-between", marginTop: 14 }}>
+          <button type="button" className="btn-outline" onClick={() => onBack?.()}>
+            ⬅ Back
+          </button>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" className="btn-outline" onClick={() => safeCopyToClipboard(JSON.stringify(formData))}>
               Copy
             </button>
-            <button type="submit" className="btn-primary" aria-label="Generate invoice">
+            <button type="submit" className="btn-primary">
               Generate
             </button>
           </div>
@@ -389,8 +429,22 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
       </form>
     </div>
   );
+
+  // copy helper reused locally
+  async function safeCopyToClipboard(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        alert("Form copied to clipboard for easy testing.");
+      } else {
+        window.prompt("Copy the form data (Ctrl+C / Cmd+C, Enter):", text);
+      }
+    } catch (err) {
+      console.warn("Clipboard write failed, falling back to prompt:", err);
+      window.prompt("Copy the form data:", text);
+    }
+  }
 }
 
 const labelStyle = { display: "block", marginBottom: 6, fontWeight: 600 };
 const inputStyle = { width: "100%", padding: "0.7rem", borderRadius: 10, border: "1px solid #e6e9ef", marginBottom: 12, fontSize: 15 };
-const textareaStyle = { width: "100%", padding: "0.7rem", borderRadius: 10, border: "1px solid #e6e9ef", marginBottom: 12, fontSize: 15, resize: "vertical" };
