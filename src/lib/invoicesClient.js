@@ -134,8 +134,17 @@ export async function reserveCredits(userId, amount, idempotencyKey) {
     const res = await axios.post("/api/reserveCredits", { userId, amount, idempotencyKey: key });
 
     const payload = res?.data ?? null;
-    // server may return { success: true, reservation } or older shapes
-    const reservation = payload?.reservation ?? payload?.result ?? payload;
+    // server may return many shapes:
+    //  - { reservation: {...} }
+    //  - { result: {...} }
+    //  - { success: true, data: [...] }
+    //  - legacy: raw object
+    let reservation = payload?.reservation ?? payload?.data ?? payload?.result ?? payload;
+
+    // If server returned an array (e.g. data: [ {...} ]), prefer the first entry
+    if (Array.isArray(reservation) && reservation.length > 0) {
+      reservation = reservation[0];
+    }
 
     return { reservation, error: null };
   } catch (err) {
@@ -160,8 +169,13 @@ export async function consumeCredits(userId, reservationId, delta, type, referen
     });
 
     const payload = res?.data ?? null;
-    // server returns { success: true, result } where result is the transaction or an array
-    const transaction = payload?.result ?? payload?.transaction ?? payload;
+    // server returns various shapes: prefer result, transaction, data, then payload itself
+    let transaction = payload?.result ?? payload?.transaction ?? payload?.data ?? payload;
+
+    // If it's an array, pick the first entry (common when returning rows)
+    if (Array.isArray(transaction) && transaction.length > 0) {
+      transaction = transaction[0];
+    }
 
     return { transaction, error: null };
   } catch (err) {
@@ -178,8 +192,12 @@ export async function releaseCredits(userId, reservationId) {
     const res = await axios.post("/api/releaseCredits", { userId, reservationId });
 
     const payload = res?.data ?? null;
-    // server returns { success: true, result } where result may be reservation info
-    const reservation = payload?.result ?? payload?.reservation ?? payload;
+    // server may return result/reservation/data
+    let reservation = payload?.result ?? payload?.reservation ?? payload?.data ?? payload;
+
+    if (Array.isArray(reservation) && reservation.length > 0) {
+      reservation = reservation[0];
+    }
 
     return { reservation, error: null };
   } catch (err) {
