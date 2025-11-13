@@ -1,8 +1,8 @@
 // src/components/PasteBox.jsx
 import { useState } from "react";
-import axios from "axios";
 import { supabase } from "../lib/supabase";
 import parseOrderText from "../lib/parser";
+import { reserveCredits, consumeCredits, releaseCredits } from "../lib/invoicesClient";
 
 /* Small visual badge */
 function ConfidenceBadge({ score }) {
@@ -56,37 +56,37 @@ export default function PasteBox({ onParse }) {
       userId = user?.id;
       if (!userId) throw new Error("User not authenticated");
 
-      // 2) Reserve credits
-      const idempotencyKey = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
-      const res = await axios.post("/api/reserveCredits", {
-        userId,
-        amount: creditsPerParse,
-        idempotencyKey,
-      });
+      // 2) Reserve credits via invoicesClient helper
+      const idempotencyKey =
+        typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
 
-      // Normalize server response: new server returns { success: true, reservation: ... }
-      const payload = res?.data ?? {};
-      const reservationRaw = payload.reservation ?? payload.result ?? payload;
+      const { reservation, error: reserveErr } = await reserveCredits(userId, creditsPerParse, idempotencyKey);
+      if (reserveErr || !reservation) {
+        const serverMsg = reserveErr?.message || (reserveErr && String(reserveErr)) || "Failed to reserve credits";
+        throw new Error(serverMsg);
+      }
 
+      // extract reservation id robustly (server may return object/array)
+      const reservationRaw = reservation;
       if (!reservationRaw) {
-        // fallback: check other common fields
-        reservationId = payload?.reservation_id || payload?.reservationId || null;
+        reservationId = null;
       } else if (Array.isArray(reservationRaw)) {
-        reservationId = reservationRaw[0]?.reservation_id || reservationRaw[0]?.reservationId || reservationRaw[0]?.id || null;
+        reservationId =
+          reservationRaw[0]?.reservation_id || reservationRaw[0]?.reservationId || reservationRaw[0]?.id || null;
       } else if (typeof reservationRaw === "object") {
-        reservationId = reservationRaw?.reservation_id || reservationRaw?.reservationId || reservationRaw?.id || null;
+        reservationId =
+          reservationRaw?.reservation_id || reservationRaw?.reservationId || reservationRaw?.id || reservationRaw?.reservation || null;
+      } else {
+        reservationId = reservationRaw;
       }
 
-      // last resort: try common top-level names
-      reservationId = reservationId || payload?.reservation_id || payload?.reservationId || reservationId;
-
+      // last-resort checks
+      reservationId = reservationId || (reservation && reservation.reservation_id) || null;
       if (!reservationId) {
-        // If we couldn't determine a reservation id, fail early so server-side consume won't 400
-        throw new Error(`Failed to parse reservation id from reserve response: ${JSON.stringify(payload)}`);
+        throw new Error(`Failed to parse reservation id from reserve response: ${JSON.stringify(reservation)}`);
       }
 
-      // short id for UX
-      const shortResId = reservationId?.toString()?.slice?.(0, 8) ?? reservationId;
+      const shortResId = reservationId?.toString?.()?.slice?.(0, 8) ?? reservationId;
       setWalletMessage(`Reserved ${creditsPerParse} credits (res ${shortResId}).`);
 
       // 3) Call parser (synchronous or asynchronous)
@@ -96,7 +96,7 @@ export default function PasteBox({ onParse }) {
       } catch (parseErr) {
         // If parsing fails, attempt to release reservation before rethrowing
         try {
-          await axios.post("/api/releaseCredits", { reservationId });
+          await releaseCredits(userId, reservationId);
           setWalletMessage("Parsing failed. Reserved credits released.");
         } catch (releaseErr) {
           console.error("Failed to release after parse error:", releaseErr);
@@ -105,51 +105,53 @@ export default function PasteBox({ onParse }) {
         throw new Error(`Parsing failed: ${parseErr?.message || String(parseErr)}`);
       }
 
-      // 4) Consume credits after successful parse
-      try {
-        const consumeResp = await axios.post("/api/consumeCredits", {
-          userId,
-          reservationId,
-          delta: creditsPerParse,
-          type: "parse",
-          reference: `parse-${Date.now()}`,
-        });
+      // 4) Consume credits after successful parse via helper
+      const { transaction, error: consumeErr } = await consumeCredits(
+        userId,
+        reservationId,
+        creditsPerParse,
+        "parse",
+        `parse-${Date.now()}`
+      );
 
-        const consumePayload = consumeResp?.data ?? {};
-        // prefer result, then transaction, then payload
-        const txRaw = consumePayload.result ?? consumePayload.transaction ?? consumePayload;
-        const txId = (Array.isArray(txRaw) ? (txRaw[0]?.id || txRaw[0]?.transaction_id) : (txRaw?.id || txRaw?.transaction_id)) || null;
-        const shortTx = txId?.toString()?.slice?.(0, 8) ?? null;
-
-        setWalletMessage(shortTx ? `Credits consumed (tx ${shortTx}). Parsing complete.` : `Credits consumed. Parsing complete.`);
-      } catch (consumeErr) {
-        // If consume fails, attempt release then throw so caller knows to check server
-        console.error("Consume credits failed:", consumeErr, consumeErr?.response?.data);
+      if (consumeErr || !transaction) {
+        // Attempt to release then surface error
         try {
-          await axios.post("/api/releaseCredits", { reservationId });
+          await releaseCredits(userId, reservationId);
           setWalletMessage("Failed to finalize credit consumption. Reserved credits released.");
         } catch (releaseErr) {
-          console.error("Release after consume-fail failed:", releaseErr, releaseErr?.response?.data);
-          const serverMsg = consumeErr?.response?.data?.error || consumeErr?.response?.data || consumeErr?.message || String(consumeErr);
+          console.error("Release after consume-fail failed:", releaseErr);
+          const serverMsg = consumeErr?.message || (consumeErr && String(consumeErr)) || "Consume failed";
           setWalletMessage(`Failed to consume credits and failed to release reservation. ${serverMsg}`);
         }
-        throw consumeErr;
+        throw consumeErr || new Error("Consume credits failed");
       }
+
+      // extract tx id nicely
+      const txRaw = transaction;
+      let txId = null;
+      if (Array.isArray(txRaw)) txId = txRaw[0]?.id || txRaw[0]?.transaction_id || null;
+      else if (typeof txRaw === "object") txId = txRaw?.id || txRaw?.transaction_id || null;
+      else txId = txRaw;
+
+      const shortTx = txId?.toString?.()?.slice?.(0, 8) ?? null;
+      setWalletMessage(shortTx ? `Credits consumed (tx ${shortTx}). Parsing complete.` : `Credits consumed. Parsing complete.`);
 
       // 5) Update parsed UI state (same behavior as before)
       setParsed(p);
       setBuyerName(p.buyerName || "");
       setPhone(p.phone || "");
-      setItemsStr(p.items && p.items.length ? p.items.map((it) => `${it.qty}x ${it.name}`).join(", ") : "");
+      setItemsStr(
+        p.items && p.items.length ? p.items.map((it) => `${it.qty}x ${it.name}`).join(", ") : ""
+      );
       setTotal(p.total || "");
-
     } catch (err) {
       console.error("Parse flow error:", err);
 
       // If we reserved but later failed before consuming, release reservation (best-effort)
       if (reservationId && userId) {
         try {
-          await axios.post("/api/releaseCredits", { reservationId });
+          await releaseCredits(userId, reservationId);
           setWalletMessage("Parsing failed. Reserved credits released.");
         } catch (releaseErr) {
           console.error("Failed to release reservation after parse error:", releaseErr);
@@ -160,7 +162,6 @@ export default function PasteBox({ onParse }) {
         const serverMsg = err?.response?.data?.error || err?.message || String(err);
         setWalletMessage(serverMsg);
       }
-
     } finally {
       setLoading(false);
     }
@@ -179,7 +180,8 @@ export default function PasteBox({ onParse }) {
   const handleConfirm = () => {
     // If buyerName is missing, require the user to enter it (small prompt behavior)
     if (!buyerName || buyerName.trim().length < 2) {
-      if (!confirm("Buyer name was not detected automatically. Do you want to proceed without a buyer name?")) return;
+      if (!confirm("Buyer name was not detected automatically. Do you want to proceed without a buyer name?"))
+        return;
     }
 
     // call parent with a shape matching InvoiceForm expectations
@@ -236,7 +238,12 @@ export default function PasteBox({ onParse }) {
               <label style={{ fontWeight: 700 }}>Buyer:</label>{" "}
               <ConfidenceBadge score={parsed.confidence.name} />
               <div style={{ marginTop: 6 }}>
-                <input value={buyerName} onChange={(e) => setBuyerName(e.target.value)} placeholder="Buyer name (enter if missing)" style={{ width: "100%", padding: "8px", borderRadius: 8, border: "1px solid #e6e9ef" }} />
+                <input
+                  value={buyerName}
+                  onChange={(e) => setBuyerName(e.target.value)}
+                  placeholder="Buyer name (enter if missing)"
+                  style={{ width: "100%", padding: "8px", borderRadius: 8, border: "1px solid #e6e9ef" }}
+                />
               </div>
             </div>
 
@@ -244,7 +251,12 @@ export default function PasteBox({ onParse }) {
               <label style={{ fontWeight: 700 }}>Phone:</label>{" "}
               <ConfidenceBadge score={parsed.confidence.phone} />
               <div style={{ marginTop: 6 }}>
-                <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone (normalized)" style={{ width: "100%", padding: "8px", borderRadius: 8, border: "1px solid #e6e9ef" }} />
+                <input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Phone (normalized)"
+                  style={{ width: "100%", padding: "8px", borderRadius: 8, border: "1px solid #e6e9ef" }}
+                />
               </div>
             </div>
 
@@ -252,9 +264,14 @@ export default function PasteBox({ onParse }) {
               <label style={{ fontWeight: 700 }}>Items:</label>{" "}
               <ConfidenceBadge score={parsed.confidence.items} />
               <div style={{ marginTop: 6 }}>
-                <input value={itemsStr} onChange={(e) => setItemsStr(e.target.value)} placeholder="e.g. 3x T-shirt, 1x Cap" style={{ width: "100%", padding: "8px", borderRadius: 8, border: "1px solid #e6e9ef" }} />
+                <input
+                  value={itemsStr}
+                  onChange={(e) => setItemsStr(e.target.value)}
+                  placeholder="e.g. 3x T-shirt, 1x Cap"
+                  style={{ width: "100%", padding: "8px", borderRadius: 8, border: "1px solid #e6e9ef" }}
+                />
                 <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
-                  Parsed segments: {parsed.items && parsed.items.length ? parsed.items.map(it => `${it.qty}x ${it.name}`).join(" • ") : "—"}
+                  Parsed segments: {parsed.items && parsed.items.length ? parsed.items.map((it) => `${it.qty}x ${it.name}`).join(" • ") : "—"}
                 </div>
               </div>
             </div>
@@ -263,7 +280,12 @@ export default function PasteBox({ onParse }) {
               <label style={{ fontWeight: 700 }}>Total:</label>{" "}
               <ConfidenceBadge score={parsed.confidence.total} />
               <div style={{ marginTop: 6 }}>
-                <input value={total} onChange={(e) => setTotal(e.target.value)} placeholder="e.g. KES 2,300" style={{ width: "100%", padding: "8px", borderRadius: 8, border: "1px solid #e6e9ef" }} />
+                <input
+                  value={total}
+                  onChange={(e) => setTotal(e.target.value)}
+                  placeholder="e.g. KES 2,300"
+                  style={{ width: "100%", padding: "8px", borderRadius: 8, border: "1px solid #e6e9ef" }}
+                />
               </div>
             </div>
 
@@ -274,8 +296,12 @@ export default function PasteBox({ onParse }) {
             )}
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
-              <button className="btn-outline" onClick={() => { setParsed(null); }} disabled={loading}>Cancel</button>
-              <button className="btn-primary" onClick={handleConfirm} disabled={loading}>Parse & Open Invoice</button>
+              <button className="btn-outline" onClick={() => { setParsed(null); }} disabled={loading}>
+                Cancel
+              </button>
+              <button className="btn-primary" onClick={handleConfirm} disabled={loading}>
+                Parse & Open Invoice
+              </button>
             </div>
           </div>
         </div>
