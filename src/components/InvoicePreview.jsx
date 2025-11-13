@@ -1,3 +1,4 @@
+// src/components/InvoicePreview.jsx
 import React, { useState, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import generateInvoicePdfBlob from "../lib/pdf";
@@ -260,6 +261,33 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
         }
       }
 
+      // pattern: "Item @ 1800 x2"  (catch "desc @ price xqty")
+      m = line.match(/^(.+?)\s*@\s*([KkEeSs\s]*[\d,\.]+)\s*[,\s]*[x×]?\s*(\d+)$/i);
+      if (m) {
+        const desc = m[1].trim();
+        const unitNum = parseNumber(m[2]);
+        const qty = m[3];
+        const totalNum = isNaN(unitNum) ? NaN : Number(qty) * unitNum;
+        if (tplId === "local-1") {
+          const mp = formatMoneyParts(totalNum);
+          return `<tr>
+            <td class="qtyCol">${qty}x</td>
+            <td class="descCol">${escapeHtml(desc)}</td>
+            <td class="unitCol" style="text-align:right">${isNaN(unitNum) ? "" : Math.round(unitNum).toLocaleString("en-GB")}</td>
+            <td class="kshCol" style="text-align:right">${mp.whole}</td>
+            <td class="ctsCol" style="text-align:right">${mp.cents}</td>
+          </tr>`;
+        } else if (tplId === "local-2") {
+          const amount = isNaN(totalNum) ? "" : Math.round(totalNum).toLocaleString("en-GB");
+          return `<tr>
+            <td>${escapeHtml(desc)}</td>
+            <td class="right">${isNaN(unitNum) ? "" : Math.round(unitNum).toLocaleString("en-GB")}</td>
+            <td class="right">${qty}x</td>
+            <td class="right">${amount}</td>
+          </tr>`;
+        }
+      }
+
       // pipe-delimited or comma-separated parsing (desc | qty | unit | total) or (desc, qty, unit, total)
       let parts = line.split(/\s*\|\s*/);
       if (parts.length >= 2) {
@@ -409,6 +437,13 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
 
     // Inject itemsRows (special handling)
     const itemsRowsHtml = buildItemsRowsHtml(itemRows);
+
+    // Debugging helpers — will show in browser console so you can confirm what was sent and produced.
+    // Remove or comment out these logs when you're done debugging.
+    console.debug("InvoicePreview: invoice.items:", items);
+    console.debug("InvoicePreview: normalized itemRows:", itemRows);
+    console.debug("InvoicePreview: itemsRowsHtml (first 1k chars):", String(itemsRowsHtml).slice(0, 1000));
+
     html = html.replace(/{{\s*itemsRows\s*}}/g, itemsRowsHtml);
 
     // generic token replacement
