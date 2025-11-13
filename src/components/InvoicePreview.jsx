@@ -27,16 +27,32 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
   } = invoice;
 
   const [savedAt, setSavedAt] = useState(null);
-  const [savingCloud, setSavingCloud] = useState(false); // new
+  const [savingCloud, setSavingCloud] = useState(false);
   const [cloudMsg, setCloudMsg] = useState(null);
   const invoiceId = invoiceIdProp || `INV-${Date.now().toString().slice(-6)}`;
   const dateStr = new Date().toLocaleString();
 
-  const itemRows = items
-    ? (Array.isArray(items) ? items.map(it => `${it.qty}x ${it.name}`) : items.split(",").map((it) => it.trim()).filter(Boolean))
-    : [];
+  // Normalise incoming items:
+  // - if items is an array of objects (structured), keep them as objects
+  // - if items is an array of strings, keep as strings
+  // - if items is a comma-separated string, split into string rows
+  const itemRows = (() => {
+    if (!items && items !== 0) return [];
+    if (Array.isArray(items)) {
+      if (items.length > 0 && typeof items[0] === "object") {
+        return items; // structured rows: { description, qty, unitPrice, amount, cents }
+      }
+      // array of strings
+      return items.map((it) => (typeof it === "string" ? it.trim() : String(it))).filter(Boolean);
+    }
+    // string: split commas/newlines
+    return String(items)
+      .split(/[\r\n]+|[,•·]+/)
+      .map((it) => it.trim())
+      .filter(Boolean);
+  })();
 
-  // keep the existing save logic but we won't render the old "Save" button (redundant)
+  // keep the existing save logic
   const handleSave = async () => {
     try {
       const invoiceObj = {
@@ -62,7 +78,7 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
     }
   };
 
-  // Existing download handler: generates PDF blob and downloads locally. Also tries storage upload if pdf_path exists.
+  // Existing download handler
   const handleDownload = async () => {
     try {
       const session = await supabase.auth.getSession();
@@ -72,7 +88,6 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
         return;
       }
 
-      // If pdf_path exists, open signed url
       if (invoice.pdf_path) {
         const { url, error } = await createSignedUrl(invoice.pdf_path, 60 * 10);
         if (error || !url) throw error || new Error("signed url empty");
@@ -80,7 +95,6 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
         return;
       }
 
-      // Build payload for PDF generator — include templateId so PDF matches preview
       const payload = {
         buyerName: buyerName,
         phone: phone,
@@ -89,13 +103,11 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
         paymentNumber: paymentNumber,
         id: invoiceId,
         sellerName: "DollarChain",
-        templateId: templateId || null, // <-- added
+        templateId: templateId || null,
       };
 
-      // Generate pdf blob and trigger immediate download for user
       const { blob, fileName } = generateInvoicePdfBlob(payload);
 
-      // Trigger local download
       const urlLocal = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = urlLocal;
@@ -105,14 +117,6 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
       a.remove();
       URL.revokeObjectURL(urlLocal);
 
-      // Optional: still attempt to upload to Supabase storage (existing flow) - but ignore failures here
-      try {
-        // If you still want to upload via client-side (not recommended), you'd call uploadInvoicePdf here.
-        // For cloud-safe server upload use the "Save to Cloud" button below which calls serverless endpoint.
-      } catch (err) {
-        console.warn("Non-fatal upload attempt failed (ignored):", err);
-      }
-
       alert("Downloaded PDF to your device.");
     } catch (err) {
       console.error("Error generating or downloading PDF:", err);
@@ -120,7 +124,7 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
     }
   };
 
-  // NEW: Save PDF to cloud via the serverless endpoint (service-role upload happens server-side)
+  // Save to cloud
   const handleSaveToCloud = async () => {
     setCloudMsg(null);
     setSavingCloud(true);
@@ -133,13 +137,11 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
         paymentNumber: paymentNumber,
         id: invoiceId,
         sellerName: "DollarChain",
-        templateId: templateId || null, // <-- added
+        templateId: templateId || null,
       };
 
-      // generate pdf blob
       const { blob, fileName } = generateInvoicePdfBlob(payload);
 
-      // call server endpoint to upload and attach pdf_path
       const res = await uploadInvoicePdfToServer(invoiceId, blob);
       setCloudMsg("Saved to cloud.");
       setSavedAt(new Date().toLocaleString());
@@ -154,9 +156,7 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
     }
   };
 
-  // ------------------------
-  // Template rendering utils
-  // ------------------------
+  // Template selection
   const selectedTemplate = useMemo(() => {
     if (!templateId) return null;
     try {
@@ -169,8 +169,6 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
   // ------------------------
   // Parsing helpers & robust row builder
   // ------------------------
-
-  // parse numeric string like "KES 1,200" => 1200
   function parseNumber(s) {
     if (s === null || s === undefined) return NaN;
     const cleaned = String(s).replace(/[^\d.-]/g, "").replace(/,+/g, "");
@@ -185,23 +183,63 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
     return { whole: whole.toLocaleString("en-GB"), cents };
   }
 
-  // Improved rows builder: outputs column-aware <tr> markup for known templates (local-1, local-2)
+  const escapeHtml = (str) => {
+    if (typeof str !== "string") return str;
+    return str.replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+  };
+
+  // Build rows HTML — supports structured objects or string rows
   const buildItemsRowsHtml = (rows) => {
     if (!rows || rows.length === 0) return "<tr><td colspan='2' style='color:#6b7280;padding:8px 6px'>No items</td></tr>";
-
     const tplId = selectedTemplate?.id || "";
 
-    const lines = rows.map(r => (typeof r === "string" ? r.trim() : String(r))).filter(Boolean);
+    const out = rows.map((r) => {
+      // If r is an object (structured row) — prefer this path
+      if (r && typeof r === "object") {
+        const desc = (r.description || r.name || r.desc || "").toString();
+        const qtyRaw = r.qty ?? r.quantity ?? r.q ?? "";
+        const qtyNum = Number(String(qtyRaw).replace(/[^\d]/g, "")) || "";
+        const qtyDisplay = qtyNum !== "" ? `${qtyNum}x` : (qtyRaw ? String(qtyRaw) : "");
+        const unitNum = parseNumber(r.unitPrice ?? r.unit ?? r.rate ?? r.price ?? "");
+        const amountNum = parseNumber(r.amount ?? r.total ?? (isNaN(unitNum) || qtyNum === "" ? "" : unitNum * qtyNum));
+        const mp = formatMoneyParts(amountNum);
 
-    const out = lines.map((line) => {
-      // 1) "2x Cotton Shirt @ 1800"
+        if (tplId === "local-1") {
+          return `<tr>
+            <td class="qtyCol">${escapeHtml(String(qtyDisplay || ""))}</td>
+            <td class="descCol">${escapeHtml(desc)}</td>
+            <td class="unitCol" style="text-align:right">${isNaN(unitNum) ? (escapeHtml(r.unit ?? "")) : Math.round(unitNum).toLocaleString("en-GB")}</td>
+            <td class="kshCol" style="text-align:right">${mp.whole}</td>
+            <td class="ctsCol" style="text-align:right">${mp.cents}</td>
+          </tr>`;
+        } else if (tplId === "local-2") {
+          const rateDisplay = isNaN(unitNum) ? (r.unit ?? "") : Math.round(unitNum).toLocaleString("en-GB");
+          const amountDisplay = isNaN(amountNum) ? "" : Math.round(amountNum).toLocaleString("en-GB");
+          return `<tr>
+            <td>${escapeHtml(desc)}</td>
+            <td class="right">${escapeHtml(String(rateDisplay || ""))}</td>
+            <td class="right">${escapeHtml(String(qtyDisplay || ""))}</td>
+            <td class="right">${escapeHtml(String(amountDisplay || ""))}</td>
+          </tr>`;
+        } else {
+          // generic fallback: description + amount
+          return `<tr>
+            <td>${escapeHtml(desc)}</td>
+            <td class="right">${escapeHtml(mp.whole)}</td>
+          </tr>`;
+        }
+      }
+
+      // Otherwise r is a plain string: attempt to parse known patterns
+      const line = String(r || "").trim();
+
+      // pattern: "2x Item @ 1800"
       let m = line.match(/^(\d+)\s*[x×]\s*(.+?)\s*@\s*([KkEeSs\s]*[\d,\.]+)$/i);
       if (m) {
         const qty = m[1];
         const desc = m[2].trim();
         const unitNum = parseNumber(m[3]);
         const totalNum = isNaN(unitNum) ? NaN : qty * unitNum;
-
         if (tplId === "local-1") {
           const mp = formatMoneyParts(totalNum);
           return `<tr>
@@ -222,7 +260,7 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
         }
       }
 
-      // 2) pipe-delimited "desc | qty | unit | total"
+      // pipe-delimited or comma-separated parsing (desc | qty | unit | total) or (desc, qty, unit, total)
       let parts = line.split(/\s*\|\s*/);
       if (parts.length >= 2) {
         const desc = parts[0].trim();
@@ -246,7 +284,6 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
             <td class="ctsCol" style="text-align:right">${mp.cents}</td>
           </tr>`;
         } else if (tplId === "local-2") {
-          // interpret as desc | rate | qty | amount
           const rate = !isNaN(p1Num) && parts.length === 4 ? p1Num : (!isNaN(p2Num) && parts.length >= 3 ? p2Num : NaN);
           const qty = parts.length === 4 ? parts[2] : (parts[1] && isNaN(p1Num) ? parts[1] : "");
           const amount = !isNaN(p3Num) ? p3Num : (!isNaN(rate) && qty ? rate * Number(String(qty).replace(/[^\d]/g,'')) : NaN);
@@ -259,7 +296,7 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
         }
       }
 
-      // 3) comma-separated: desc, qty, unit, total
+      // comma-separated alternative
       parts = line.split(/\s*,\s*/);
       if (parts.length >= 2) {
         if (tplId === "local-1") {
@@ -289,7 +326,7 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
         }
       }
 
-      // 4) "2 Cotton Shirt" fallback
+      // fallback: "2 Item" style
       m = line.match(/^(\d+)\s+[x×]?\s*(.+)$/i);
       if (m) {
         const qty = m[1];
@@ -312,7 +349,7 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
         }
       }
 
-      // fallback: put content into description cell for known templates
+      // generic fallback: put entire line in description
       if (tplId === "local-1") {
         return `<tr>
           <td class="qtyCol"></td>
@@ -329,7 +366,6 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
           <td class="right"></td>
         </tr>`;
       } else {
-        // safe generic fallback (keeps previous behaviour)
         const idx = line.indexOf(" ");
         const first = idx === -1 ? line : line.slice(0, idx);
         const rest = idx === -1 ? "" : line.slice(idx + 1);
@@ -338,11 +374,6 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
     });
 
     return out.join("");
-  };
-
-  const escapeHtml = (str) => {
-    if (typeof str !== "string") return str;
-    return str.replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
   };
 
   const buildTemplateHtml = () => {
@@ -392,7 +423,10 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
     return html;
   };
 
-  const renderedTemplateHtml = useMemo(() => buildTemplateHtml(), [selectedTemplate, buyerName, phone, items, total, paymentNumber, invoiceId, dateStr]);
+  const renderedTemplateHtml = useMemo(
+    () => buildTemplateHtml(),
+    [selectedTemplate, buyerName, phone, items, total, paymentNumber, invoiceId, dateStr]
+  );
 
   // ------------------------
   // Render
@@ -422,9 +456,6 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
               title="invoice-template-preview"
               srcDoc={renderedTemplateHtml}
               style={{ width: "100%", minHeight: 420, border: 0 }}
-              /* SECURITY: Removed allow-scripts so srcdoc cannot run arbitrary JS.
-                 We now generate full table rows on the React side (buildItemsRowsHtml),
-                 so the preview no longer needs to execute template scripts. */
               sandbox="allow-same-origin allow-popups allow-forms"
             />
           </div>
@@ -458,24 +489,35 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
               <tbody>
                 {itemRows.length ? (
                   itemRows.map((row, idx) => {
-                    // Try to parse "2x T-Shirt" style strings vs "T-Shirt x2"
+                    // If structured object was passed, render directly
+                    if (row && typeof row === "object") {
+                      const name = row.description || row.name || row.desc || "";
+                      const qty = row.qty ?? row.quantity ?? "1";
+                      const unit = row.unitPrice ?? row.unit ?? row.rate ?? "";
+                      return (
+                        <tr key={idx} style={{ borderTop: "1px solid #f1f5f9" }}>
+                          <td style={{ padding: "10px 6px" }}>{name}</td>
+                          <td style={{ padding: "10px 6px" }}>{String(qty)}</td>
+                          <td style={{ padding: "10px 6px" }}>{unit}</td>
+                        </tr>
+                      );
+                    }
+
+                    // plain string parsing (simple fallback)
                     let qty = "";
                     let name = row;
                     let unit = "";
 
-                    // common pattern: "2x T-Shirt" or "2 x T-Shirt"
-                    const m1 = row.match(/^(\d+)\s*x\s*(.+)$/i);
+                    const m1 = String(row).match(/^(\d+)\s*x\s*(.+)$/i);
                     if (m1) {
                       qty = m1[1];
                       name = m1[2];
                     } else {
-                      // pattern "T-Shirt x2"
-                      const m2 = row.match(/^(.+?)\s*x\s*(\d+)$/i);
+                      const m2 = String(row).match(/^(.+?)\s*x\s*(\d+)$/i);
                       if (m2) {
                         name = m2[1];
                         qty = m2[2];
                       } else {
-                        // fallback: no qty found
                         qty = "1";
                       }
                     }
@@ -514,7 +556,6 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
         </div>
 
         <div style={{ display: "flex", gap: 8 }}>
-          {/* Back button - explicit type and safe call */}
           <button
             type="button"
             className="btn-outline"
@@ -535,7 +576,6 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
             Download PDF
           </button>
 
-          {/* Save to Cloud button (server-side upload) */}
           <button
             type="button"
             className="btn-primary"
