@@ -114,6 +114,23 @@ function App() {
   }, []);
 
   // -------------------------
+  // Simple non-blocking notification helper
+  // -------------------------
+  // Emits a CustomEvent "app-notification" with detail { message, type } and logs to console.
+  // Your ToastProvider can listen for this event and display toasts.
+  const notify = (message, type = "info") => {
+    try {
+      console.log("[app notify]", type, message);
+      if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+        window.dispatchEvent(new CustomEvent("app-notification", { detail: { message, type } }));
+      }
+    } catch (e) {
+      // fallback to console
+      console.log("[app notify fallback]", message, e);
+    }
+  };
+
+  // -------------------------
   // Helpers for template render
   // -------------------------
   const escapeHtml = (str) => {
@@ -411,12 +428,13 @@ function App() {
   };
 
   const handleBuyCredits = () => {
-    alert("Buy Credits clicked — payments will be added later.");
+    // replaced ad-hoc alert with notify event
+    notify("Buy Credits clicked — payments will be added later.", "info");
   };
 
   const handleSaveInvoice = async (invoice) => {
     if (!user) {
-      alert("Please sign in to save invoices.");
+      notify("Please sign in to save invoices.", "warning");
       setAuthOpen(true);
       setPendingFormData(invoice);
       return;
@@ -486,7 +504,7 @@ function App() {
       const { path, error: uploadError } = await uploadInvoicePdf(user.id, invoiceId, blob);
       if (uploadError) {
         console.error("Upload failed:", uploadError);
-        alert("Invoice saved but uploading PDF to storage failed. See console.");
+        notify("Invoice saved but uploading PDF to storage failed. See console.", "error");
         return;
       }
 
@@ -497,15 +515,15 @@ function App() {
         .eq("id", invoiceId);
       if (updateErr) {
         console.error("Failed to update invoice with pdf_path:", updateErr);
-        alert("Invoice saved but failed to attach PDF path. See console.");
+        notify("Invoice saved but failed to attach PDF path. See console.", "error");
         return;
       }
 
-      alert("✅ Invoice saved and PDF uploaded.");
+      notify("✅ Invoice saved and PDF uploaded.", "success");
       console.log("Saved invoice + pdf_path:", saved, path);
     } catch (err) {
       console.error("Save error:", err);
-      alert("Failed to save invoice. See console for details.");
+      notify("Failed to save invoice. See console for details.", "error");
     }
   };
 

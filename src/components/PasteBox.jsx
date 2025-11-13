@@ -64,11 +64,13 @@ export default function PasteBox({ onParse }) {
         idempotencyKey,
       });
 
-      // Extract reservation id robustly — server returns `reservation` which may be an array
-      const reservationRaw = res?.data?.reservation || res?.data?.reservationRaw || null;
+      // Normalize server response: new server returns { success: true, reservation: ... }
+      const payload = res?.data ?? {};
+      const reservationRaw = payload.reservation ?? payload.result ?? payload;
+
       if (!reservationRaw) {
-        // fallback: check other fields
-        reservationId = res?.data?.reservation_id || res?.data?.reservationId || null;
+        // fallback: check other common fields
+        reservationId = payload?.reservation_id || payload?.reservationId || null;
       } else if (Array.isArray(reservationRaw)) {
         reservationId = reservationRaw[0]?.reservation_id || reservationRaw[0]?.reservationId || reservationRaw[0]?.id || null;
       } else if (typeof reservationRaw === "object") {
@@ -76,17 +78,18 @@ export default function PasteBox({ onParse }) {
       }
 
       // last resort: try common top-level names
-      reservationId = reservationId || res?.data?.reservation_id || res?.data?.reservationId || reservationId;
+      reservationId = reservationId || payload?.reservation_id || payload?.reservationId || reservationId;
 
       if (!reservationId) {
         // If we couldn't determine a reservation id, fail early so server-side consume won't 400
-        throw new Error("Failed to parse reservation id from reserve response");
+        throw new Error(`Failed to parse reservation id from reserve response: ${JSON.stringify(payload)}`);
       }
 
-      setWalletMessage(`Reserved ${creditsPerParse} credits.`);
+      // short id for UX
+      const shortResId = reservationId?.toString()?.slice?.(0, 8) ?? reservationId;
+      setWalletMessage(`Reserved ${creditsPerParse} credits (res ${shortResId}).`);
 
       // 3) Call parser (synchronous or asynchronous)
-      // parseOrderText may be synchronous now; wrap it in Promise.resolve to handle both cases
       let p;
       try {
         p = await Promise.resolve(parseOrderText(text));
@@ -97,20 +100,28 @@ export default function PasteBox({ onParse }) {
           setWalletMessage("Parsing failed. Reserved credits released.");
         } catch (releaseErr) {
           console.error("Failed to release after parse error:", releaseErr);
+          setWalletMessage("Parsing failed. Could not release reservation automatically — contact admin.");
         }
         throw new Error(`Parsing failed: ${parseErr?.message || String(parseErr)}`);
       }
 
       // 4) Consume credits after successful parse
       try {
-        await axios.post("/api/consumeCredits", {
+        const consumeResp = await axios.post("/api/consumeCredits", {
           userId,
           reservationId,
           delta: creditsPerParse,
           type: "parse",
           reference: `parse-${Date.now()}`,
         });
-        setWalletMessage(`Consumed ${creditsPerParse} credits. Parsing complete.`);
+
+        const consumePayload = consumeResp?.data ?? {};
+        // prefer result, then transaction, then payload
+        const txRaw = consumePayload.result ?? consumePayload.transaction ?? consumePayload;
+        const txId = (Array.isArray(txRaw) ? (txRaw[0]?.id || txRaw[0]?.transaction_id) : (txRaw?.id || txRaw?.transaction_id)) || null;
+        const shortTx = txId?.toString()?.slice?.(0, 8) ?? null;
+
+        setWalletMessage(shortTx ? `Credits consumed (tx ${shortTx}). Parsing complete.` : `Credits consumed. Parsing complete.`);
       } catch (consumeErr) {
         // If consume fails, attempt release then throw so caller knows to check server
         console.error("Consume credits failed:", consumeErr, consumeErr?.response?.data);
@@ -119,7 +130,8 @@ export default function PasteBox({ onParse }) {
           setWalletMessage("Failed to finalize credit consumption. Reserved credits released.");
         } catch (releaseErr) {
           console.error("Release after consume-fail failed:", releaseErr, releaseErr?.response?.data);
-          setWalletMessage("Failed to consume credits and also failed to release reservation. Admin check required.");
+          const serverMsg = consumeErr?.response?.data?.error || consumeErr?.response?.data || consumeErr?.message || String(consumeErr);
+          setWalletMessage(`Failed to consume credits and failed to release reservation. ${serverMsg}`);
         }
         throw consumeErr;
       }
@@ -145,7 +157,8 @@ export default function PasteBox({ onParse }) {
         }
       } else {
         // No reservation created
-        setWalletMessage(err?.message || String(err));
+        const serverMsg = err?.response?.data?.error || err?.message || String(err);
+        setWalletMessage(serverMsg);
       }
 
     } finally {
@@ -170,16 +183,17 @@ export default function PasteBox({ onParse }) {
     }
 
     // call parent with a shape matching InvoiceForm expectations
-    onParse && onParse({
-      buyerName: buyerName.trim(),
-      phone: phone.trim(),
-      items: itemsStr.trim(),
-      total: total.trim(),
-      paymentNumber: "", // seller will fill
-      rawText: parsed ? parsed.rawText : text,
-      confidence: parsed ? parsed.confidence : null,
-      notes: parsed ? parsed.notes : [],
-    });
+    onParse &&
+      onParse({
+        buyerName: buyerName.trim(),
+        phone: phone.trim(),
+        items: itemsStr.trim(),
+        total: total.trim(),
+        paymentNumber: "", // seller will fill
+        rawText: parsed ? parsed.rawText : text,
+        confidence: parsed ? parsed.confidence : null,
+        notes: parsed ? parsed.notes : [],
+      });
 
     // keep the parse preview visible; parent will open the form/modal
   };
@@ -200,8 +214,12 @@ export default function PasteBox({ onParse }) {
       />
 
       <div className="paste-actions">
-        <button className="btn-outline" onClick={handleClear} disabled={loading}>Clear</button>
-        <button className="btn-primary" onClick={doParse} disabled={loading}>{loading ? "Parsing..." : "Parse"}</button>
+        <button className="btn-outline" onClick={handleClear} disabled={loading}>
+          Clear
+        </button>
+        <button className="btn-primary" onClick={doParse} disabled={loading}>
+          {loading ? "Parsing..." : "Parse"}
+        </button>
       </div>
 
       {parsed && (

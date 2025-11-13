@@ -6,10 +6,8 @@ import axios from "axios"; // for calling serverless credit endpoints
 
 const BUCKET = "invoices";
 
-/**
- * fetchInvoices, fetchInvoiceById, downloadInvoicePdf, deleteInvoice, markInvoicePaid
- * (existing functions unchanged)
- */
+/* ... (unchanged fetchInvoices, fetchInvoiceById, downloadInvoicePdf, deleteInvoice, markInvoicePaid) ... */
+
 export async function fetchInvoices(opts = {}) {
   const {
     limit = 20,
@@ -112,15 +110,7 @@ export async function markInvoicePaid(id, extra = {}) {
 }
 
 /* ----------------- Wallet Credit API Helpers ----------------- */
-/**
- * reserveCredits
- * - Reserves credits for a user
- * - Params:
- *    userId: string
- *    amount: number
- *    idempotencyKey?: string (optional) - if omitted a client-side fallback will be generated
- * - Returns: { reservation: Object|null, error: null|Error }
- */
+
 export async function reserveCredits(userId, amount, idempotencyKey) {
   if (!userId || typeof amount === "undefined" || amount === null) {
     throw new Error("userId and amount are required");
@@ -143,9 +133,9 @@ export async function reserveCredits(userId, amount, idempotencyKey) {
   try {
     const res = await axios.post("/api/reserveCredits", { userId, amount, idempotencyKey: key });
 
-    // Normalize response shape
     const payload = res?.data ?? null;
-    const reservation = (payload && (payload.reservation || payload)) || null;
+    // server may return { success: true, reservation } or older shapes
+    const reservation = payload?.reservation ?? payload?.result ?? payload;
 
     return { reservation, error: null };
   } catch (err) {
@@ -155,17 +145,6 @@ export async function reserveCredits(userId, amount, idempotencyKey) {
   }
 }
 
-/**
- * consumeCredits
- * - Consumes reserved credits
- * - Params:
- *    userId: string
- *    reservationId: string
- *    delta: number
- *    type: string (e.g., 'invoice_generation')
- *    reference?: string
- * - Returns: { transaction: Object|null, error: null|Error }
- */
 export async function consumeCredits(userId, reservationId, delta, type, reference) {
   if (!userId || !reservationId || typeof delta === "undefined" || !type) {
     throw new Error("userId, reservationId, delta and type are required");
@@ -180,9 +159,9 @@ export async function consumeCredits(userId, reservationId, delta, type, referen
       reference: reference ?? null,
     });
 
-    // Normalize response shape: prefer res.data.transaction, else res.data
     const payload = res?.data ?? null;
-    const transaction = (payload && (payload.transaction || payload)) || null;
+    // server returns { success: true, result } where result is the transaction or an array
+    const transaction = payload?.result ?? payload?.transaction ?? payload;
 
     return { transaction, error: null };
   } catch (err) {
@@ -192,14 +171,6 @@ export async function consumeCredits(userId, reservationId, delta, type, referen
   }
 }
 
-/**
- * releaseCredits
- * - Releases reserved credits without consuming
- * - Params:
- *    userId: string
- *    reservationId: string
- * - Returns: { reservation: Object|null, error: null|Error }
- */
 export async function releaseCredits(userId, reservationId) {
   if (!userId || !reservationId) throw new Error("userId and reservationId required");
 
@@ -207,7 +178,8 @@ export async function releaseCredits(userId, reservationId) {
     const res = await axios.post("/api/releaseCredits", { userId, reservationId });
 
     const payload = res?.data ?? null;
-    const reservation = (payload && (payload.reservation || payload)) || null;
+    // server returns { success: true, result } where result may be reservation info
+    const reservation = payload?.result ?? payload?.reservation ?? payload;
 
     return { reservation, error: null };
   } catch (err) {
