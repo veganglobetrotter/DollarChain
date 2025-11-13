@@ -73,6 +73,46 @@ function App() {
     notes: ["This is a preview — real data replaces it after parsing."],
   };
 
+  // Simple inline loader styles (used while session is being checked)
+  const loaderStyles = {
+    container: {
+      minHeight: "100vh",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "#fff",
+    },
+    box: {
+      textAlign: "center",
+      padding: 24,
+      borderRadius: 12,
+      boxShadow: "0 8px 30px rgba(15,23,42,0.06)",
+      background: "#ffffff",
+    },
+    logo: { fontWeight: 800, color: "#0b4f2b", fontSize: 20, marginBottom: 12 },
+    spinner: {
+      height: 44,
+      width: 44,
+      borderRadius: "50%",
+      border: "4px solid #e6f4ea",
+      borderTopColor: "#0FAF5A",
+      animation: "dc-spin 1s linear infinite",
+      margin: "0 auto",
+    },
+  };
+
+  // Small keyframes for spinner (inject via style tag so no CSS changes required)
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (document.getElementById("dc-spinner-keyframes")) return;
+    const s = document.createElement("style");
+    s.id = "dc-spinner-keyframes";
+    s.innerHTML = `
+      @keyframes dc-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    `;
+    document.head.appendChild(s);
+  }, []);
+
   // -------------------------
   // Helpers for template render
   // -------------------------
@@ -562,6 +602,21 @@ function App() {
           <LandingComp />
         </UserProvider>
       </ToastProvider>
+    );
+  }
+
+  // Show visual loading state while we perform initial session check,
+  // but allow /landing to load immediately (don't block landing).
+  const isLandingPath = typeof window !== "undefined" && window.location.pathname === "/landing";
+  if (!sessionChecked && !isLandingPath) {
+    return (
+      <div style={loaderStyles.container}>
+        <div style={loaderStyles.box}>
+          <div style={loaderStyles.logo}>DollarChain</div>
+          <div style={loaderStyles.spinner} aria-hidden />
+          <div style={{ marginTop: 12, color: "#6b7280" }}>Checking session…</div>
+        </div>
+      </div>
     );
   }
 
