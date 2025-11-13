@@ -1,4 +1,3 @@
-// src/api/reserveCredits.js
 import { createSupabaseServerClient } from "../src/lib/supabaseServer.js";
 
 // Recursively convert BigInt values to string
@@ -18,18 +17,30 @@ function convertBigInt(obj) {
   return obj;
 }
 
+function makeErrorPayload(err) {
+  return {
+    message: err?.message || String(err),
+    code: err?.code || null,
+    details: err?.details ?? err ?? null,
+  };
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
-    return res.status(405).json({ error: "Method not allowed" });
+    return res
+      .status(405)
+      .json({ success: false, data: null, error: { message: "Method not allowed", code: "method_not_allowed" } });
   }
 
   try {
     const { userId, amount, idempotencyKey } = req.body || {};
     if (!userId || typeof amount === "undefined" || !idempotencyKey) {
-      return res
-        .status(400)
-        .json({ error: "Missing required fields: userId, amount, idempotencyKey" });
+      return res.status(400).json({
+        success: false,
+        data: null,
+        error: { message: "Missing required fields: userId, amount, idempotencyKey", code: "missing_fields" },
+      });
     }
 
     const supabaseAdmin = createSupabaseServerClient();
@@ -46,9 +57,11 @@ export default async function handler(req, res) {
 
     if (error) {
       console.error("reserveCredits RPC error:", error);
-      return res
-        .status(500)
-        .json({ error: error.message || "reserve RPC failed", details: error });
+      return res.status(500).json({
+        success: false,
+        data: null,
+        error: makeErrorPayload(error),
+      });
     }
 
     // Convert all BigInt in the data before returning
@@ -57,9 +70,9 @@ export default async function handler(req, res) {
     // Log sanitized reservation
     console.log("reserveCredits sanitized reservation:", reservation);
 
-    return res.status(200).json({ success: true, reservation });
+    return res.status(200).json({ success: true, data: reservation, error: null });
   } catch (err) {
     console.error("reserveCredits error:", err);
-    return res.status(500).json({ error: err?.message || String(err) });
+    return res.status(500).json({ success: false, data: null, error: makeErrorPayload(err) });
   }
 }
