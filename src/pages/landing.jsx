@@ -1,10 +1,21 @@
 // src/pages/landing.jsx
-import React from "react";
+import React, { useEffect } from "react";
 import TopNav from "../components/TopNav";
 import { useUser } from "../context/UserContext";
 
 export default function Landing() {
-  const { user } = useUser();
+  const { user, loading } = useUser();
+
+  useEffect(() => {
+    // If we finished loading and the user is signed in, send them to the app root.
+    if (!loading && user) {
+      try {
+        window.location.replace("/");
+      } catch (e) {
+        window.location.href = "/";
+      }
+    }
+  }, [user, loading]);
 
   return (
     <div style={styles.page}>
