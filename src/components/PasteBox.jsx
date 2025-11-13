@@ -33,7 +33,7 @@ export default function PasteBox({ onParse }) {
   const [itemsStr, setItemsStr] = useState("");
   const [total, setTotal] = useState("");
 
-  // wallet/credit UI
+  // wallet/credit UI (kept for logs/debugging but not shown)
   const [walletMessage, setWalletMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -87,6 +87,7 @@ export default function PasteBox({ onParse }) {
       }
 
       const shortResId = reservationId?.toString?.()?.slice?.(0, 8) ?? reservationId;
+      // Keep internal logable state but do NOT surface to the user:
       setWalletMessage(`Reserved ${creditsPerParse} credits (res ${shortResId}).`);
 
       // 3) Call parser (synchronous or asynchronous)
@@ -135,6 +136,7 @@ export default function PasteBox({ onParse }) {
       else txId = txRaw;
 
       const shortTx = txId?.toString?.()?.slice?.(0, 8) ?? null;
+      // Keep internal logable state but do NOT surface to the user:
       setWalletMessage(shortTx ? `Credits consumed (tx ${shortTx}). Parsing complete.` : `Credits consumed. Parsing complete.`);
 
       // 5) Update parsed UI state (same behavior as before)
@@ -202,11 +204,8 @@ export default function PasteBox({ onParse }) {
 
   return (
     <div className="paste-card">
-      {walletMessage && (
-        <div style={{ marginBottom: 12, padding: 8, background: "#f0fdfa", color: "#065f46", borderRadius: 6 }}>
-          {walletMessage}
-        </div>
-      )}
+      {/* NOTE: walletMessage is intentionally not shown in the UI for a cleaner UX.
+          We keep the state updates for logging and debugging, but hide them from users. */}
 
       <textarea
         className="paste-textarea"
