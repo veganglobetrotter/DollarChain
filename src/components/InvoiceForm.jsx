@@ -280,7 +280,7 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
   };
 
   // Copy structured form to clipboard
-  const safeCopyToClipboard = async (text) => {
+  async function safeCopyToClipboard(text) {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(text);
@@ -292,7 +292,7 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
       console.warn("Clipboard write failed, falling back to prompt:", err);
       window.prompt("Copy the form data:", text);
     }
-  };
+  }
 
   // ---------- UI ----------
   return (
@@ -429,21 +429,6 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
       </form>
     </div>
   );
-
-  // copy helper reused locally
-  async function safeCopyToClipboard(text) {
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-        alert("Form copied to clipboard for easy testing.");
-      } else {
-        window.prompt("Copy the form data (Ctrl+C / Cmd+C, Enter):", text);
-      }
-    } catch (err) {
-      console.warn("Clipboard write failed, falling back to prompt:", err);
-      window.prompt("Copy the form data:", text);
-    }
-  }
 }
 
 const labelStyle = { display: "block", marginBottom: 6, fontWeight: 600 };
