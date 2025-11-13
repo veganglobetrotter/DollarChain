@@ -1,3 +1,4 @@
+// src/components/InvoicePreview.jsx
 import React, { useState, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import generateInvoicePdfBlob from "../lib/pdf";
@@ -27,16 +28,23 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
   } = invoice;
 
   const [savedAt, setSavedAt] = useState(null);
-  const [savingCloud, setSavingCloud] = useState(false); // new
+  const [savingCloud, setSavingCloud] = useState(false);
   const [cloudMsg, setCloudMsg] = useState(null);
   const invoiceId = invoiceIdProp || `INV-${Date.now().toString().slice(-6)}`;
   const dateStr = new Date().toLocaleString();
 
-  const itemRows = items
-    ? (Array.isArray(items) ? items.map(it => `${it.qty}x ${it.name}`) : items.split(",").map((it) => it.trim()).filter(Boolean))
-    : [];
+  // --- IMPORTANT: keep structured arrays as-is. If items is an array of objects, we keep objects.
+  // If items is a string, split into lines (legacy).
+  const itemRows = useMemo(() => {
+    if (!items) return [];
+    if (Array.isArray(items)) return items; // keep objects or strings
+    if (typeof items === "string") {
+      return items.split(",").map((it) => it.trim()).filter(Boolean);
+    }
+    return [];
+  }, [items]);
 
-  // keep the existing save logic but we won't render the old "Save" button (redundant)
+  // Save handler unchanged
   const handleSave = async () => {
     try {
       const invoiceObj = {
@@ -62,7 +70,7 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
     }
   };
 
-  // Existing download handler: generates PDF blob and downloads locally. Also tries storage upload if pdf_path exists.
+  // Download handler unchanged (keeps templateId in payload)
   const handleDownload = async () => {
     try {
       const session = await supabase.auth.getSession();
@@ -72,7 +80,6 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
         return;
       }
 
-      // If pdf_path exists, open signed url
       if (invoice.pdf_path) {
         const { url, error } = await createSignedUrl(invoice.pdf_path, 60 * 10);
         if (error || !url) throw error || new Error("signed url empty");
@@ -80,7 +87,6 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
         return;
       }
 
-      // Build payload for PDF generator — include templateId so PDF matches preview
       const payload = {
         buyerName: buyerName,
         phone: phone,
@@ -89,13 +95,11 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
         paymentNumber: paymentNumber,
         id: invoiceId,
         sellerName: "DollarChain",
-        templateId: templateId || null, // <-- added
+        templateId: templateId || null,
       };
 
-      // Generate pdf blob and trigger immediate download for user
       const { blob, fileName } = generateInvoicePdfBlob(payload);
 
-      // Trigger local download
       const urlLocal = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = urlLocal;
@@ -105,14 +109,6 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
       a.remove();
       URL.revokeObjectURL(urlLocal);
 
-      // Optional: still attempt to upload to Supabase storage (existing flow) - but ignore failures here
-      try {
-        // If you still want to upload via client-side (not recommended), you'd call uploadInvoicePdf here.
-        // For cloud-safe server upload use the "Save to Cloud" button below which calls serverless endpoint.
-      } catch (err) {
-        console.warn("Non-fatal upload attempt failed (ignored):", err);
-      }
-
       alert("Downloaded PDF to your device.");
     } catch (err) {
       console.error("Error generating or downloading PDF:", err);
@@ -120,7 +116,7 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
     }
   };
 
-  // NEW: Save PDF to cloud via the serverless endpoint (service-role upload happens server-side)
+  // Save to cloud unchanged
   const handleSaveToCloud = async () => {
     setCloudMsg(null);
     setSavingCloud(true);
@@ -133,13 +129,10 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
         paymentNumber: paymentNumber,
         id: invoiceId,
         sellerName: "DollarChain",
-        templateId: templateId || null, // <-- added
+        templateId: templateId || null,
       };
 
-      // generate pdf blob
       const { blob, fileName } = generateInvoicePdfBlob(payload);
-
-      // call server endpoint to upload and attach pdf_path
       const res = await uploadInvoicePdfToServer(invoiceId, blob);
       setCloudMsg("Saved to cloud.");
       setSavedAt(new Date().toLocaleString());
@@ -154,9 +147,7 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
     }
   };
 
-  // ------------------------
-  // Template rendering utils
-  // ------------------------
+  // Template selection
   const selectedTemplate = useMemo(() => {
     if (!templateId) return null;
     try {
@@ -166,17 +157,17 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
     }
   }, [templateId]);
 
-  // ------------------------
-  // Parsing helpers & robust row builder
-  // ------------------------
+  // ----- helpers for parsing and formatting -----
+  const escapeHtml = (str) => {
+    if (typeof str !== "string") return str;
+    return str.replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+  };
 
-  // parse numeric string like "KES 1,200" => 1200
   function parseNumber(s) {
     if (s === null || s === undefined) return NaN;
     const cleaned = String(s).replace(/[^\d.-]/g, "").replace(/,+/g, "");
     return cleaned === "" ? NaN : Number(cleaned);
   }
-
   function formatMoneyParts(n) {
     if (isNaN(n)) return { whole: "", cents: "00" };
     const rounded = Math.round(Math.abs(n) * 100) / 100;
@@ -185,27 +176,74 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
     return { whole: whole.toLocaleString("en-GB"), cents };
   }
 
-  // Improved rows builder: outputs column-aware <tr> markup for known templates (local-1, local-2)
+  // ----- build rows: accept object lines (structured) or string lines (legacy) -----
   const buildItemsRowsHtml = (rows) => {
     if (!rows || rows.length === 0) return "<tr><td colspan='2' style='color:#6b7280;padding:8px 6px'>No items</td></tr>";
-
     const tplId = selectedTemplate?.id || "";
 
-    const lines = rows.map(r => (typeof r === "string" ? r.trim() : String(r))).filter(Boolean);
+    const normalized = rows.map((r) => {
+      if (r && typeof r === "object") {
+        // support multiple possible field names
+        const qty = ("qty" in r && r.qty != null) ? r.qty : (r.quantity ?? r.count ?? "");
+        const name = ("name" in r && r.name != null) ? r.name : (r.description ?? r.desc ?? "");
+        const unitPrice = ("unitPrice" in r && r.unitPrice != null) ? r.unitPrice : (r.rate ?? r.price ?? r.unit ?? "");
+        const amount = ("total" in r && r.total != null) ? r.total : (r.amount ?? r.ksh ?? "");
+        const cents = ("cents" in r && r.cents != null) ? r.cents : "";
+        return { type: "obj", qty, name, unitPrice, amount, cents };
+      } else {
+        // string
+        const s = String(r || "").trim();
+        return { type: "str", raw: s };
+      }
+    });
 
-    const out = lines.map((line) => {
-      // 1) "2x Cotton Shirt @ 1800"
+    const out = normalized.map((item) => {
+      // If it's a structured object, render directly
+      if (item.type === "obj") {
+        const qtyRaw = item.qty ?? "";
+        const qtyNum = parseNumber(qtyRaw);
+        const qtyDisplay = qtyRaw === "" ? "" : (typeof qtyRaw === "number" ? `${qtyRaw}x` : (String(qtyRaw).toString().endsWith("x") ? String(qtyRaw) : `${String(qtyRaw)}x`));
+        const desc = item.name ?? "";
+        const unitNum = parseNumber(item.unitPrice);
+        const totalNum = parseNumber(item.amount);
+        const computedTotal = (isNaN(totalNum) && !isNaN(unitNum) && !isNaN(qtyNum)) ? (unitNum * qtyNum) : totalNum;
+        const mp = formatMoneyParts(computedTotal);
+
+        if (tplId === "local-1") {
+          return `<tr>
+            <td class="qtyCol">${escapeHtml(qtyDisplay)}</td>
+            <td class="descCol">${escapeHtml(desc)}</td>
+            <td class="unitCol" style="text-align:right">${isNaN(unitNum) ? escapeHtml(item.unitPrice || "") : Math.round(unitNum).toLocaleString("en-GB")}</td>
+            <td class="kshCol" style="text-align:right">${mp.whole || (item.amount ? escapeHtml(String(item.amount)) : "")}</td>
+            <td class="ctsCol" style="text-align:right">${mp.cents || (item.cents ? escapeHtml(String(item.cents)) : "00")}</td>
+          </tr>`;
+        } else if (tplId === "local-2") {
+          const amountDisplay = isNaN(computedTotal) ? (item.amount ? escapeHtml(String(item.amount)) : "") : Math.round(computedTotal).toLocaleString("en-GB");
+          const rateDisplay = isNaN(unitNum) ? (item.unitPrice ? escapeHtml(String(item.unitPrice)) : "") : Math.round(unitNum).toLocaleString("en-GB");
+          return `<tr>
+            <td>${escapeHtml(desc)}</td>
+            <td class="right">${rateDisplay}</td>
+            <td class="right">${escapeHtml(qtyDisplay)}</td>
+            <td class="right">${amountDisplay}</td>
+          </tr>`;
+        } else {
+          // generic fallback: two-col representation
+          return `<tr style="border-top:1px solid #f1f5f9"><td style="padding:8px 6px">${escapeHtml(qtyDisplay)} ${escapeHtml(desc)}</td><td style="padding:8px 6px; text-align:right">${escapeHtml(item.amount || "")}</td></tr>`;
+        }
+      }
+
+      // For strings (legacy), attempt robust parsing similar to previous approach
+      const line = item.raw || "";
+
+      // pattern "2x Item @ 1800"
       let m = line.match(/^(\d+)\s*[x×]\s*(.+?)\s*@\s*([KkEeSs\s]*[\d,\.]+)$/i);
       if (m) {
-        const qty = m[1];
-        const desc = m[2].trim();
-        const unitNum = parseNumber(m[3]);
-        const totalNum = isNaN(unitNum) ? NaN : qty * unitNum;
-
+        const qty = m[1], desc = m[2].trim(), unitNum = parseNumber(m[3]);
+        const totalNum = isNaN(unitNum) ? NaN : (Number(qty) * unitNum);
         if (tplId === "local-1") {
           const mp = formatMoneyParts(totalNum);
           return `<tr>
-            <td class="qtyCol">${qty}x</td>
+            <td class="qtyCol">${escapeHtml(qty + "x")}</td>
             <td class="descCol">${escapeHtml(desc)}</td>
             <td class="unitCol" style="text-align:right">${isNaN(unitNum) ? "" : Math.round(unitNum).toLocaleString("en-GB")}</td>
             <td class="kshCol" style="text-align:right">${mp.whole}</td>
@@ -216,37 +254,30 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
           return `<tr>
             <td>${escapeHtml(desc)}</td>
             <td class="right">${isNaN(unitNum) ? "" : Math.round(unitNum).toLocaleString("en-GB")}</td>
-            <td class="right">${qty}x</td>
+            <td class="right">${escapeHtml(qty + "x")}</td>
             <td class="right">${amount}</td>
           </tr>`;
         }
       }
 
-      // 2) pipe-delimited "desc | qty | unit | total"
+      // other fallbacks: pipe/comma/leading-count patterns
       let parts = line.split(/\s*\|\s*/);
       if (parts.length >= 2) {
-        const desc = parts[0].trim();
-        const p1 = parts[1] || "";
-        const p2 = parts[2] || "";
-        const p3 = parts[3] || "";
-        const p1Num = parseNumber(p1);
-        const p2Num = parseNumber(p2);
-        const p3Num = parseNumber(p3);
+        const desc = parts[0].trim(), p1 = parts[1] || "", p2 = parts[2] || "", p3 = parts[3] || "";
+        const p1Num = parseNumber(p1), p2Num = parseNumber(p2), p3Num = parseNumber(p3);
 
         if (tplId === "local-1") {
-          const qty = p1;
-          const unit = !isNaN(p2Num) ? p2Num : p2;
+          const qty = p1, unit = !isNaN(p2Num) ? p2Num : p2;
           const total = !isNaN(p3Num) ? p3Num : (!isNaN(p2Num) && !isNaN(Number(qty)) ? p2Num * Number(qty) : NaN);
           const mp = formatMoneyParts(total);
           return `<tr>
-            <td class="qtyCol">${escapeHtml(qty ? String(qty).replace(/\s*$/,'') : '')}</td>
+            <td class="qtyCol">${escapeHtml(qty)}</td>
             <td class="descCol">${escapeHtml(desc)}</td>
             <td class="unitCol" style="text-align:right">${isNaN(unit) ? escapeHtml(unit) : Math.round(unit).toLocaleString("en-GB")}</td>
             <td class="kshCol" style="text-align:right">${mp.whole}</td>
             <td class="ctsCol" style="text-align:right">${mp.cents}</td>
           </tr>`;
         } else if (tplId === "local-2") {
-          // interpret as desc | rate | qty | amount
           const rate = !isNaN(p1Num) && parts.length === 4 ? p1Num : (!isNaN(p2Num) && parts.length >= 3 ? p2Num : NaN);
           const qty = parts.length === 4 ? parts[2] : (parts[1] && isNaN(p1Num) ? parts[1] : "");
           const amount = !isNaN(p3Num) ? p3Num : (!isNaN(rate) && qty ? rate * Number(String(qty).replace(/[^\d]/g,'')) : NaN);
@@ -259,27 +290,21 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
         }
       }
 
-      // 3) comma-separated: desc, qty, unit, total
+      // comma-separated
       parts = line.split(/\s*,\s*/);
       if (parts.length >= 2) {
         if (tplId === "local-1") {
-          const desc = parts[0].trim();
-          const qty = parts[1].trim();
-          const unit = parts[2] ? parts[2].trim() : "";
-          const total = parts[3] ? parseNumber(parts[3]) : ((!isNaN(parseNumber(unit)) && !isNaN(Number(qty))) ? parseNumber(unit) * Number(qty) : NaN);
+          const desc = parts[0].trim(), qty = parts[1].trim(), unit = parts[2] ? parts[2].trim() : "", total = parts[3] ? parseNumber(parts[3]) : NaN;
           const mp = formatMoneyParts(total);
           return `<tr>
-            <td class="qtyCol">${escapeHtml(qty ? (qty+'') : '')}</td>
+            <td class="qtyCol">${escapeHtml(qty)}</td>
             <td class="descCol">${escapeHtml(desc)}</td>
             <td class="unitCol" style="text-align:right">${isNaN(parseNumber(unit)) ? escapeHtml(unit) : Math.round(parseNumber(unit)).toLocaleString("en-GB")}</td>
             <td class="kshCol" style="text-align:right">${mp.whole}</td>
             <td class="ctsCol" style="text-align:right">${mp.cents}</td>
           </tr>`;
         } else if (tplId === "local-2") {
-          const desc = parts[0].trim();
-          const qty = parts[1].trim();
-          const rate = parts[2] ? parseNumber(parts[2]) : NaN;
-          const amount = parts[3] ? parseNumber(parts[3]) : (!isNaN(rate) ? rate * Number(String(qty).replace(/[^\d]/g,'')) : NaN);
+          const desc = parts[0].trim(), qty = parts[1].trim(), rate = parts[2] ? parseNumber(parts[2]) : NaN, amount = parts[3] ? parseNumber(parts[3]) : ( (!isNaN(rate) && qty) ? rate * Number(String(qty).replace(/[^\d]/g,'')) : NaN );
           return `<tr>
             <td>${escapeHtml(desc)}</td>
             <td class="right">${isNaN(rate) ? "" : Math.round(rate).toLocaleString("en-GB")}</td>
@@ -289,14 +314,13 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
         }
       }
 
-      // 4) "2 Cotton Shirt" fallback
-      m = line.match(/^(\d+)\s+[x×]?\s*(.+)$/i);
-      if (m) {
-        const qty = m[1];
-        const desc = m[2].trim();
+      // "2 Something" fallback
+      const m2 = line.match(/^(\d+)\s+[x×]?\s*(.+)$/i);
+      if (m2) {
+        const qty = m2[1], desc = m2[2].trim();
         if (tplId === "local-1") {
           return `<tr>
-            <td class="qtyCol">${qty}x</td>
+            <td class="qtyCol">${escapeHtml(qty + "x")}</td>
             <td class="descCol">${escapeHtml(desc)}</td>
             <td class="unitCol" style="text-align:right"></td>
             <td class="kshCol" style="text-align:right"></td>
@@ -306,13 +330,13 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
           return `<tr>
             <td>${escapeHtml(desc)}</td>
             <td class="right"></td>
-            <td class="right">${qty}x</td>
+            <td class="right">${escapeHtml(qty + "x")}</td>
             <td class="right"></td>
           </tr>`;
         }
       }
 
-      // fallback: put content into description cell for known templates
+      // final fallback
       if (tplId === "local-1") {
         return `<tr>
           <td class="qtyCol"></td>
@@ -322,14 +346,8 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
           <td class="ctsCol" style="text-align:right">00</td>
         </tr>`;
       } else if (tplId === "local-2") {
-        return `<tr>
-          <td>${escapeHtml(line)}</td>
-          <td class="right"></td>
-          <td class="right"></td>
-          <td class="right"></td>
-        </tr>`;
+        return `<tr><td>${escapeHtml(line)}</td><td class="right"></td><td class="right"></td><td class="right"></td></tr>`;
       } else {
-        // safe generic fallback (keeps previous behaviour)
         const idx = line.indexOf(" ");
         const first = idx === -1 ? line : line.slice(0, idx);
         const rest = idx === -1 ? "" : line.slice(idx + 1);
@@ -340,11 +358,6 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
     return out.join("");
   };
 
-  const escapeHtml = (str) => {
-    if (typeof str !== "string") return str;
-    return str.replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
-  };
-
   const buildTemplateHtml = () => {
     if (!selectedTemplate) return null;
     let html = selectedTemplate.html || "";
@@ -352,7 +365,6 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
     // remove simple handlebars-style conditional blocks for qrDataUrl when we don't provide qrDataUrl
     html = html.replace(/\{\{#if qrDataUrl\}\}[\s\S]*?\{\{\/if\}\}/g, "");
 
-    // Prepare replacements
     const replacements = {
       sellerName: escapeHtml(localStorage.getItem("sellerName") || "Seller Name"),
       sellerLogoUrl: escapeHtml(localStorage.getItem("sellerLogoUrl") || "/favicon.ico"),
@@ -376,17 +388,15 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
       qrDataUrl: "",
     };
 
-    // Inject itemsRows (special handling)
+    // Generate items rows HTML based on structured rows or strings
     const itemsRowsHtml = buildItemsRowsHtml(itemRows);
     html = html.replace(/{{\s*itemsRows\s*}}/g, itemsRowsHtml);
 
-    // generic token replacement
     Object.keys(replacements).forEach((k) => {
       const re = new RegExp(`{{\\s*${k}\\s*}}`, "g");
       html = html.replace(re, replacements[k]);
     });
 
-    // remove any leftover mustache-ish tags for cleanliness
     html = html.replace(/\{\{[^}]+\}\}/g, "");
 
     return html;
@@ -394,9 +404,7 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
 
   const renderedTemplateHtml = useMemo(() => buildTemplateHtml(), [selectedTemplate, buyerName, phone, items, total, paymentNumber, invoiceId, dateStr]);
 
-  // ------------------------
   // Render
-  // ------------------------
   return (
     <div className="formBox fade-in" style={{ padding: 20 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
@@ -413,7 +421,6 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
 
       <hr style={{ margin: "12px 0", borderColor: "#eef1f3" }} />
 
-      {/* If a template is selected, show the rendered template in an iframe for isolated styles */}
       {renderedTemplateHtml ? (
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: 13, color: "#374151", fontWeight: 700, marginBottom: 8 }}>Template preview</div>
@@ -422,15 +429,12 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
               title="invoice-template-preview"
               srcDoc={renderedTemplateHtml}
               style={{ width: "100%", minHeight: 420, border: 0 }}
-              /* SECURITY: Removed allow-scripts so srcdoc cannot run arbitrary JS.
-                 We now generate full table rows on the React side (buildItemsRowsHtml),
-                 so the preview no longer needs to execute template scripts. */
+              // restore safer sandbox: no allow-scripts
               sandbox="allow-same-origin allow-popups allow-forms"
             />
           </div>
         </div>
       ) : (
-        // fallback: show the small summary preview (existing UI)
         <>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
             <div style={{ minWidth: 220 }}>
@@ -458,25 +462,28 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
               <tbody>
                 {itemRows.length ? (
                   itemRows.map((row, idx) => {
-                    // Try to parse "2x T-Shirt" style strings vs "T-Shirt x2"
                     let qty = "";
                     let name = row;
                     let unit = "";
 
-                    // common pattern: "2x T-Shirt" or "2 x T-Shirt"
-                    const m1 = row.match(/^(\d+)\s*x\s*(.+)$/i);
-                    if (m1) {
-                      qty = m1[1];
-                      name = m1[2];
+                    if (row && typeof row === "object") {
+                      qty = row.qty ?? row.quantity ?? row.count ?? "1";
+                      name = row.name ?? row.description ?? row.desc ?? "";
+                      unit = row.unitPrice ?? row.rate ?? row.price ?? "";
                     } else {
-                      // pattern "T-Shirt x2"
-                      const m2 = row.match(/^(.+?)\s*x\s*(\d+)$/i);
-                      if (m2) {
-                        name = m2[1];
-                        qty = m2[2];
+                      const m1 = String(row).match(/^(\d+)\s*x\s*(.+)$/i);
+                      if (m1) {
+                        qty = m1[1];
+                        name = m1[2];
                       } else {
-                        // fallback: no qty found
-                        qty = "1";
+                        const m2 = String(row).match(/^(.+?)\s*x\s*(\d+)$/i);
+                        if (m2) {
+                          name = m2[1];
+                          qty = m2[2];
+                        } else {
+                          qty = "1";
+                          name = String(row);
+                        }
                       }
                     }
 
@@ -514,7 +521,6 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
         </div>
 
         <div style={{ display: "flex", gap: 8 }}>
-          {/* Back button - explicit type and safe call */}
           <button
             type="button"
             className="btn-outline"
@@ -535,7 +541,6 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
             Download PDF
           </button>
 
-          {/* Save to Cloud button (server-side upload) */}
           <button
             type="button"
             className="btn-primary"
