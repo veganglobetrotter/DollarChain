@@ -1,50 +1,107 @@
 // src/pages/SuperAdmin.jsx
 import React, { useEffect, useState } from "react";
 import { useUser } from "../context/UserContext";
+import { supabase } from "../lib/supabase";
+import Sidebar from "../components/super-admin/Sidebar";
+import UsersPanel from "../components/super-admin/UsersPanel";
+import SettingsPanel from "../components/super-admin/SettingsPanel";
+import PostsPanel from "../components/super-admin/PostsPanel";
+import EarningsPanel from "../components/super-admin/EarningsPanel";
 
 export default function SuperAdmin() {
   const { user } = useUser();
   const [users, setUsers] = useState([]);
   const [settings, setSettings] = useState({});
   const [loading, setLoading] = useState(true);
+  const [activePanel, setActivePanel] = useState("Users");
 
-  const auth = user?.access_token || (user && user?.token) || null; // adapt to your session shape
-  const API_BASE = "http://localhost:5000"; // local proxy for serverless endpoints
+  // sessionToken comes from supabase client session (null if not signed in)
+  const [sessionToken, setSessionToken] = useState(null);
 
+  // Use relative API paths so this works in dev and production
+  const API_BASE = ""; // fetch(`${API_BASE}/api/...`) -> '/api/...'
+
+  // Read current Supabase session token once on mount (will re-run if auth changes externally)
   useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data?.session?.access_token ?? null;
+        if (!mounted) return;
+        setSessionToken(token);
+      } catch (err) {
+        console.warn("Could not read supabase session token:", err);
+        if (mounted) setSessionToken(null);
+      }
+    })();
+
+    // subscribe to auth changes so token updates if user signs in/out in-app
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (listener === undefined) return;
+      const t = session?.access_token ?? null;
+      setSessionToken(t);
+    });
+
+    return () => {
+      mounted = false;
+      listener?.subscription?.unsubscribe?.();
+    };
+  }, []);
+
+  // Load settings (public) and users (requires token). Runs initially (sessionToken null)
+  // and again if sessionToken changes (so users list can load after login).
+  useEffect(() => {
+    let mounted = true;
+
     async function load() {
       setLoading(true);
       try {
-        // fetch settings (public GET)
+        // public settings (no auth required)
         const s = await fetch(`${API_BASE}/api/admin/settings`);
         const sJson = await s.json();
+        if (!mounted) return;
         setSettings(sJson.settings || {});
 
-        // fetch users (must be admin)
+        // users list (admin-only — include token header if present)
+        const headers = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
         const uRes = await fetch(`${API_BASE}/api/admin/users`, {
-          headers: { Authorization: auth ? `Bearer ${auth}` : "" },
+          headers,
         });
+
+        if (!mounted) return;
         if (uRes.ok) {
           const uJson = await uRes.json();
           setUsers(uJson.users || []);
         } else {
+          // if unauthorized or other error, clear users array
           setUsers([]);
         }
       } catch (err) {
         console.error("SuperAdmin load error:", err);
+        if (mounted) {
+          setUsers([]);
+        }
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     }
+
     load();
-  }, [auth]);
+    return () => {
+      mounted = false;
+    };
+  }, [sessionToken]);
 
   async function toggleShow7Day() {
     const newVal = !(settings?.["charts.show7DayMA"] || false);
     try {
+      const headers = { "Content-Type": "application/json" };
+      if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
+
       const res = await fetch(`${API_BASE}/api/admin/settings`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth}` },
+        headers,
         body: JSON.stringify({ key: "charts.show7DayMA", value: newVal }),
       });
       const j = await res.json();
@@ -58,40 +115,33 @@ export default function SuperAdmin() {
     }
   }
 
-  return (
-    <div className="admin-page">
-      <h1>Super Admin</h1>
-      <section>
-        <h2>Settings</h2>
-        <div>
-          <label>
-            <input
-              type="checkbox"
-              checked={!!settings["charts.show7DayMA"]}
-              onChange={toggleShow7Day}
-            />
-            Show 7-day MA on charts
-          </label>
-        </div>
-      </section>
+  // determine which panel component to render
+  let PanelComponent;
+  switch (activePanel) {
+    case "Users":
+      PanelComponent = () => <UsersPanel users={users} loading={loading} />;
+      break;
+    case "Settings":
+      PanelComponent = () => (
+        <SettingsPanel settings={settings} toggleShow7Day={toggleShow7Day} />
+      );
+      break;
+    case "Posts":
+      PanelComponent = PostsPanel;
+      break;
+    case "Earnings":
+      PanelComponent = EarningsPanel;
+      break;
+    default:
+      PanelComponent = () => <div>Unknown Panel</div>;
+  }
 
-      <section>
-        <h2>Users</h2>
-        {loading ? <p>Loading…</p> : (
-          <table>
-            <thead><tr><th>id</th><th>full_name</th><th>is_super_admin</th></tr></thead>
-            <tbody>
-              {users.map(u => (
-                <tr key={u.id}>
-                  <td>{u.id}</td>
-                  <td>{u.full_name || (u.metadata && u.metadata.name) || "-"}</td>
-                  <td>{String(u.is_super_admin)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+  return (
+    <div className="admin-page" style={{ display: "flex" }}>
+      <Sidebar activePanel={activePanel} setActivePanel={setActivePanel} />
+      <div style={{ flex: 1, padding: "1rem" }}>
+        <PanelComponent />
+      </div>
     </div>
   );
 }

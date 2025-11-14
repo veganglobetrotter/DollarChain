@@ -1,5 +1,5 @@
-// src/api/admin/users.js
-import { createSupabaseServerClient, getUserFromBearer, requireSuperAdmin } from "../../lib/supabaseServer.js";
+// api/admin/users.js
+import { createSupabaseServerClient, requireSuperAdmin } from "../lib/supabaseServer.js";
 
 export default async function handler(req, res) {
   try {
@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     const supabase = createSupabaseServerClient();
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, full_name, phone, email: (metadata->>'email'), is_super_admin, metadata")
+      .select("id, full_name, phone, is_super_admin, metadata")
       .limit(100)
       .order("created_at", { ascending: false });
 
@@ -20,7 +20,13 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: error.message || error });
     }
 
-    return res.status(200).json({ users: data || [] });
+    // map email out of metadata
+    const users = (data || []).map(u => ({
+      ...u,
+      email: u.metadata?.email || null
+    }));
+
+    return res.status(200).json({ users });
   } catch (err) {
     // requireSuperAdmin already responded on common errors — fallback:
     if (!res.headersSent) {
