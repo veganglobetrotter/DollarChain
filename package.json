@@ -12,6 +12,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.78.0",
     "axios": "^1.13.2",
+    "express": "^5.1.0",
     "formidable": "^3.5.4",
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^5.0.2",

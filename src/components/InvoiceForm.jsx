@@ -1,4 +1,3 @@
-// src/components/InvoiceForm.jsx
 import { useState, useEffect } from "react";
 import axios from "axios"; // for credit APIs
 import { supabase } from "../lib/supabase";
@@ -45,11 +44,6 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
     const whole = Math.floor(rounded);
     const cents = Math.round((rounded - whole) * 100).toString().padStart(2, "0");
     return { whole: whole.toLocaleString("en-GB"), cents };
-  }
-
-  function toFixedAmount(n) {
-    if (isNaN(n)) return "";
-    return Math.round(n).toString();
   }
 
   function safeNum(v) {
@@ -197,6 +191,9 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
     const totalValue = sumAmounts(formData.items);
     const normalizedForm = { ...formData, total: totalValue };
 
+    // debug: show final payload shape so you can confirm structured items
+    console.debug("InvoiceForm: onGenerate payload:", normalizedForm);
+
     // 1) Resolve user ID properly
     let userId;
     try {
@@ -239,6 +236,7 @@ export default function InvoiceForm({ parsedData = {}, onBack = () => {}, onGene
     // 3) Attempt invoice generation
     try {
       if (typeof onGenerate === "function") {
+        // Pass structured array — do not stringify here
         await onGenerate(normalizedForm);
       } else {
         alert(`Invoice ready for ${normalizedForm.buyerName}!`);

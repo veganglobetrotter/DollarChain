@@ -20,6 +20,11 @@ export default function Sidebar({
     { id: "settings", label: "Settings", icon: "⚙️" },
   ];
 
+  // insert Super Admin link at the end if current user is super admin
+  if (profile?.is_super_admin) {
+    nav.push({ id: "super-admin", label: "Super Admin", icon: "🛠️" });
+  }
+
   // compute the display name (safe fallbacks)
   const displayName =
     (profile && (profile.full_name || profile.name)) ||

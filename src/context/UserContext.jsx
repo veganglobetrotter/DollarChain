@@ -37,7 +37,7 @@ export function UserProvider({ children }) {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, full_name, phone, metadata")
+        .select("id, full_name, phone, metadata, is_super_admin")
         .eq("id", u.id)
         .maybeSingle();
       if (error) {

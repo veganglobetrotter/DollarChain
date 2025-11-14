@@ -1,4 +1,3 @@
-// src/components/InvoicePreview.jsx
 import React, { useState, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import generateInvoicePdfBlob from "../lib/pdf";
@@ -33,25 +32,75 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
   const invoiceId = invoiceIdProp || `INV-${Date.now().toString().slice(-6)}`;
   const dateStr = new Date().toLocaleString();
 
-  // Normalise incoming items:
-  // - if items is an array of objects (structured), keep them as objects
-  // - if items is an array of strings, keep as strings
-  // - if items is a comma-separated string, split into string rows
-  const itemRows = (() => {
+  // ------------------------
+  // Tolerant items normalisation
+  // - Accept already-structured arrays
+  // - Accept JSON-stringified arrays/objects and parse them
+  // - Accept comma/newline separated text
+  // - Produce either an array of objects (structured) or array of strings
+  // ------------------------
+  const rawItemRows = (() => {
     if (!items && items !== 0) return [];
-    if (Array.isArray(items)) {
-      if (items.length > 0 && typeof items[0] === "object") {
-        return items; // structured rows: { description, qty, unitPrice, amount, cents }
+
+    // If items is a JSON-stringified array/object, try parse
+    if (typeof items === "string") {
+      const trimmed = items.trim();
+      if ((trimmed.startsWith("[") && trimmed.endsWith("]")) || (trimmed.startsWith("{") && trimmed.endsWith("}"))) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) return parsed;
+          return [parsed];
+        } catch (e) {
+          // fall through to text splitting
+        }
       }
-      // array of strings
-      return items.map((it) => (typeof it === "string" ? it.trim() : String(it))).filter(Boolean);
     }
-    // string: split commas/newlines
+
+    if (Array.isArray(items)) {
+      return items;
+    }
+
+    // fallback: split plain string by common separators
     return String(items)
       .split(/[\r\n]+|[,•·]+/)
       .map((it) => it.trim())
       .filter(Boolean);
   })();
+
+  // helper: parse numeric strings
+  function parseNumber(s) {
+    if (s === null || s === undefined) return NaN;
+    const cleaned = String(s).replace(/[^\d.-]/g, "").replace(/,+/g, "");
+    return cleaned === "" ? NaN : Number(cleaned);
+  }
+
+  function formatMoneyParts(n) {
+    if (isNaN(n)) return { whole: "", cents: "00" };
+    const rounded = Math.round(Math.abs(n) * 100) / 100;
+    const whole = Math.floor(rounded);
+    const cents = Math.round((rounded - whole) * 100).toString().padStart(2, "0");
+    return { whole: whole.toLocaleString("en-GB"), cents };
+  }
+
+  const escapeHtml = (str) => {
+    if (typeof str !== "string") return str;
+    return str.replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+  };
+
+  // Convert any object-like rows into a strict, predictable shape
+  const itemRowsNormalized = rawItemRows.map((r) => {
+    if (r && typeof r === "object") {
+      const description = r.description || r.name || r.desc || "";
+      const qtyRaw = r.qty ?? r.quantity ?? r.q ?? "";
+      const qty = qtyRaw === "" ? "" : Number(qtyRaw);
+      const unitPrice = parseNumber(r.unitPrice ?? r.unit ?? r.rate ?? r.price ?? "");
+      const amount = parseNumber(r.amount ?? r.total ?? (!isNaN(unitPrice) && qty !== "" ? unitPrice * qty : ""));
+      const cents = r.cents ?? (amount ? formatMoneyParts(amount).cents : "00");
+      return { description: String(description), qty, unitPrice, amount, cents };
+    }
+    // keep strings intact
+    return r;
+  });
 
   // keep the existing save logic
   const handleSave = async () => {
@@ -167,28 +216,6 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
     }
   }, [templateId]);
 
-  // ------------------------
-  // Parsing helpers & robust row builder
-  // ------------------------
-  function parseNumber(s) {
-    if (s === null || s === undefined) return NaN;
-    const cleaned = String(s).replace(/[^\d.-]/g, "").replace(/,+/g, "");
-    return cleaned === "" ? NaN : Number(cleaned);
-  }
-
-  function formatMoneyParts(n) {
-    if (isNaN(n)) return { whole: "", cents: "00" };
-    const rounded = Math.round(Math.abs(n) * 100) / 100;
-    const whole = Math.floor(rounded);
-    const cents = Math.round((rounded - whole) * 100).toString().padStart(2, "0");
-    return { whole: whole.toLocaleString("en-GB"), cents };
-  }
-
-  const escapeHtml = (str) => {
-    if (typeof str !== "string") return str;
-    return str.replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
-  };
-
   // Build rows HTML — supports structured objects or string rows
   const buildItemsRowsHtml = (rows) => {
     if (!rows || rows.length === 0) return "<tr><td colspan='2' style='color:#6b7280;padding:8px 6px'>No items</td></tr>";
@@ -199,7 +226,7 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
       if (r && typeof r === "object") {
         const desc = (r.description || r.name || r.desc || "").toString();
         const qtyRaw = r.qty ?? r.quantity ?? r.q ?? "";
-        const qtyNum = Number(String(qtyRaw).replace(/[^\d]/g, "")) || "";
+        const qtyNum = qtyRaw === "" ? "" : Number(qtyRaw);
         const qtyDisplay = qtyNum !== "" ? `${qtyNum}x` : (qtyRaw ? String(qtyRaw) : "");
         const unitNum = parseNumber(r.unitPrice ?? r.unit ?? r.rate ?? r.price ?? "");
         const amountNum = parseNumber(r.amount ?? r.total ?? (isNaN(unitNum) || qtyNum === "" ? "" : unitNum * qtyNum));
@@ -209,7 +236,7 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
           return `<tr>
             <td class="qtyCol">${escapeHtml(String(qtyDisplay || ""))}</td>
             <td class="descCol">${escapeHtml(desc)}</td>
-            <td class="unitCol" style="text-align:right">${isNaN(unitNum) ? (escapeHtml(r.unit ?? "")) : Math.round(unitNum).toLocaleString("en-GB")}</td>
+            <td class="unitCol" style="text-align:right">${isNaN(unitNum) ? (escapeHtml(String(r.unit ?? ""))) : Math.round(unitNum).toLocaleString("en-GB")}</td>
             <td class="kshCol" style="text-align:right">${mp.whole}</td>
             <td class="ctsCol" style="text-align:right">${mp.cents}</td>
           </tr>`;
@@ -231,7 +258,7 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
         }
       }
 
-      // Otherwise r is a plain string: attempt to parse known patterns
+      // Otherwise r is a plain string: attempt to parse known patterns (keeps existing parsing)
       const line = String(r || "").trim();
 
       // pattern: "2x Item @ 1800"
@@ -261,7 +288,7 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
         }
       }
 
-      // pattern: "Item @ 1800 x2"  (catch "desc @ price xqty")
+      // pattern: "Item @ 1800 x2"
       m = line.match(/^(.+?)\s*@\s*([KkEeSs\s]*[\d,\.]+)\s*[,\s]*[x×]?\s*(\d+)$/i);
       if (m) {
         const desc = m[1].trim();
@@ -288,7 +315,7 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
         }
       }
 
-      // pipe-delimited or comma-separated parsing (desc | qty | unit | total) or (desc, qty, unit, total)
+      // pipe-delimited / comma parsing (keeps previous logic)
       let parts = line.split(/\s*\|\s*/);
       if (parts.length >= 2) {
         const desc = parts[0].trim();
@@ -435,13 +462,13 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
       qrDataUrl: "",
     };
 
-    // Inject itemsRows (special handling)
-    const itemsRowsHtml = buildItemsRowsHtml(itemRows);
+    // Inject itemsRows (special handling) using the normalised rows
+    const itemsRowsHtml = buildItemsRowsHtml(itemRowsNormalized);
 
-    // Debugging helpers — will show in browser console so you can confirm what was sent and produced.
-    // Remove or comment out these logs when you're done debugging.
-    console.debug("InvoicePreview: invoice.items:", items);
-    console.debug("InvoicePreview: normalized itemRows:", itemRows);
+    // Debugging helpers — visible in browser console to confirm what's sent/produced
+    console.debug("InvoicePreview: invoice.items (raw):", items);
+    console.debug("InvoicePreview: rawItemRows:", rawItemRows);
+    console.debug("InvoicePreview: normalized itemRows:", itemRowsNormalized);
     console.debug("InvoicePreview: itemsRowsHtml (first 1k chars):", String(itemsRowsHtml).slice(0, 1000));
 
     html = html.replace(/{{\s*itemsRows\s*}}/g, itemsRowsHtml);
@@ -522,8 +549,8 @@ export default function InvoicePreview({ invoice = {}, templateId = null, onBack
                 </tr>
               </thead>
               <tbody>
-                {itemRows.length ? (
-                  itemRows.map((row, idx) => {
+                {itemRowsNormalized.length ? (
+                  itemRowsNormalized.map((row, idx) => {
                     // If structured object was passed, render directly
                     if (row && typeof row === "object") {
                       const name = row.description || row.name || row.desc || "";
