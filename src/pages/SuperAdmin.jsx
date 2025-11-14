@@ -1,6 +1,7 @@
 // src/pages/SuperAdmin.jsx
 import React, { useEffect, useState } from "react";
 import { useUser } from "../context/UserContext";
+import Sidebar from "../components/super-admin/Sidebar"; // prepare for panel navigation
 
 export default function SuperAdmin() {
   const { user } = useUser();
@@ -8,19 +9,19 @@ export default function SuperAdmin() {
   const [settings, setSettings] = useState({});
   const [loading, setLoading] = useState(true);
 
-  const auth = user?.access_token || (user && user?.token) || null; // adapt to your session shape
+  const auth = user?.access_token || (user && user?.token) || null; 
   const API_BASE = "http://localhost:5000"; // local proxy for serverless endpoints
 
   useEffect(() => {
     async function load() {
       setLoading(true);
       try {
-        // fetch settings (public GET)
+        // fetch settings
         const s = await fetch(`${API_BASE}/api/admin/settings`);
         const sJson = await s.json();
         setSettings(sJson.settings || {});
 
-        // fetch users (must be admin)
+        // fetch users
         const uRes = await fetch(`${API_BASE}/api/admin/users`, {
           headers: { Authorization: auth ? `Bearer ${auth}` : "" },
         });
@@ -59,39 +60,48 @@ export default function SuperAdmin() {
   }
 
   return (
-    <div className="admin-page">
-      <h1>Super Admin</h1>
-      <section>
-        <h2>Settings</h2>
-        <div>
-          <label>
-            <input
-              type="checkbox"
-              checked={!!settings["charts.show7DayMA"]}
-              onChange={toggleShow7Day}
-            />
-            Show 7-day MA on charts
-          </label>
-        </div>
-      </section>
+    <div className="admin-page" style={{ display: "flex" }}>
+      {/* Sidebar placeholder for future panel navigation */}
+      <Sidebar />
+      <div style={{ flex: 1, padding: "1rem" }}>
+        <h1>Super Admin</h1>
 
-      <section>
-        <h2>Users</h2>
-        {loading ? <p>Loading…</p> : (
-          <table>
-            <thead><tr><th>id</th><th>full_name</th><th>is_super_admin</th></tr></thead>
-            <tbody>
-              {users.map(u => (
-                <tr key={u.id}>
-                  <td>{u.id}</td>
-                  <td>{u.full_name || (u.metadata && u.metadata.name) || "-"}</td>
-                  <td>{String(u.is_super_admin)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+        <section>
+          <h2>Settings</h2>
+          <div>
+            <label>
+              <input
+                type="checkbox"
+                checked={!!settings["charts.show7DayMA"]}
+                onChange={toggleShow7Day}
+              />
+              Show 7-day MA on charts
+            </label>
+          </div>
+        </section>
+
+        <section>
+          <h2>Users</h2>
+          {loading ? (
+            <p>Loading…</p>
+          ) : (
+            <table>
+              <thead>
+                <tr><th>id</th><th>full_name</th><th>is_super_admin</th></tr>
+              </thead>
+              <tbody>
+                {users.map(u => (
+                  <tr key={u.id}>
+                    <td>{u.id}</td>
+                    <td>{u.full_name || (u.metadata && u.metadata.name) || "-"}</td>
+                    <td>{String(u.is_super_admin)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
