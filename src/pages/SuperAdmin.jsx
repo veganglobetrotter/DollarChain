@@ -1,15 +1,20 @@
 // src/pages/SuperAdmin.jsx
 import React, { useEffect, useState } from "react";
 import { useUser } from "../context/UserContext";
-import Sidebar from "../components/super-admin/Sidebar"; // prepare for panel navigation
+import Sidebar from "../components/super-admin/Sidebar";
+import UsersPanel from "../components/super-admin/UsersPanel";
+import SettingsPanel from "../components/super-admin/SettingsPanel";
+import PostsPanel from "../components/super-admin/PostsPanel";
+import EarningsPanel from "../components/super-admin/EarningsPanel";
 
 export default function SuperAdmin() {
   const { user } = useUser();
   const [users, setUsers] = useState([]);
   const [settings, setSettings] = useState({});
   const [loading, setLoading] = useState(true);
+  const [activePanel, setActivePanel] = useState("Users");
 
-  const auth = user?.access_token || (user && user?.token) || null; 
+  const auth = user?.access_token || (user && user?.token) || null;
   const API_BASE = "http://localhost:5000"; // local proxy for serverless endpoints
 
   useEffect(() => {
@@ -59,48 +64,30 @@ export default function SuperAdmin() {
     }
   }
 
+  // determine which panel component to render
+  let PanelComponent;
+  switch (activePanel) {
+    case "Users":
+      PanelComponent = () => <UsersPanel users={users} loading={loading} />;
+      break;
+    case "Settings":
+      PanelComponent = () => <SettingsPanel settings={settings} toggleShow7Day={toggleShow7Day} />;
+      break;
+    case "Posts":
+      PanelComponent = PostsPanel;
+      break;
+    case "Earnings":
+      PanelComponent = EarningsPanel;
+      break;
+    default:
+      PanelComponent = () => <div>Unknown Panel</div>;
+  }
+
   return (
     <div className="admin-page" style={{ display: "flex" }}>
-      {/* Sidebar placeholder for future panel navigation */}
-      <Sidebar />
+      <Sidebar activePanel={activePanel} setActivePanel={setActivePanel} />
       <div style={{ flex: 1, padding: "1rem" }}>
-        <h1>Super Admin</h1>
-
-        <section>
-          <h2>Settings</h2>
-          <div>
-            <label>
-              <input
-                type="checkbox"
-                checked={!!settings["charts.show7DayMA"]}
-                onChange={toggleShow7Day}
-              />
-              Show 7-day MA on charts
-            </label>
-          </div>
-        </section>
-
-        <section>
-          <h2>Users</h2>
-          {loading ? (
-            <p>Loading…</p>
-          ) : (
-            <table>
-              <thead>
-                <tr><th>id</th><th>full_name</th><th>is_super_admin</th></tr>
-              </thead>
-              <tbody>
-                {users.map(u => (
-                  <tr key={u.id}>
-                    <td>{u.id}</td>
-                    <td>{u.full_name || (u.metadata && u.metadata.name) || "-"}</td>
-                    <td>{String(u.is_super_admin)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </section>
+        <PanelComponent />
       </div>
     </div>
   );
