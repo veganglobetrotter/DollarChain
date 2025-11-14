@@ -1,6 +1,7 @@
 // src/pages/SuperAdmin.jsx
 import React, { useEffect, useState } from "react";
 import { useUser } from "../context/UserContext";
+import { supabase } from "../lib/supabase";
 import Sidebar from "../components/super-admin/Sidebar";
 import UsersPanel from "../components/super-admin/UsersPanel";
 import SettingsPanel from "../components/super-admin/SettingsPanel";
@@ -14,43 +15,93 @@ export default function SuperAdmin() {
   const [loading, setLoading] = useState(true);
   const [activePanel, setActivePanel] = useState("Users");
 
-  const auth = user?.access_token || (user && user?.token) || null;
-  const API_BASE = "http://localhost:5000"; // local proxy for serverless endpoints
+  // sessionToken comes from supabase client session (null if not signed in)
+  const [sessionToken, setSessionToken] = useState(null);
 
+  // Use relative API paths so this works in dev and production
+  const API_BASE = ""; // fetch(`${API_BASE}/api/...`) -> '/api/...'
+
+  // Read current Supabase session token once on mount (will re-run if auth changes externally)
   useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data?.session?.access_token ?? null;
+        if (!mounted) return;
+        setSessionToken(token);
+      } catch (err) {
+        console.warn("Could not read supabase session token:", err);
+        if (mounted) setSessionToken(null);
+      }
+    })();
+
+    // subscribe to auth changes so token updates if user signs in/out in-app
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (listener === undefined) return;
+      const t = session?.access_token ?? null;
+      setSessionToken(t);
+    });
+
+    return () => {
+      mounted = false;
+      listener?.subscription?.unsubscribe?.();
+    };
+  }, []);
+
+  // Load settings (public) and users (requires token). Runs initially (sessionToken null)
+  // and again if sessionToken changes (so users list can load after login).
+  useEffect(() => {
+    let mounted = true;
+
     async function load() {
       setLoading(true);
       try {
-        // fetch settings
+        // public settings (no auth required)
         const s = await fetch(`${API_BASE}/api/admin/settings`);
         const sJson = await s.json();
+        if (!mounted) return;
         setSettings(sJson.settings || {});
 
-        // fetch users
+        // users list (admin-only — include token header if present)
+        const headers = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
         const uRes = await fetch(`${API_BASE}/api/admin/users`, {
-          headers: { Authorization: auth ? `Bearer ${auth}` : "" },
+          headers,
         });
+
+        if (!mounted) return;
         if (uRes.ok) {
           const uJson = await uRes.json();
           setUsers(uJson.users || []);
         } else {
+          // if unauthorized or other error, clear users array
           setUsers([]);
         }
       } catch (err) {
         console.error("SuperAdmin load error:", err);
+        if (mounted) {
+          setUsers([]);
+        }
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     }
+
     load();
-  }, [auth]);
+    return () => {
+      mounted = false;
+    };
+  }, [sessionToken]);
 
   async function toggleShow7Day() {
     const newVal = !(settings?.["charts.show7DayMA"] || false);
     try {
+      const headers = { "Content-Type": "application/json" };
+      if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
+
       const res = await fetch(`${API_BASE}/api/admin/settings`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth}` },
+        headers,
         body: JSON.stringify({ key: "charts.show7DayMA", value: newVal }),
       });
       const j = await res.json();
@@ -71,7 +122,9 @@ export default function SuperAdmin() {
       PanelComponent = () => <UsersPanel users={users} loading={loading} />;
       break;
     case "Settings":
-      PanelComponent = () => <SettingsPanel settings={settings} toggleShow7Day={toggleShow7Day} />;
+      PanelComponent = () => (
+        <SettingsPanel settings={settings} toggleShow7Day={toggleShow7Day} />
+      );
       break;
     case "Posts":
       PanelComponent = PostsPanel;
