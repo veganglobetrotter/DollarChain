@@ -1,5 +1,5 @@
-// src/api/admin/users.js
-import { createSupabaseServerClient, getUserFromBearer, requireSuperAdmin } from "../../lib/supabaseServer.js";
+// api/admin/users.js
+import { createSupabaseServerClient, getUserFromBearer, requireSuperAdmin } from "../lib/supabaseServer.js";
 
 export default async function handler(req, res) {
   try {

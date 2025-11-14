@@ -1,5 +1,5 @@
-// src/api/admin/settings.js
-import { createSupabaseServerClient, requireSuperAdmin } from "../../lib/supabaseServer.js";
+// api/admin/settings.js
+import { createSupabaseServerClient, requireSuperAdmin } from "../lib/supabaseServer.js";
 
 export default async function handler(req, res) {
   const supabase = createSupabaseServerClient();
