@@ -5,14 +5,27 @@ export default async function handler(req, res) {
   const supabase = createSupabaseServerClient();
 
   if (req.method === "GET") {
-    // public read of settings (non-sensitive)
-    const { data, error } = await supabase.from("system_settings").select("key, value").maybeSingle();
-    // safer: return map of all keys
-    const { data: rows, error: errRows } = await supabase.from("system_settings").select("key, value");
-    if (errRows) return res.status(500).json({ error: errRows.message || errRows });
-    const out = {};
-    (rows || []).forEach((r) => { out[r.key] = r.value; });
-    return res.status(200).json({ settings: out });
+    try {
+      // safer: return map of all keys
+      const { data: rows, error } = await supabase
+        .from("system_settings")
+        .select("key, value");
+
+      if (error) {
+        console.error("admin/settings read error:", error);
+        return res.status(500).json({ error: error.message || error });
+      }
+
+      const settings = {};
+      (rows || []).forEach((r) => {
+        settings[r.key] = r.value;
+      });
+
+      return res.status(200).json({ settings });
+    } catch (err) {
+      console.error("admin/settings GET handler error:", err);
+      return res.status(500).json({ error: err.message || "internal_error" });
+    }
   }
 
   if (req.method === "POST") {
@@ -37,9 +50,12 @@ export default async function handler(req, res) {
 
       return res.status(200).json({ setting: data });
     } catch (err) {
-      if (!res.headersSent) res.status(500).json({ error: err.message || "internal_error" });
+      if (!res.headersSent) {
+        console.error("admin/settings POST handler error:", err);
+        res.status(500).json({ error: err.message || "internal_error" });
+      }
     }
+  } else {
+    return res.status(405).json({ error: "method_not_allowed" });
   }
-
-  return res.status(405).json({ error: "method_not_allowed" });
 }
