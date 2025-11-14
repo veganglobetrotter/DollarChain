@@ -1,201 +1,852 @@
-// src/components/Sidebar.jsx
-import React, { useEffect } from "react";
-import { useUser } from "../context/UserContext"; // <-- added: use global user context
+// src/App.jsx
+import { useEffect, useState, useCallback } from "react";
+import "./App.css";
+import Sidebar from "./components/Sidebar";
+import Header from "./components/Header";
+import PasteBox from "./components/PasteBox";
+import InvoiceForm from "./components/InvoiceForm";
+import InvoicePreview from "./components/InvoicePreview";
+import AuthModal from "./components/AuthModal";
+import OrdersList from "./components/OrdersList"; // NEW
+import InvoiceList from "./components/InvoiceList"; // <-- added import for Invoices page
+import { supabase } from "./lib/supabase";
 
-export default function Sidebar({
-  id, // accept id so parent can pass id="sidebar"
-  sellerName = "Seller Name",
-  onNavigate = () => {},
-  active = "home",
-  open = true, // controls mobile visibility; defaults to true for backward compatibility
-  onClose = () => {}, // optional close handler used by mobile toggle / Escape key
-}) {
-  const { profile, user } = useUser(); // <-- new: read user/profile from context
+import generateInvoicePdfBlob from "./lib/pdf";
+import { uploadInvoicePdf } from "./lib/storage";
+import Performance from "./components/Performance"; // <-- added import
+import ChallengesPage from "./pages/challenges"; // <-- ADDED: Goals & Rewards page
 
-  const nav = [
-    { id: "home", label: "Dashboard", icon: "🏠" },
-    { id: "performance", label: "Performance", icon: "📈" },
-    { id: "invoices", label: "Invoices", icon: "🧾" }, // <- replaced item2 with invoices (surgical change)
-    { id: "item3", label: "Goals & Rewards", icon: "🎯" },
-    { id: "settings", label: "Settings", icon: "⚙️" },
-  ];
+// === ToastProvider (for in-app non-blocking notifications) ===
+import { ToastProvider } from "./components/ToastProvider";
 
-  // insert Super Admin link at the end if current user is super admin
-  if (profile?.is_super_admin) {
-    nav.push({ id: "super-admin", label: "Super Admin", icon: "🛠️" });
-  }
+// --- ADDED: UserProvider for global user/profile/wallet context
+import { UserProvider } from "./context/UserContext";
 
-  // compute the display name (safe fallbacks)
-  const displayName =
-    (profile && (profile.full_name || profile.name)) ||
-    (user && (user.user_metadata?.full_name || user.user_metadata?.name)) ||
-    user?.email ||
-    sellerName;
+// --- ADDED: Profile & Settings pages (rendered via currentView)
+import Profile from "./components/Profile";
+import Settings from "./components/Settings";
 
-  // translate nav ids to the canonical route id we want the app to receive.
-  // keeps the visible label/id the same (avoids breaking other code) but
-  // signals a clearer id to the router (eg. 'goals' -> your onNavigate handler can map to /challenges).
-  const resolveNavId = (id) => {
-    if (id === "item3") return "goals";
-    return id;
+// --- ADDED: Template gallery (sibling UI for PasteBox)
+import TemplateGallery from "./components/TemplateGallery";
+import { getTemplateById } from "./lib/templates";
+
+// --- ADDED: SuperAdmin page
+import SuperAdmin from "./pages/SuperAdmin";
+
+// NOTE: Landing is now dynamically imported at runtime to avoid server-side build issues.
+// import Landing from "./pages/landing";
+
+function App() {
+  const [parsedData, setParsedData] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
+  const [user, setUser] = useState(null);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [pendingFormData, setPendingFormData] = useState(null);
+  const [currentView, setCurrentView] = useState("home"); // "home" or "orders" etc.
+
+  // Mobile sidebar open state (for small screens)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // Template selection state (Step 1)
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+
+  // Template preview modal state
+  const [tplModalOpen, setTplModalOpen] = useState(false);
+  const [tplModalTemplate, setTplModalTemplate] = useState(null);
+  const [tplModalInvoiceData, setTplModalInvoiceData] = useState(null);
+  const [tplModalSeller, setTplModalSeller] = useState(null);
+  const [tplModalRenderedHtml, setTplModalRenderedHtml] = useState("");
+
+  // Client-side loaded landing component (null until loaded)
+  const [LandingComp, setLandingComp] = useState(null);
+
+  // Tracks whether initial session check completed (prevents premature redirect)
+  const [sessionChecked, setSessionChecked] = useState(false);
+
+  // Dummy invoice used when previewing a template (will be replaced after parsing)
+  const DUMMY_INVOICE = {
+    buyerName: "Buyer Name",
+    phone: "+2547 123 45678",
+    items: "1x Sample item, 2x Example product",
+    total: "KES 1,200",
+    paymentNumber: "Paybill 123456",
+    rawText: "Sample pasted order message will replace this.",
+    confidence: null,
+    notes: ["This is a preview — real data replaces it after parsing."],
   };
 
-  const handleKeyNav = (e, id) => {
-    // Accept Enter and Space to activate; prevent default for Space (avoid page scroll)
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      const target = resolveNavId(id);
-      onNavigate(target);
-      if (typeof onClose === "function") onClose();
+  // Simple inline loader styles (used while session is being checked)
+  const loaderStyles = {
+    container: {
+      minHeight: "100vh",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "#fff",
+    },
+    box: {
+      textAlign: "center",
+      padding: 24,
+      borderRadius: 12,
+      boxShadow: "0 8px 30px rgba(15,23,42,0.06)",
+      background: "#ffffff",
+    },
+    logo: { fontWeight: 800, color: "#0b4f2b", fontSize: 20, marginBottom: 12 },
+    spinner: {
+      height: 44,
+      width: 44,
+      borderRadius: "50%",
+      border: "4px solid #e6f4ea",
+      borderTopColor: "#0FAF5A",
+      animation: "dc-spin 1s linear infinite",
+      margin: "0 auto",
+    },
+  };
+
+  // Small keyframes for spinner (inject via style tag so no CSS changes required)
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (document.getElementById("dc-spinner-keyframes")) return;
+    const s = document.createElement("style");
+    s.id = "dc-spinner-keyframes";
+    s.innerHTML = `
+      @keyframes dc-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    `;
+    document.head.appendChild(s);
+  }, []);
+
+  // -------------------------
+  // Simple non-blocking notification helper
+  // -------------------------
+  // Emits a CustomEvent "app-notification" with detail { message, type } and logs to console.
+  // Your ToastProvider can listen for this event and display toasts.
+  const notify = (message, type = "info") => {
+    try {
+      console.log("[app notify]", type, message);
+      if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+        window.dispatchEvent(new CustomEvent("app-notification", { detail: { message, type } }));
+      }
+    } catch (e) {
+      // fallback to console
+      console.log("[app notify fallback]", message, e);
     }
   };
 
-  // Close on Escape when sidebar is open and onClose provided
+  // -------------------------
+  // Helpers for template render
+  // -------------------------
+  const escapeHtml = (str) => {
+    if (typeof str !== "string") return str ?? "";
+    return str.replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+  };
+
+  const buildItemsRowsHtml = (items) => {
+    // Accept array of {name, qty} OR string "2x T-Shirt, Trousers x1"
+    let rows = [];
+    if (!items) rows = [];
+    else if (Array.isArray(items)) rows = items.map((it) => `${it.qty || 1}x ${it.name || ""}`);
+    else if (typeof items === "string") {
+      rows = items
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    } else {
+      rows = [];
+    }
+
+    if (!rows.length) return "<tr><td colspan='2' style='color:#6b7280;padding:8px 6px'>No items</td></tr>";
+
+    return rows
+      .map((r) => {
+        let qty = "1";
+        let name = r;
+        const m1 = r.match(/^(\d+)\s*x\s*(.+)$/i);
+        if (m1) {
+          qty = m1[1];
+          name = m1[2];
+        } else {
+          const m2 = r.match(/^(.+?)\s*x\s*(\d+)$/i);
+          if (m2) {
+            name = m2[1].trim();
+            qty = m2[2];
+          }
+        }
+        return `<tr style="border-top:1px solid #f1f5f9"><td style="padding:8px 6px">${qty}x ${escapeHtml(name)}</td><td style="padding:8px 6px; text-align:right">${""}</td></tr>`;
+      })
+      .join("");
+  };
+
+  const renderTemplateHtml = (template, invoiceData = {}, seller = {}) => {
+    if (!template || !template.html) return null;
+    let html = template.html;
+
+    // Remove simple handlebars-style conditional blocks for qrDataUrl when not provided
+    html = html.replace(/\{\{#if qrDataUrl\}\}[\s\S]*?\{\{\/if\}\}/g, "");
+
+    const dateStr = new Date().toLocaleString();
+    const itemsRowsHtml = buildItemsRowsHtml(invoiceData.items || invoiceData.itemsRows || invoiceData.itemsRowsHtml || invoiceData.items || "");
+    const replacements = {
+      sellerName: escapeHtml(seller.sellerName || localStorage.getItem("sellerName") || "Seller Name"),
+      sellerLogoUrl: escapeHtml(seller.sellerLogoUrl || localStorage.getItem("sellerLogoUrl") || "/favicon.ico"),
+      sellerPhone: escapeHtml(seller.sellerPhone || localStorage.getItem("sellerPhone") || ""),
+      sellerEmail: escapeHtml(seller.sellerEmail || localStorage.getItem("sellerEmail") || ""),
+      sellerAddress: escapeHtml(seller.sellerAddress || localStorage.getItem("sellerAddress") || ""),
+      sellerTagline: escapeHtml(seller.sellerTagline || localStorage.getItem("sellerTagline") || ""),
+      invoiceNumber: escapeHtml(invoiceData.id || invoiceData.invoiceNumber || invoiceData.invoice || `INV-${Date.now().toString().slice(-6)}`),
+      date: escapeHtml(invoiceData.date || dateStr),
+      dueDate: escapeHtml(invoiceData.dueDate || invoiceData.date || dateStr),
+      buyerName: escapeHtml(invoiceData.buyerName || invoiceData.buyer || invoiceData.to || "Buyer"),
+      buyerPhone: escapeHtml(invoiceData.phone || invoiceData.buyerPhone || ""),
+      subtotal: escapeHtml(invoiceData.subtotal || invoiceData.total || ""),
+      total: escapeHtml(invoiceData.total || invoiceData.subtotal || ""),
+      paymentNumber: escapeHtml(invoiceData.paymentNumber || invoiceData.payment_number || ""),
+      paymentLabel: escapeHtml(invoiceData.paymentLabel || "M-Pesa"),
+      paymentNote: escapeHtml(invoiceData.paymentNote || ""),
+      notesLine: escapeHtml((invoiceData.notes && invoiceData.notes.join(", ")) || invoiceData.notes || "Thank you"),
+      vatPercent: escapeHtml(invoiceData.vatPercent || "0"),
+      vatAmount: escapeHtml(invoiceData.vatAmount || "0"),
+      payLink: escapeHtml(invoiceData.payLink || "#"),
+      qrDataUrl: escapeHtml(invoiceData.qrDataUrl || ""),
+      itemsRows: itemsRowsHtml,
+    };
+
+    Object.keys(replacements).forEach((k) => {
+      const re = new RegExp(`{{\\s*${k}\\s*}}`, "g");
+      html = html.replace(re, replacements[k]);
+    });
+
+    // strip any leftover tokens
+    html = html.replace(/\{\{[^}]+\}\}/g, "");
+
+    return html;
+  };
+
+  // -------------------------
+  // Modal event wiring
+  // -------------------------
   useEffect(() => {
-    if (!open || typeof onClose !== "function") return undefined;
-    const handler = (e) => {
-      if (e.key === "Escape" || e.key === "Esc") {
-        onClose();
+    const onTemplatePreview = (e) => {
+      try {
+        const detail = e.detail || {};
+        const template = detail.template || null;
+        const invoiceData = detail.invoiceData || DUMMY_INVOICE;
+        const seller = detail.seller || {
+          sellerName: localStorage.getItem("sellerName") || "Seller Name",
+          sellerLogoUrl: localStorage.getItem("sellerLogoUrl") || "/favicon.ico",
+          sellerPhone: localStorage.getItem("sellerPhone") || "",
+          sellerEmail: localStorage.getItem("sellerEmail") || "",
+          sellerAddress: localStorage.getItem("sellerAddress") || "",
+          sellerTagline: localStorage.getItem("sellerTagline") || "",
+        };
+
+        if (!template) {
+          // nothing to preview
+          return;
+        }
+
+        const html = renderTemplateHtml(template, invoiceData, seller) || template.html || "";
+        setTplModalRenderedHtml(html);
+        setTplModalTemplate(template);
+        setTplModalInvoiceData(invoiceData);
+        setTplModalSeller(seller);
+        setTplModalOpen(true);
+      } catch (err) {
+        console.error("template-preview handler failed:", err);
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open, onClose]);
 
-  // Inline style to ensure the sidebar sits above the mobile overlay/backdrop
-  // when it is open. This avoids overlay intercepting touch/click events.
-  // We keep the style minimal so it doesn't alter the internal layout.
-  const asideStyle = open
-    ? {
-        position: "fixed",
-        top: 0,
-        left: 0,
-        height: "100%",
-        zIndex: 10001,
-        pointerEvents: "auto",
+    window.addEventListener("template-preview", onTemplatePreview);
+    return () => window.removeEventListener("template-preview", onTemplatePreview);
+  }, []);
+
+  const closeTplModal = () => {
+    setTplModalOpen(false);
+    setTplModalTemplate(null);
+    setTplModalInvoiceData(null);
+    setTplModalSeller(null);
+    setTplModalRenderedHtml("");
+  };
+
+  const applyTemplateFromModal = (tpl) => {
+    if (!tpl) return;
+    // set as selected
+    setSelectedTemplate(tpl);
+    try {
+      window.SELECTED_TEMPLATE = tpl;
+    } catch (e) {}
+    window.dispatchEvent(new CustomEvent("template-selected", { detail: tpl }));
+    // Also close modal
+    closeTplModal();
+  };
+
+  // -------------------------
+  // Fetch profile metadata and set default template if present
+  // -------------------------
+  const fetchAndSetDefaultTemplate = async (userId) => {
+    try {
+      if (!userId) return;
+      const { data, error } = await supabase.from("profiles").select("metadata").eq("id", userId).maybeSingle();
+      if (error) {
+        console.warn("Failed to fetch profile metadata:", error);
+        return;
       }
-    : undefined;
-
-  return (
-    /* id so Header aria-controls points here; visibility handled by CSS (not inline style)
-       Note: stopPropagation on the aside prevents clicks inside the sidebar from
-       bubbling to the page overlay/backdrop which would close the sidebar prematurely. */
-    <aside
-      id={id}
-      className="sidebar"
-      aria-label="Sidebar"
-      aria-hidden={!open}
-      style={asideStyle}
-      onClick={(e) => {
-        // prevent clicks inside sidebar from bubbling out to overlay/backdrop
-        e.stopPropagation();
-      }}
-      onTouchStart={(e) => {
-        // prevent touch events inside sidebar from bubbling out to overlay/backdrop
-        e.stopPropagation();
-      }}
-      onKeyDown={(e) => {
-        // ensure keyboard events don't bubble and accidentally trigger other handlers
-        // allow typical navigation keys through however (so don't swallow Tab/Arrow etc.)
-        if (e.key === "Enter" || e.key === " " || e.key === "Escape") {
-          e.stopPropagation();
+      const metadata = data?.metadata || {};
+      const defaultTplId = metadata?.default_invoice_template || metadata?.defaultTemplate || null;
+      if (defaultTplId) {
+        const tpl = getTemplateById(defaultTplId);
+        if (tpl) {
+          setSelectedTemplate(tpl);
+          try {
+            window.SELECTED_TEMPLATE = tpl;
+          } catch (e) {}
+          window.dispatchEvent(new CustomEvent("template-selected", { detail: tpl }));
+        } else {
+          // If template id referenced does not exist, clear selection
+          setSelectedTemplate(null);
         }
-      }}
-    >
-      <div className="sidebar-card" onClick={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
-        <div
-          className="sidebar-top"
-          style={{ cursor: "pointer" }}
-          onClick={(e) => {
-            e.stopPropagation();
-            // navigate to profile when clicking the top card (seller area)
-            onNavigate("profile");
-            if (typeof onClose === "function") onClose();
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              onNavigate("profile");
-              if (typeof onClose === "function") onClose();
+      }
+    } catch (err) {
+      console.error("fetchAndSetDefaultTemplate error:", err);
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!mounted) return;
+        const sessionUser = data?.session?.user ?? null;
+        setUser(sessionUser);
+
+        // if signed in, attempt to load default template from profile metadata
+        if (sessionUser?.id) {
+          fetchAndSetDefaultTemplate(sessionUser.id);
+        }
+      } catch (err) {
+        console.warn("initial session check failed:", err);
+      } finally {
+        // Mark that we've completed the initial session lookup to avoid premature redirects
+        if (mounted) setSessionChecked(true);
+      }
+    })();
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      const sessionUser = session?.user ?? null;
+      setUser(sessionUser);
+
+      // if user signed in, fetch default template
+      if (sessionUser?.id) {
+        fetchAndSetDefaultTemplate(sessionUser.id);
+      } else {
+        // user signed out — clear template
+        setSelectedTemplate(null);
+        try {
+          window.SELECTED_TEMPLATE = null;
+        } catch (e) {}
+        window.dispatchEvent(new CustomEvent("template-selected", { detail: null }));
+      }
+
+      if (session?.user && pendingFormData) {
+        setPreviewData(pendingFormData);
+        setPendingFormData(null);
+        setShowForm(false);
+        setAuthOpen(false);
+        setCurrentView("home");
+      }
+    });
+
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
+  }, [pendingFormData]);
+
+  // If initial session check completed and the user is NOT signed in,
+  // redirect root visits to /landing so signed-out visitors see the public page.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const pathname = window.location.pathname || "/";
+      if (sessionChecked && !user && (pathname === "/" || pathname === "")) {
+        // Use replace so back-button doesn't return user to landing after redirect
+        window.location.replace("/landing");
+      }
+    } catch (e) {
+      // fallback
+      window.location.href = "/landing";
+    }
+  }, [sessionChecked, user]);
+
+  // close sidebar on Escape for better UX
+  useEffect(() => {
+    if (!mobileSidebarOpen) return undefined;
+    const onKey = (e) => {
+      if (e.key === "Escape") setMobileSidebarOpen(false);
+    };
+    window.addEventListener("keydown", onKey, { passive: true });
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileSidebarOpen]);
+
+  const handleParse = (data) => {
+    setParsedData(data);
+    setShowForm(true);
+    setPreviewData(null);
+    setCurrentView("home");
+  };
+
+  const handleBack = () => {
+    setShowForm(false);
+    setParsedData(null);
+    setPreviewData(null);
+  };
+
+  const handleGenerate = (formData) => {
+    if (!user) {
+      setPendingFormData(formData);
+      setAuthOpen(true);
+      return;
+    }
+
+    // Attach selected template id (if any) to previewData so InvoicePreview knows which template to render
+    const payload = {
+      ...formData,
+      templateId: selectedTemplate?.id || formData.templateId || null,
+    };
+
+    setPreviewData(payload);
+    setShowForm(false);
+  };
+
+  const handleEditFromPreview = () => {
+    setShowForm(true);
+    setPreviewData(null);
+  };
+
+  const handleClosePreview = () => {
+    setPreviewData(null);
+    setShowForm(false);
+    setParsedData(null);
+  };
+
+  const handleBuyCredits = () => {
+    // replaced ad-hoc alert with notify event
+    notify("Buy Credits clicked — payments will be added later.", "info");
+  };
+
+  const handleSaveInvoice = async (invoice) => {
+    if (!user) {
+      notify("Please sign in to save invoices.", "warning");
+      setAuthOpen(true);
+      setPendingFormData(invoice);
+      return;
+    }
+
+    try {
+      const parseItems = (itemsStr) => {
+        if (!itemsStr) return [];
+        return itemsStr
+          .split(",")
+          .map((it) => it.trim())
+          .filter(Boolean)
+          .map((row) => {
+            let qty = 1;
+            let name = row;
+            const m1 = row.match(/^(\d+)\s*x\s*(.+)$/i);
+            if (m1) {
+              qty = parseInt(m1[1], 10);
+              name = m1[2];
+            } else {
+              const m2 = row.match(/^(.+?)\s*x\s*(\d+)$/i);
+              if (m2) {
+                name = m2[1].trim();
+                qty = parseInt(m2[2], 10);
+              } else {
+                qty = 1;
+              }
             }
-          }}
-          role="button"
-          tabIndex={0}
-          aria-label="Open profile"
-        >
-          <div className="avatar">{(displayName || "S").charAt(0).toUpperCase()}</div>
+            return { name, qty };
+          });
+      };
 
-          <div className="seller-info">
-            <div className="seller-name">{displayName}</div>
-            <div>
-              <button
-                type="button"
-                className="seller-sub"
-                onClick={(e) => {
-                  // make sure the click doesn't bubble twice (card also handles click)
-                  e.stopPropagation();
-                  onNavigate("profile");
-                  if (typeof onClose === "function") onClose();
-                }}
-                style={{
-                  all: "unset",
-                  cursor: "pointer",
-                  color: "var(--muted)",
-                  fontSize: 13,
-                  display: "inline-block",
-                }}
-              >
-                Your account
-              </button>
-            </div>
-          </div>
+      const itemsArray = parseItems(invoice.items || "");
+
+      const payload = {
+        user_id: user.id,
+        buyer_name: invoice.buyerName || "",
+        buyer_phone: invoice.phone || "",
+        items: itemsArray,
+        total: invoice.total || "",
+        payment_number: invoice.paymentNumber || "",
+        status: "pending",
+        // pdf_path initially null; we'll update after upload
+        // template_id can be added here later (when DB has the column)
+      };
+
+      // Insert invoice row
+      const { data, error } = await supabase.from("invoices").insert([payload]).select().maybeSingle();
+      if (error) throw error;
+
+      const saved = data; // this has id and created_at
+      const invoiceId = saved.id;
+
+      // Generate PDF blob client-side
+      const { blob, fileName } = generateInvoicePdfBlob({
+        buyerName: payload.buyer_name,
+        phone: payload.buyer_phone,
+        items: itemsArray,
+        total: payload.total,
+        paymentNumber: payload.payment_number,
+        id: invoiceId, // use DB id for filename
+        sellerName: "DollarChain",
+        // optionally templateId: invoice.template_id
+      });
+
+      // Upload to Supabase Storage
+      const { path, error: uploadError } = await uploadInvoicePdf(user.id, invoiceId, blob);
+      if (uploadError) {
+        console.error("Upload failed:", uploadError);
+        notify("Invoice saved but uploading PDF to storage failed. See console.", "error");
+        return;
+      }
+
+      // Update invoice row with pdf_path
+      const { error: updateErr } = await supabase
+        .from("invoices")
+        .update({ pdf_path: path })
+        .eq("id", invoiceId);
+      if (updateErr) {
+        console.error("Failed to update invoice with pdf_path:", updateErr);
+        notify("Invoice saved but failed to attach PDF path. See console.", "error");
+        return;
+      }
+
+      notify("✅ Invoice saved and PDF uploaded.", "success");
+      console.log("Saved invoice + pdf_path:", saved, path);
+    } catch (err) {
+      console.error("Save error:", err);
+      notify("Failed to save invoice. See console for details.", "error");
+    }
+  };
+
+  // Called by OrdersList when user clicks "View"
+  const handleViewFromOrders = (invoice) => {
+    // invoice is already shaped for preview; show preview
+    setPreviewData(invoice);
+    setShowForm(false);
+  };
+
+  // Called by InvoiceList when user clicks "View" (similar to OrdersList behaviour)
+  const handleViewFromInvoices = (invoice) => {
+    setPreviewData(invoice);
+    setShowForm(false);
+    // Optionally navigate to 'home' or keep on invoices — keeping it simple:
+    setCurrentView("home");
+  };
+
+  // Robust overlay click handler: only close when overlay itself was clicked,
+  // and defensively ignore clicks that fall inside the sidebar region (in case overlay overlaps).
+  const handleOverlayClick = useCallback((e) => {
+    // ensure event is on the overlay element itself
+    if (e.target !== e.currentTarget) return;
+
+    // defensive: if the click coordinates are inside the sidebar rect, do not close
+    const sidebarEl = document.getElementById("sidebar");
+    if (sidebarEl) {
+      const rect = sidebarEl.getBoundingClientRect();
+      const { clientX: x, clientY: y } = e;
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+        // click landed inside sidebar — ignore
+        return;
+      }
+    }
+
+    setMobileSidebarOpen(false);
+  }, [setMobileSidebarOpen]);
+
+  // Template selection handler (fires preview with dummy data; does NOT touch credits)
+  // Accepts either a template object or a template id (string), or null to clear selection.
+  const handleTemplateSelect = (tmplOrId) => {
+    let template = null;
+    if (!tmplOrId) {
+      template = null;
+    } else if (typeof tmplOrId === "string") {
+      template = getTemplateById(tmplOrId);
+    } else {
+      // assume it's already a template object
+      template = tmplOrId;
+    }
+
+    setSelectedTemplate(template || null);
+
+    // expose on window for any listener or fallback
+    try {
+      window.SELECTED_TEMPLATE = template || null;
+    } catch (e) {
+      // ignore
+    }
+
+    // Broadcast selection
+    window.dispatchEvent(new CustomEvent("template-selected", { detail: template }));
+
+    // Open a preview in "preview mode" using dummy invoice so user sees how it looks.
+    window.dispatchEvent(
+      new CustomEvent("template-preview", {
+        detail: { template, mode: "preview", invoiceData: DUMMY_INVOICE },
+      })
+    );
+  };
+
+  // -------------------------
+  // CLIENT-ONLY: dynamic load Landing when path === /landing
+  // -------------------------
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.pathname === "/landing") {
+      // dynamic-import landing only on the client
+      import("./pages/landing")
+        .then((m) => {
+          setLandingComp(() => m.default || m);
+        })
+        .catch((err) => {
+          console.error("Failed to load landing page dynamically:", err);
+        });
+    }
+  }, []);
+
+  // If landing component loaded, render it (client-side)
+  if (LandingComp) {
+    return (
+      <ToastProvider>
+        <UserProvider>
+          <LandingComp />
+        </UserProvider>
+      </ToastProvider>
+    );
+  }
+
+  // Show visual loading state while we perform initial session check,
+  // but allow /landing to load immediately (don't block landing).
+  const isLandingPath = typeof window !== "undefined" && window.location.pathname === "/landing";
+  if (!sessionChecked && !isLandingPath) {
+    return (
+      <div style={loaderStyles.container}>
+        <div style={loaderStyles.box}>
+          <div style={loaderStyles.logo}>DollarChain</div>
+          <div style={loaderStyles.spinner} aria-hidden />
+          <div style={{ marginTop: 12, color: "#6b7280" }}>Checking session…</div>
         </div>
-
-        <nav className="sidebar-nav" aria-label="Main navigation">
-          <ul>
-            {nav.map((n) => (
-              <li key={n.id} className={`nav-item ${active === n.id ? "nav-active" : ""}`}>
-                <button
-                  type="button"
-                  className="nav-link"
-                  onClick={(e) => {
-                    // make click handling robust: prevent bubbling, navigate, close
-                    e.stopPropagation();
-                    const target = resolveNavId(n.id);
-                    onNavigate(target);
-                    if (typeof onClose === "function") onClose();
-                  }}
-                  onKeyDown={(e) => handleKeyNav(e, n.id)}
-                  onTouchStart={(e) => {
-                    // prevent touch events on the button from bubbling (prevents overlay from closing)
-                    e.stopPropagation();
-                  }}
-                  aria-current={active === n.id ? "page" : undefined}
-                  aria-pressed={active === n.id}
-                  style={{
-                    all: "unset",
-                    cursor: "pointer",
-                    display: "block",
-                    width: "100%",
-                    textAlign: "left",
-                    padding: "8px 10px",
-                    borderRadius: 6,
-                  }}
-                >
-                  <span aria-hidden style={{ marginRight: 8 }}>
-                    {n.icon}
-                  </span>
-                  {n.label}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
-
-        <div style={{ flex: 1 }} />
-
-        <div className="sidebar-footer">© {new Date().getFullYear()} DollarChain</div>
       </div>
-    </aside>
+    );
+  }
+
+  // ...rest of your original SPA rendering (unchanged)...
+  return (
+    <ToastProvider>
+      <UserProvider>
+        {/* Add conditional class so CSS can show/hide sidebar on mobile */}
+        <div className={`app-root ${mobileSidebarOpen ? "sidebar-open" : ""}`}>
+          <Sidebar
+            id="sidebar"
+            sellerName={localStorage.getItem("sellerName") || "Seller Name"}
+            onNavigate={(view) => {
+              // navigate immediately
+              setCurrentView(view);
+
+              // On mobile we want to close the sidebar, but delay slightly so the
+              // button press / focus state registers on the device before the UI flips.
+              // This avoids race conditions where the press is swallowed or the nav
+              // visual feedback is not seen.
+              if (mobileSidebarOpen) {
+                setTimeout(() => setMobileSidebarOpen(false), 120);
+              }
+            }}
+            active={currentView === "goals" ? "item3" : currentView} // <-- ADDED: keep item3 highlighted when currentView is 'goals'
+            open={mobileSidebarOpen}
+            onClose={() => {
+              // allow child to ask for close immediately if it wants
+              if (mobileSidebarOpen) {
+                // small delay to ensure the click animation completes
+                setTimeout(() => setMobileSidebarOpen(false), 80);
+              }
+            }}
+          />
+
+          <main className="main-area">
+            <Header
+              onBuyCredits={handleBuyCredits}
+              // header can toggle sidebar on mobile (hamburger)
+              onToggleSidebar={() => setMobileSidebarOpen((s) => !s)}
+            />
+
+            <section className="content">
+              <div className="content-inner">
+                {/* Preview takes highest precedence */}
+                {previewData && (
+                  <InvoicePreview
+                    invoice={previewData}
+                    templateId={previewData?.templateId || selectedTemplate?.id || null}
+                    onBackEdit={handleEditFromPreview}
+                    onClose={handleClosePreview}
+                    onSave={handleSaveInvoice}
+                  />
+                )}
+
+                {/* Profile view */}
+                {!previewData && currentView === "profile" && <Profile />}
+
+                {/* Settings view */}
+                {!previewData && currentView === "settings" && <Settings />}
+
+                {/* Performance view */}
+                {!previewData && currentView === "performance" && <Performance />}
+
+                {/* Invoices view */}
+                {!previewData && currentView === "invoices" && (
+                  <InvoiceList onViewInvoice={(inv) => handleViewFromInvoices(inv)} />
+                )}
+
+                {/* Orders view */}
+                {!previewData && currentView === "orders" && (
+                  <OrdersList onView={handleViewFromOrders} />
+                )}
+
+                {/* Goals & Rewards view */}
+                {!previewData && currentView === "goals" && <ChallengesPage />}
+
+                {/* Super Admin view (NEW) */}
+                {!previewData && currentView === "super-admin" && <SuperAdmin />}
+
+                {/* Home / paste / form */}
+                {!previewData && currentView === "home" && (
+                  <>
+                    {!showForm && (
+                      <>
+                        <h1 className="content-title">Paste your Order Chat Message</h1>
+                        <p className="content-sub">
+                          Copy and paste your WhatsApp order chat here to automatically generate
+                          an invoice. You can edit details before creating the PDF.
+                        </p>
+
+                        {/* Paste area + Template gallery (siblings) */}
+                        <div className="paste-area" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                          <PasteBox onParse={handleParse} />
+                          <TemplateGallery
+                            selectedTemplateId={selectedTemplate?.id}
+                            onSelect={handleTemplateSelect}
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    {showForm && !previewData && (
+                      <InvoiceForm parsedData={parsedData} onBack={handleBack} onGenerate={handleGenerate} />
+                    )}
+                  </>
+                )}
+
+                {/* Fallback small message for other views */}
+                {!previewData && !["home", "orders", "performance", "invoices", "goals", "profile", "settings", "super-admin"].includes(currentView) && (
+                  <div className="formBox">
+                    <h3 style={{ marginTop: 0 }}>Coming soon</h3>
+                    <p style={{ color: "#6b7280" }}>This section ({currentView}) is a placeholder for future features.</p>
+                  </div>
+                )}
+              </div>
+            </section>
+          </main>
+
+          {/* Mobile overlay/backdrop — clicking it closes the sidebar.
+              Use a robust handler so accidental clicks that fall inside the visible
+              sidebar do not close it (defensive for stacking/transform issues). */}
+          {mobileSidebarOpen && (
+            <div
+              className="mobile-overlay"
+              onClick={handleOverlayClick}
+              role="button"
+              aria-label="Close navigation"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  // close overlay on keyboard activation
+                  setMobileSidebarOpen(false);
+                }
+              }}
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0,0,0,0.35)",
+                zIndex: 9000, // reduce so sidebar can sit above it
+              }}
+            />
+          )}
+
+          <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} onAuthSuccess={() => setAuthOpen(false)} />
+
+          {/* Template Preview Modal */}
+          {tplModalOpen && tplModalTemplate && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Preview ${tplModalTemplate.name}`}
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 12000,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "rgba(0,0,0,0.45)",
+                padding: 20,
+              }}
+              onClick={(e) => {
+                // close when clicking backdrop only yes
+                if (e.target === e.currentTarget) closeTplModal();
+              }}
+            >
+              <div style={{ width: "min(1100px, 98%)", maxHeight: "92%", background: "#fff", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid #eef2f6" }}>
+                  <div>
+                    <div style={{ fontWeight: 800 }}>{tplModalTemplate.name}</div>
+                    <div style={{ color: "#6b7280", fontSize: 13 }}>{tplModalTemplate.description}</div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      className="btn-outline"
+                      onClick={() => {
+                        closeTplModal();
+                      }}
+                    >
+                      Close
+                    </button>
+                    <button
+                      className="btn-primary"
+                      onClick={() => {
+                        applyTemplateFromModal(tplModalTemplate);
+                      }}
+                    >
+                      Use this
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ padding: 12, overflow: "auto", background: "#f7fafc", flex: 1 }}>
+                  <iframe
+                    title={`template-preview-${tplModalTemplate.id}`}
+                    srcDoc={tplModalRenderedHtml}
+                    style={{ width: "100%", minHeight: 520, border: 0, background: "white" }}
+                    sandbox="allow-same-origin allow-popups allow-forms"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </UserProvider>
+    </ToastProvider>
   );
 }
+
+export default App;
