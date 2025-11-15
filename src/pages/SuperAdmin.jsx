@@ -19,11 +19,13 @@ export default function SuperAdmin() {
   const [sessionToken, setSessionToken] = useState(null);
 
   // Use relative API paths so this works in dev and production
-  const API_BASE = ""; // fetch(`${API_BASE}/api/...`) -> '/api/...'
+  // (we'll call "/api/..." directly)
+  // const API_BASE = "";
 
   // Read current Supabase session token once on mount (will re-run if auth changes externally)
   useEffect(() => {
     let mounted = true;
+
     (async () => {
       try {
         const { data } = await supabase.auth.getSession();
@@ -38,14 +40,18 @@ export default function SuperAdmin() {
 
     // subscribe to auth changes so token updates if user signs in/out in-app
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (listener === undefined) return;
       const t = session?.access_token ?? null;
       setSessionToken(t);
     });
 
     return () => {
       mounted = false;
-      listener?.subscription?.unsubscribe?.();
+      // unsubscribe safely
+      try {
+        listener?.subscription?.unsubscribe?.();
+      } catch (e) {
+        // ignore unsubscribe errors
+      }
     };
   }, []);
 
@@ -58,14 +64,14 @@ export default function SuperAdmin() {
       setLoading(true);
       try {
         // public settings (no auth required)
-        const s = await fetch(`${API_BASE}/api/admin/settings`);
+        const s = await fetch(`/api/admin/settings`);
         const sJson = await s.json();
         if (!mounted) return;
         setSettings(sJson.settings || {});
 
         // users list (admin-only — include token header if present)
         const headers = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
-        const uRes = await fetch(`${API_BASE}/api/admin/users`, {
+        const uRes = await fetch(`/api/admin/users`, {
           headers,
         });
 
@@ -99,7 +105,7 @@ export default function SuperAdmin() {
       const headers = { "Content-Type": "application/json" };
       if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
 
-      const res = await fetch(`${API_BASE}/api/admin/settings`, {
+      const res = await fetch(`/api/admin/settings`, {
         method: "POST",
         headers,
         body: JSON.stringify({ key: "charts.show7DayMA", value: newVal }),
