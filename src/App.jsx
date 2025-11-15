@@ -15,6 +15,7 @@ import generateInvoicePdfBlob from "./lib/pdf";
 import { uploadInvoicePdf } from "./lib/storage";
 import Performance from "./components/Performance"; // <-- added import
 import ChallengesPage from "./pages/challenges"; // <-- ADDED: Goals & Rewards page
+import SuperAdmin from "./pages/SuperAdmin"; // <-- ADDED: Super Admin page
 
 // === ToastProvider (for in-app non-blocking notifications) ===
 import { ToastProvider } from "./components/ToastProvider";
@@ -712,6 +713,9 @@ function App() {
                 {/* Goals & Rewards view */}
                 {!previewData && currentView === "goals" && <ChallengesPage />}
 
+                {/* Super Admin view */}
+                {!previewData && currentView === "super-admin" && <SuperAdmin />}
+
                 {/* Home / paste / form */}
                 {!previewData && currentView === "home" && (
                   <>
@@ -741,7 +745,7 @@ function App() {
                 )}
 
                 {/* Fallback small message for other views */}
-                {!previewData && !["home", "orders", "performance", "invoices", "goals", "profile", "settings"].includes(currentView) && (
+                {!previewData && !["home", "orders", "performance", "invoices", "goals", "profile", "settings", "super-admin"].includes(currentView) && (
                   <div className="formBox">
                     <h3 style={{ marginTop: 0 }}>Coming soon</h3>
                     <p style={{ color: "#6b7280" }}>This section ({currentView}) is a placeholder for future features.</p>
@@ -753,7 +757,7 @@ function App() {
 
           {/* Mobile overlay/backdrop — clicking it closes the sidebar.
               Use a robust handler so accidental clicks that fall inside the visible
-              sidebar do not close it (defensive for stacking/transform issues). */}
+              sidebar do not close the sidebar prematurely. */}
           {mobileSidebarOpen && (
             <div
               className="mobile-overlay"
