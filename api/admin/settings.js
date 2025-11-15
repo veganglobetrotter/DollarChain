@@ -6,7 +6,7 @@ export default async function handler(req, res) {
 
   if (req.method === "GET") {
     try {
-      // safer: return map of all keys
+      // safer: return map of all keys n
       const { data: rows, error } = await supabase
         .from("system_settings")
         .select("key, value");
