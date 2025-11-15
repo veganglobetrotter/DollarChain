@@ -36,6 +36,22 @@ export default async function handler(req, res) {
       const { key, value } = req.body || {};
       if (!key) return res.status(400).json({ error: "missing_key" });
 
+      // If the client intends to delete the setting, treat `value: null` as delete.
+      if (value === null) {
+        const { data: deleted, error: delError } = await supabase
+          .from("system_settings")
+          .delete()
+          .eq("key", key)
+          .maybeSingle();
+
+        if (delError) {
+          console.error("admin/settings delete error:", delError);
+          return res.status(500).json({ error: delError.message || delError });
+        }
+
+        return res.status(200).json({ ok: true, action: "delete", key, setting: deleted || null });
+      }
+
       // Upsert the setting (value saved as JSONB)
       const { data, error } = await supabase
         .from("system_settings")
@@ -48,7 +64,7 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: error.message || error });
       }
 
-      return res.status(200).json({ setting: data });
+      return res.status(200).json({ ok: true, action: "upsert", key, setting: data });
     } catch (err) {
       if (!res.headersSent) {
         console.error("admin/settings POST handler error:", err);
