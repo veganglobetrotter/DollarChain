@@ -18,6 +18,28 @@ export default function SuperAdmin() {
   // sessionToken comes from supabase client session (null if not signed in)
   const [sessionToken, setSessionToken] = useState(null);
 
+  // Debug flag: set window marker so we can confirm mount from Console quickly.
+  useEffect(() => {
+    window.__SUPERADMIN_COMPONENT__ = window.__SUPERADMIN_COMPONENT__ || {};
+    window.__SUPERADMIN_COMPONENT__.mounted = true;
+    // also set attribute for DOM inspection
+    document.documentElement.setAttribute("data-superadmin-mounted", "1");
+    console.log("[SuperAdmin] component registered (debug marker set).");
+
+    return () => {
+      window.__SUPERADMIN_COMPONENT__.mounted = false;
+      document.documentElement.removeAttribute("data-superadmin-mounted");
+      console.log("[SuperAdmin] component unmounted.");
+    };
+  }, []);
+
+  // Log sessionToken changes for debugging
+  useEffect(() => {
+    console.log("[SuperAdmin] sessionToken changed:", sessionToken ? `${sessionToken.slice(0,24)}…` : null);
+    window.__SUPERADMIN_COMPONENT__ = window.__SUPERADMIN_COMPONENT__ || {};
+    window.__SUPERADMIN_COMPONENT__.sessionToken = sessionToken || null;
+  }, [sessionToken]);
+
   // Read current Supabase session token once on mount (will re-run if auth changes externally)
   useEffect(() => {
     let mounted = true;
@@ -28,6 +50,7 @@ export default function SuperAdmin() {
         const token = data?.session?.access_token ?? null;
         if (!mounted) return;
         setSessionToken(token);
+        console.log("[SuperAdmin] initial supabase.getSession token present:", !!token);
       } catch (err) {
         console.warn("Could not read supabase session token:", err);
         if (mounted) setSessionToken(null);
@@ -38,11 +61,11 @@ export default function SuperAdmin() {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       const t = session?.access_token ?? null;
       setSessionToken(t);
+      console.log("[SuperAdmin] onAuthStateChange -> token present?", !!t);
     });
 
     return () => {
       mounted = false;
-      // unsubscribe safely
       try {
         listener?.subscription?.unsubscribe?.();
       } catch (e) {
@@ -50,16 +73,6 @@ export default function SuperAdmin() {
       }
     };
   }, []);
-
-  // Debug: log mount/unmount and sessionToken changes so we can see when the component is active
-  useEffect(() => {
-    console.log("[SuperAdmin] mounted");
-    return () => console.log("[SuperAdmin] unmounted");
-  }, []);
-
-  useEffect(() => {
-    console.log("[SuperAdmin] sessionToken changed ->", sessionToken ? `present (${String(sessionToken).slice(0,16)}...)` : "null");
-  }, [sessionToken]);
 
   // Load settings (public) and users (requires token). Runs initially (sessionToken null)
   // and again if sessionToken changes (so users list can load after login).
@@ -69,31 +82,30 @@ export default function SuperAdmin() {
     async function load() {
       setLoading(true);
       try {
+        console.log("[SuperAdmin] loading settings + users (sessionToken present?)", !!sessionToken);
+
         // public settings (no auth required)
-        const s = await fetch(`/api/admin/settings`, { cache: 'no-store' });
-        if (!mounted) return;
-        if (!s.ok) {
-          console.warn('[SuperAdmin] fetch settings failed', s.status);
-        }
+        const s = await fetch(`/api/admin/settings`, { cache: "no-store" });
         const sJson = await s.json();
         if (!mounted) return;
         setSettings(sJson.settings || {});
+        console.log("[SuperAdmin] fetched settings:", Object.keys(sJson.settings || {}));
 
         // users list (admin-only — include token header if present)
         const headers = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
         const uRes = await fetch(`/api/admin/users`, {
           headers,
-          cache: 'no-store',
+          cache: "no-store",
         });
 
         if (!mounted) return;
         if (uRes.ok) {
           const uJson = await uRes.json();
           setUsers(uJson.users || []);
-          console.log('[SuperAdmin] loaded users (count):', (uJson.users || []).length);
+          console.log("[SuperAdmin] fetched users, count:", (uJson.users || []).length);
         } else {
-          // if unauthorized or other error, clear users array
-          console.warn('[SuperAdmin] users fetch not ok', uRes.status);
+          const txt = await uRes.text().catch(() => "");
+          console.warn("[SuperAdmin] users fetch not ok:", uRes.status, txt);
           setUsers([]);
         }
       } catch (err) {
@@ -126,6 +138,7 @@ export default function SuperAdmin() {
       const j = await res.json();
       if (res.ok) {
         setSettings((prev) => ({ ...prev, ["charts.show7DayMA"]: newVal }));
+        console.log("[SuperAdmin] toggled charts.show7DayMA ->", newVal);
       } else {
         console.error("toggleShow7Day failed", j);
       }
@@ -155,8 +168,9 @@ export default function SuperAdmin() {
       PanelComponent = () => <div>Unknown Panel</div>;
   }
 
+  // Minimal render, unchanged visually — but now we can confirm the DOM node exists
   return (
-    <div className="admin-page" style={{ display: "flex" }}>
+    <div className="admin-page" style={{ display: "flex" }} data-superadmin-active={activePanel}>
       <Sidebar activePanel={activePanel} setActivePanel={setActivePanel} />
       <div style={{ flex: 1, padding: "1rem" }}>
         <PanelComponent />
