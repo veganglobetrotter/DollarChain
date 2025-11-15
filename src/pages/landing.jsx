@@ -1,6 +1,7 @@
 // src/pages/landing.jsx
 import React, { useEffect, useState } from "react";
 import { useUser } from "../context/UserContext";
+import AuthModal from "../components/AuthModal";
 
 export default function Landing() {
   const { user, loading } = useUser();
@@ -151,79 +152,117 @@ function LandingTopNav() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header style={navStyles.header}>
-      <div style={navStyles.inner}>
-        <a href="/" style={navStyles.brand}>
-          <img src="/logos/dollarchain-logo.png" alt="DollarChain" style={{ height: 28, marginRight: 10 }} onError={(e)=>{e.target.style.display='none'}} />
-          <span style={navStyles.brandText}>DollarChain</span>
-        </a>
+    <>
+      <header style={navStyles.header}>
+        <div style={navStyles.inner}>
+          <a href="/" style={navStyles.brand}>
+            <img src="/logos/dollarchain-logo.png" alt="DollarChain" style={{ height: 28, marginRight: 10 }} onError={(e)=>{e.target.style.display='none'}} />
+            <span style={navStyles.brandText}>DollarChain</span>
+          </a>
 
-        {/* desktop actions */}
-        <nav style={navStyles.actions}>
-          <a href="#features" style={navStyles.navLink}>
-            Demo
-          </a>
-          <a href="/landing#pricing" style={navStyles.navLink}>
-            Pricing
-          </a>
-          {!user && (
-            <>
-              <a href="/#signin" style={navStyles.signIn}>
-                Sign in
-              </a>
-              <a href="#features" onClick={(e)=>e.preventDefault()} style={navStyles.cta}>
-                Get started — Free
-              </a>
-            </>
-          )}
-          {user && (
-            <a href="/" style={navStyles.cta}>
-              Go to dashboard
+          {/* desktop actions */}
+          <nav style={navStyles.actions}>
+            <a href="#features" style={navStyles.navLink}>
+              Demo
             </a>
-          )}
-        </nav>
-
-        {/* mobile hamburger */}
-        <button
-          aria-label="Open menu"
-          onClick={() => setOpen((s) => !s)}
-          style={navStyles.hamburgerBtn}
-          type="button"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-      </div>
-
-      {/* mobile menu */}
-      {open && (
-        <div style={navStyles.mobileMenu}>
-          <a href="#features" style={navStyles.mobileLink} onClick={() => setOpen(false)}>
-            Demo
-          </a>
-          <a href="/landing#pricing" style={navStyles.mobileLink} onClick={() => setOpen(false)}>
-            Pricing
-          </a>
-          {!user && (
-            <>
-              <a href="/#signin" style={navStyles.mobileLink} onClick={() => setOpen(false)}>
-                Sign in
-              </a>
-              <a href="#features" style={{ ...navStyles.mobileLink, fontWeight: 800 }} onClick={(e) => { e.preventDefault(); setOpen(false); }}>
-                Get started — Free
-              </a>
-            </>
-          )}
-          {user && (
-            <a href="/" style={{ ...navStyles.mobileLink, fontWeight: 800 }} onClick={() => setOpen(false)}>
-              Go to dashboard
+            <a href="/landing#pricing" style={navStyles.navLink}>
+              Pricing
             </a>
-          )}
+            {!user && (
+              <>
+                {/* open modal instead of navigating to /#signin */}
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); setOpen(true); }}
+                  style={navStyles.signIn}
+                >
+                  Sign in
+                </button>
+
+                <a href="#features" onClick={(e)=>e.preventDefault()} style={navStyles.cta}>
+                  Get started — Free
+                </a>
+              </>
+            )}
+            {user && (
+              <a href="/" style={navStyles.cta}>
+                Go to dashboard
+              </a>
+            )}
+          </nav>
+
+          {/* mobile hamburger */}
+          <button
+            aria-label="Open menu"
+            onClick={() => setOpen((s) => !s)}
+            style={navStyles.hamburgerBtn}
+            type="button"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
         </div>
-      )}
-    </header>
+
+        {/* mobile menu */}
+        {open && (
+          <div style={navStyles.mobileMenu}>
+            <a href="#features" style={navStyles.mobileLink} onClick={() => setOpen(false)}>
+              Demo
+            </a>
+            <a href="/landing#pricing" style={navStyles.mobileLink} onClick={() => setOpen(false)}>
+              Pricing
+            </a>
+            {!user && (
+              <>
+                {/* open modal on mobile too */}
+                <button
+                  type="button"
+                  style={navStyles.mobileLink}
+                  onClick={() => {
+                    setOpen(false);
+                    // open the auth modal (we'll reuse a small overlay state)
+                    // show the auth modal by toggling local modal state below
+                    setTimeout(() => {
+                      // set a separate flag for the modal (handled just below)
+                      document.dispatchEvent(new CustomEvent("__open_landing_auth_modal"));
+                    }, 0);
+                  }}
+                >
+                  Sign in
+                </button>
+
+                <a href="#features" style={{ ...navStyles.mobileLink, fontWeight: 800 }} onClick={(e) => { e.preventDefault(); setOpen(false); }}>
+                  Get started — Free
+                </a>
+              </>
+            )}
+            {user && (
+              <a href="/" style={{ ...navStyles.mobileLink, fontWeight: 800 }} onClick={() => setOpen(false)}>
+                Go to dashboard
+              </a>
+            )}
+          </div>
+        )}
+      </header>
+
+      {/* Centralized auth modal for landing nav */}
+      <LandingAuthModalController />
+    </>
   );
+}
+
+/* small helper component to centralize the modal and also catch the custom event from mobile menu button */
+function LandingAuthModalController() {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setOpen(true);
+    document.addEventListener("__open_landing_auth_modal", handler);
+    return () => document.removeEventListener("__open_landing_auth_modal", handler);
+  }, []);
+
+  return <AuthModal open={open} onClose={() => setOpen(false)} onAuthSuccess={() => setOpen(false)} />;
 }
 
 /* landing page styles (kept from your previous file, unchanged except small padding adjust) */
@@ -406,6 +445,8 @@ const navStyles = {
     border: "1px solid transparent",
     color: "#065f46",
     fontWeight: 700,
+    background: "transparent",
+    cursor: "pointer",
   },
   cta: {
     background: "#0FAF5A",
