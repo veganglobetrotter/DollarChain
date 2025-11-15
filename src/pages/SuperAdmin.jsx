@@ -18,10 +18,6 @@ export default function SuperAdmin() {
   // sessionToken comes from supabase client session (null if not signed in)
   const [sessionToken, setSessionToken] = useState(null);
 
-  // Use relative API paths so this works in dev and production
-  // (we'll call "/api/..." directly)
-  // const API_BASE = "";
-
   // Read current Supabase session token once on mount (will re-run if auth changes externally)
   useEffect(() => {
     let mounted = true;
@@ -55,6 +51,16 @@ export default function SuperAdmin() {
     };
   }, []);
 
+  // Debug: log mount/unmount and sessionToken changes so we can see when the component is active
+  useEffect(() => {
+    console.log("[SuperAdmin] mounted");
+    return () => console.log("[SuperAdmin] unmounted");
+  }, []);
+
+  useEffect(() => {
+    console.log("[SuperAdmin] sessionToken changed ->", sessionToken ? `present (${String(sessionToken).slice(0,16)}...)` : "null");
+  }, [sessionToken]);
+
   // Load settings (public) and users (requires token). Runs initially (sessionToken null)
   // and again if sessionToken changes (so users list can load after login).
   useEffect(() => {
@@ -64,7 +70,11 @@ export default function SuperAdmin() {
       setLoading(true);
       try {
         // public settings (no auth required)
-        const s = await fetch(`/api/admin/settings`);
+        const s = await fetch(`/api/admin/settings`, { cache: 'no-store' });
+        if (!mounted) return;
+        if (!s.ok) {
+          console.warn('[SuperAdmin] fetch settings failed', s.status);
+        }
         const sJson = await s.json();
         if (!mounted) return;
         setSettings(sJson.settings || {});
@@ -73,14 +83,17 @@ export default function SuperAdmin() {
         const headers = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
         const uRes = await fetch(`/api/admin/users`, {
           headers,
+          cache: 'no-store',
         });
 
         if (!mounted) return;
         if (uRes.ok) {
           const uJson = await uRes.json();
           setUsers(uJson.users || []);
+          console.log('[SuperAdmin] loaded users (count):', (uJson.users || []).length);
         } else {
           // if unauthorized or other error, clear users array
+          console.warn('[SuperAdmin] users fetch not ok', uRes.status);
           setUsers([]);
         }
       } catch (err) {
