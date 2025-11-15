@@ -20,7 +20,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: error.message || error });
     }
 
-    // map email out of metadata
+    // map email out of metadata n
     const users = (data || []).map(u => ({
       ...u,
       email: u.metadata?.email || null
