@@ -124,26 +124,16 @@ export default function SuperAdmin() {
     };
   }, [sessionToken]);
 
-  async function toggleShow7Day() {
-    const newVal = !(settings?.["charts.show7DayMA"] || false);
+  // NOTE: surgical change here:
+  // - toggleShow7Day now accepts an optional `next` boolean and only updates local state.
+  // - the SettingsPanel component performs the actual API POST; this avoids duplicate writes.
+  async function toggleShow7Day(next) {
     try {
-      const headers = { "Content-Type": "application/json" };
-      if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
-
-      const res = await fetch(`/api/admin/settings`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ key: "charts.show7DayMA", value: newVal }),
-      });
-      const j = await res.json();
-      if (res.ok) {
-        setSettings((prev) => ({ ...prev, ["charts.show7DayMA"]: newVal }));
-        console.log("[SuperAdmin] toggled charts.show7DayMA ->", newVal);
-      } else {
-        console.error("toggleShow7Day failed", j);
-      }
+      const newVal = typeof next === "boolean" ? next : !(settings?.["charts.show7DayMA"] || false);
+      setSettings((prev) => ({ ...prev, ["charts.show7DayMA"]: newVal }));
+      console.log("[SuperAdmin] updated local charts.show7DayMA ->", newVal);
     } catch (err) {
-      console.error(err);
+      console.error("toggleShow7Day update error:", err);
     }
   }
 
