@@ -13,8 +13,8 @@ export default async function handler(req, res) {
 
     const body = req.body || {};
     const delta = Number(body.delta);
-    const reason = (body.reason || "").slice(0, 1000); // limit reason length
-    const idempotencyKey = body.idempotencyKey || null;
+    const reason = (body.reason || "").slice(0, 1000);
+    const idempotencyKey = body.idempotencyKey || body.idempotency_key || null;
 
     if (!Number.isFinite(delta) || delta === 0) {
       return res.status(400).json({ error: "invalid_delta" });
@@ -22,79 +22,49 @@ export default async function handler(req, res) {
 
     const supabase = createSupabaseServerClient();
 
-    // Optional: attempt to prevent double-apply if idempotencyKey provided and admin_audit exists
-    if (idempotencyKey) {
-      try {
-        const { data: found, error: findErr } = await supabase
-          .from("admin_audit")
-          .select("id")
-          .eq("idempotency_key", idempotencyKey)
-          .maybeSingle();
-
-        if (findErr) {
-          console.warn("adjustCredits: admin_audit lookup error", findErr);
-        } else if (found) {
-          // idempotent response: already applied
-          return res.status(200).json({ ok: true, idempotent: true });
-        }
-      } catch (e) {
-        console.warn("adjustCredits: idempotency lookup failed", e);
-      }
-    }
-
-    // Insert a credits row for this user (assumes credits table has columns: user_id, amount, created_at)
-    const insertPayload = { user_id: userId, amount: delta, created_at: new Date().toISOString() };
-    const { data: insertData, error: insertErr } = await supabase.from("credits").insert(insertPayload).select().maybeSingle();
-
-    if (insertErr) {
-      console.error("adjustCredits insert error:", insertErr);
-      return res.status(500).json({ error: insertErr.message || insertErr });
-    }
-
-    // Recompute user's credits balance by summing amounts
-    let newBalance = 0;
+    // Try to determine actor id (best-effort)
+    let actorId = null;
     try {
-      const { data: creditRows, error: creditErr } = await supabase
-        .from("credits")
-        .select("amount")
-        .eq("user_id", userId);
-
-      if (creditErr) {
-        console.warn("adjustCredits: failed to fetch credit rows", creditErr);
-      } else if (creditRows && Array.isArray(creditRows)) {
-        newBalance = creditRows.reduce((acc, r) => acc + Number(r.amount || 0), 0);
-      }
+      const actor = await getUserFromBearer(auth);
+      actorId = actor?.id || null;
     } catch (e) {
-      console.warn("adjustCredits: credit aggregation error", e);
+      // ignore
     }
 
-    // Try to log admin action to admin_audit (non-fatal)
-    try {
-      // Try to find actor id from bearer token if helper exists
-      let actorId = null;
-      try {
-        const actor = await getUserFromBearer(auth);
-        actorId = actor?.id || null;
-      } catch (e) {
-        // ignore
-      }
+    // Call the DB function (RPC) that performs idempotent + atomic adjust
+    const rpcPayload = {
+      p_user_id: userId,
+      p_delta: delta,
+      p_reason: reason,
+      p_idempotency_key: idempotencyKey,
+      p_actor_id: actorId,
+    };
 
-      const auditPayload = {
-        actor_id: actorId,
-        action: "adjustCredits",
-        target_id: userId,
-        detail: JSON.stringify({ delta, reason, idempotencyKey }),
-        created_at: new Date().toISOString(),
-        idempotency_key: idempotencyKey || null,
-      };
+    // Note: Supabase maps JS keys to function parameter names; use the same names as in SQL function.
+    const { data, error } = await supabase.rpc("admin_adjust_credits", {
+      p_user_id: userId,
+      p_delta: delta,
+      p_reason: reason,
+      p_idempotency_key: idempotencyKey,
+      p_actor_id: actorId,
+    });
 
-      await supabase.from("admin_audit").insert(auditPayload);
-    } catch (e) {
-      // audit logging is best-effort; do not fail the request if audit table doesn't exist
-      console.warn("adjustCredits: failed to write audit row (non-fatal)", e);
+    if (error) {
+      console.error("adjustCredits RPC error:", error);
+      // If RPC failed due to unique constraint on idempotency (concurrency), try to read existing audit and return idempotent response
+      // But supabase.rpc should return the function's returned row in normal cases.
+      return res.status(500).json({ error: error.message || error });
     }
 
-    return res.status(200).json({ ok: true, credits_balance: newBalance, inserted: insertData || null });
+    // supabase.rpc returns an array-like result; take first row
+    const row = Array.isArray(data) ? data[0] : data;
+
+    // row fields: new_balance, audit_id, idempotent
+    const newBalance = row?.new_balance ?? null;
+    const auditId = row?.audit_id ?? null;
+    const idempotent = !!row?.idempotent;
+
+    return res.status(200).json({ ok: true, credits_balance: newBalance, audit_id: auditId, idempotent });
   } catch (err) {
     if (!res.headersSent) {
       console.error("adjustCredits handler error:", err);
