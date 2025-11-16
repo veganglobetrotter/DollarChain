@@ -10,57 +10,102 @@ export default async function handler(req, res) {
     const supabase = createSupabaseServerClient();
 
     // Parse query params
-    const limit = parseInt(req.query.limit) || 50;
-    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit || "50"))); // clamp sensible limits
+    const page = Math.max(1, parseInt(req.query.page || "1"));
     const offset = (page - 1) * limit;
-    const search = req.query.q?.toLowerCase() || null;
+    const search = req.query.q?.trim() || null;
     const sortParam = req.query.sort || "created_at.desc";
 
     let [sortField, sortOrder] = sortParam.split(".");
     sortField = sortField || "created_at";
     sortOrder = sortOrder === "asc" ? "asc" : "desc";
 
-    // Fetch profiles joined with auth.users to get provider and last_sign_in
-    let query = supabase
+    // Basic profiles select (page/range)
+    // Use exact count so caller can paginate properly
+    let baseQuery = supabase
       .from("profiles")
-      .select(`
-        id,
-        full_name,
-        phone,
-        is_super_admin,
-        metadata,
-        created_at,
-        auth_provider:auth.users!inner.provider,
-        last_sign_in:auth.users!inner.last_sign_in,
-        credits_balance:credits!inner.amount
-      `)
+      .select("id, full_name, phone, is_super_admin, metadata, created_at", { count: "exact" })
       .order(sortField, { ascending: sortOrder === "asc" })
       .range(offset, offset + limit - 1);
 
+    // Apply server-side search for name OR metadata->>email
     if (search) {
-      query = query.ilike("full_name", `%${search}%`).or(`metadata->>email.ilike.%${search}%`);
+      // supabase .or accepts a comma-separated list of conditions
+      // use ilike with %search% for case-insensitive partial match
+      const escaped = search.replace(/%/g, "\\%"); // minimal escape in case user types %
+      baseQuery = baseQuery.or(`full_name.ilike.%${escaped}%,metadata->>email.ilike.%${escaped}%`);
     }
 
-    const { data, error } = await query;
+    const { data: profiles, error: profilesError, count } = await baseQuery;
 
-    if (error) {
-      console.error("admin/users read error:", error);
-      return res.status(500).json({ error: error.message || error });
+    if (profilesError) {
+      console.error("admin/users read error (profiles):", profilesError);
+      return res.status(500).json({ error: profilesError.message || profilesError });
     }
 
-    const users = (data || []).map(u => ({
-      id: u.id,
-      full_name: u.full_name,
-      email: u.metadata?.email || null,
-      phone: u.phone || null,
-      is_super_admin: u.is_super_admin || false,
-      provider: u.auth_provider || null,
-      last_sign_in: u.last_sign_in || null,
-      created_at: u.created_at || null,
-      credits_balance: u.credits_balance || 0,
+    const ids = (profiles || []).map((p) => p.id).filter(Boolean);
+    let creditsMap = {};
+    let authMap = {};
+
+    // If we have ids, fetch credits aggregates and auth.users rows
+    if (ids.length > 0) {
+      // Aggregate credits per user_id (sum). If your credits table has different column names adjust below.
+      try {
+        const { data: creditRows, error: creditErr } = await supabase
+          .from("credits")
+          .select("user_id, amount")
+          .in("user_id", ids);
+
+        if (creditErr) {
+          // Not fatal — log and continue with zero balances
+          console.warn("admin/users: could not fetch credits rows:", creditErr);
+        } else if (creditRows) {
+          creditsMap = creditRows.reduce((acc, r) => {
+            const uid = r.user_id;
+            const amt = Number(r.amount || 0);
+            acc[uid] = (acc[uid] || 0) + amt;
+            return acc;
+          }, {});
+        }
+      } catch (e) {
+        console.warn("admin/users: credits aggregation error:", e);
+      }
+
+      // Fetch auth users for provider + last_sign_in if accessible
+      try {
+        const { data: authRows, error: authErr } = await supabase
+          .from("auth.users")
+          .select("id, provider, last_sign_in")
+          .in("id", ids);
+
+        if (authErr) {
+          // not fatal, log and continue
+          console.warn("admin/users: could not fetch auth.users:", authErr);
+        } else if (authRows) {
+          authMap = (authRows || []).reduce((acc, r) => {
+            acc[r.id] = { provider: r.provider || null, last_sign_in: r.last_sign_in || null };
+            return acc;
+          }, {});
+        }
+      } catch (e) {
+        console.warn("admin/users: auth.users query error:", e);
+      }
+    }
+
+    // Map profiles -> final user objects
+    const users = (profiles || []).map((p) => ({
+      id: p.id,
+      full_name: p.full_name || null,
+      email: p.metadata?.email || null,
+      phone: p.phone || p.metadata?.phone || null,
+      is_super_admin: !!p.is_super_admin,
+      provider: authMap[p.id]?.provider || null,
+      last_sign_in: authMap[p.id]?.last_sign_in || null,
+      created_at: p.created_at || null,
+      credits_balance: creditsMap[p.id] || 0,
     }));
 
-    return res.status(200).json({ users });
+    return res.status(200).json({ users, total: typeof count === "number" ? count : undefined });
   } catch (err) {
     if (!res.headersSent) {
       console.error("admin/users handler error:", err);
