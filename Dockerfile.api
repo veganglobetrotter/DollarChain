@@ -1,0 +1,16 @@
+# Dockerfile.api
+FROM node:20-bullseye AS base
+WORKDIR /app
+COPY package*.json ./
+# install deps
+RUN npm ci --production --legacy-peer-deps
+
+# copy source
+COPY . .
+
+# Expose API port
+ENV API_PORT=3001
+EXPOSE 3001
+
+# Start the API adapter
+CMD ["node", "server/index.js"]

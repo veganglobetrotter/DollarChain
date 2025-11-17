@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: dollarchain_api:latest
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - API_PORT=3001
+      # Use env_file for secrets; create .env.production on server
+    env_file:
+      - .env.production
+    ports:
+      - "3001:3001"
+    networks:
+      - webnet
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    image: dollarchain_web:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - webnet
+    depends_on:
+      - api
+
+networks:
+  webnet:
+    driver: bridge
