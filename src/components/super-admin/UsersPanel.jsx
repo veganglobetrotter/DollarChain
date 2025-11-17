@@ -91,6 +91,19 @@ export default function UsersPanel({ users = [], loading = false, pageSize = 25 
     }
   }
 
+  // generate an idempotency key: use crypto.randomUUID if available, fallback to a reasonably unique string
+  function generateIdempotencyKey() {
+    try {
+      if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+        return crypto.randomUUID();
+      }
+    } catch (e) {
+      // ignore
+    }
+    // fallback: timestamp + random
+    return `key_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e9).toString(36)}`;
+  }
+
   async function adjustCredits(userId) {
     setError(null);
     const deltaRaw = window.prompt("Enter credit delta (positive to add, negative to subtract):\nExample: 10  OR -5");
@@ -103,13 +116,17 @@ export default function UsersPanel({ users = [], loading = false, pageSize = 25 
     const reason = window.prompt("Reason for adjustment (short):", "Admin adjustment");
     if (reason === null) return;
 
+    // generate idempotency key for this adjustment so retries won't double-apply
+    const idempotencyKey = generateIdempotencyKey();
+    console.log("[UsersPanel] adjustCredits idempotencyKey:", idempotencyKey);
+
     setBusyUserId(userId);
     try {
       const authHdr = await getAuthHeader();
       const res = await fetch(`/api/admin/users/${userId}/adjustCredits`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(authHdr || {}) },
-        body: JSON.stringify({ delta, reason }),
+        body: JSON.stringify({ delta, reason, idempotencyKey }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
