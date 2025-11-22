@@ -61,7 +61,7 @@ jobs:
         run: |
           IMAGE_TAG=${{ steps.set-tag.outputs.image_tag }}
           IMAGE_FULL="${{ env.IMAGE_NAME }}:${{ github.sha::8 }}"
-          ssh -o StrictHostKeyChecking=yes -p "${{ secrets.ECS_SSH_PORT || '22' }}" "${{ secrets.ECS_SSH_USER }}"@"${{ secrets.ECS_SSH_HOST }}" <<'SSH_EOF'
+          ssh -o StrictHostKeyChecking=yes "${{ secrets.ECS_SSH_USER }}"@"${{ secrets.ECS_SSH_HOST }}" <<'SSH_EOF'
             set -e
             docker pull $IMAGE_FULL || true
             docker stop dollarchain-backend || true
