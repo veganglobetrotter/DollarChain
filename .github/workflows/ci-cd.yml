@@ -60,7 +60,8 @@ jobs:
       - name: Pull image & restart container on ECS
         run: |
           IMAGE_TAG=${{ steps.set-tag.outputs.image_tag }}
-          IMAGE_FULL="${{ env.IMAGE_NAME }}:${{ github.sha::8 }}"
+          IMAGE_TAG=${{ steps.set-tag.outputs.image_tag }}
+          IMAGE_FULL="${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image_tag }}"
           ssh -o StrictHostKeyChecking=yes "${{ secrets.ECS_SSH_USER }}"@"${{ secrets.ECS_SSH_HOST }}" <<'SSH_EOF'
             set -e
             docker pull $IMAGE_FULL || true
