@@ -20,7 +20,8 @@ jobs:
 
       - name: Set image tag
         id: set-tag
-        run: echo "::set-output name=image_tag::${GITHUB_SHA::8}"
+        # use the modern GITHUB_OUTPUT mechanism (avoid deprecated ::set-output)
+        run: echo "image_tag=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
